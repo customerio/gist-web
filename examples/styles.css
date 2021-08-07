@@ -1,0 +1,40 @@
+html, body {
+  padding: 0px;
+  margin: 0px;
+  font-family: Sans-Serif;
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.row {
+  margin: 0px 16px;
+  display: flex;
+}
+
+h1 {
+  font-size: 34px;
+  line-height: 1.5;
+}
+
+.button {
+  font-size: 15px;
+  font-weight: bold;
+  background-color: #f77f00;
+  color: #fff;
+  border-radius: 10px;
+  min-width: 100px;
+  padding: 10px;
+  font-style: normal;
+  text-decoration: none;
+  margin-right: 16px;
+}
+
+#banner {
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+}
+
+#banner.gist-visible {
+  opacity: 1;
+}

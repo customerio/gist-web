@@ -1,0 +1,44 @@
+{
+  "name": "@gistproduct/web",
+  "version": "2.1.0",
+  "description": "Build beautiful in-app flows with no code and deliver them instantly to your app.",
+  "private": false,
+  "scripts": {
+    "start": "npm-run-all --parallel watch:server watch:build",
+    "build:prod": "webpack -p --mode=production -o dist/gist.min.js",
+    "watch:build": "webpack --watch --progress --mode=development",
+    "watch:server": "http-server"
+  },
+  "author": "Bourbon Ltd",
+  "license": "SEE LICENSE IN LICENSE",
+  "devDependencies": {
+    "html-loader": "^1.1.0",
+    "http-server": "^0.12.3",
+    "npm-run-all": "^4.1.5",
+    "webpack": "^4.44.1",
+    "webpack-cli": "^3.3.12"
+  },
+  "dependencies": {
+    "axios": "^0.21.1",
+    "js-cookie": "^3.0.0",
+    "uuid": "^8.3.2"
+  },
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@gitlab.com/bourbonltd/gist-web.git"
+  },
+  "keywords": [
+    "gist",
+    "in-app",
+    "messages",
+    "product",
+    "messaging",
+    "in-product",
+    "gist.build"
+  ],
+  "bugs": {
+    "url": "https://gitlab.com/bourbonltd/gist-web/issues"
+  },
+  "homepage": "https://gitlab.com/bourbonltd/gist-web#readme"
+}

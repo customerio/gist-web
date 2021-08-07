@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Gist for Web</title>
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <meta charset="utf-8" />
+    <link href="styles.css" rel="stylesheet">
+  </head>
+  <body>
+    <div id="banner"></div>
+    <div class="row header">
+      <h1>Gist for Web</h1>
+    </div>
+    <div class="row examples">
+      <a href="#" class="button" onClick="showSimpleMessage()">Show Simple Message</a>
+      <a href="#" class="button" onClick="showComplexMessage()">Show Complex Message</a>
+      <a href="#" class="button" onClick="embedBanner()">Embed Banner</a>
+    </div>
+    <div class="row docs">
+      <p>More information can be found on our <a target="_blank" href="https://docs.gist.build">docs</a>, if you have any question you can email us at <a target="_blank" href="mailto:support@gist.build">support@gist.build</a></p>
+    </div>
+    <script src="../dist/gist.js"></script>
+    <script type="text/javascript">
+      /*
+        Dev Setup Options
+        { organizationId: "c6ff92b9-5607-4655-9265-f2588f7e3b58", useGuestSession: true, env: "local", logging: true }
+      */
+      Gist.setup({ organizationId: "c6ff92b9-5607-4655-9265-f2588f7e3b58", logging: true });
+      Gist.subscribeToTopic("announcements");
+      Gist.setUserToken("BCD123");
+      Gist.setCurrentRoute("home");
+
+      Gist.events.on("messageShown", message => {
+        console.log(`onMessageShown: ${message.messageId} with instanceId: ${message.instanceId}`);
+      });
+
+      Gist.events.on("messageDismissed", message => {
+        console.log(`onMessageDismissed: ${message.messageId} with instanceId: ${message.instanceId}`);
+      });
+
+      Gist.events.on("messageError", message => {
+        console.log(`onMessageError: ${message.messageId} with instanceId: ${message.instanceId}`);
+      });
+
+      Gist.events.on("messageAction", params => {
+        console.log(`onMessageAction, Action: ${params.action} on route: ${params.message.currentRoute} with instanceId: ${params.message.instanceId}`);
+      });
+
+      function showSimpleMessage() {
+        Gist.showMessage({messageId: 'welcome', position: 'center'});
+      }
+
+      function showComplexMessage() {
+        Gist.showMessage(
+          {
+            messageId: 'artists',
+            position: 'center',
+            properties: { 
+              gist: { 'scale': true },
+              title: 'Top Artists',
+              list: [ { name: 'Beatles', discography: [ 'Please Please Me', 'With The Beatles', 'A Hard Day’s Night', 'Beatles For Sale', 'Help!', 'Rubber Soul', 'Revolver', 'Sgt Pepper’s Lonely Hearts Club Band', 'The Beatles', 'Yellow Submarine', 'Abbey Road', 'Let It Be' ] }, { name: 'The Doors', discography: ['The Doors', 'Strange Days', 'Waiting for the Sun', 'The Soft Parade', 'Absolutely Live', 'Morrison Hotel', 'L.A. Woman', 'Other Voices', 'Full Circle', 'An American Prayer'] }]
+            }
+          });
+      }
+
+      function embedBanner() {
+        // Loads example-banner message in element id "banner".
+        Gist.embedMessage({ messageId: "example-banner" }, "banner");
+      }
+    </script>
+  </body>
+</html>
