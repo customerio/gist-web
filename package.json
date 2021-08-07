@@ -1,6 +1,6 @@
 {
   "name": "@gistproduct/web",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Build beautiful in-app flows with no code and deliver them instantly to your app.",
   "private": false,
   "scripts": {
@@ -40,5 +40,5 @@
   "bugs": {
     "url": "https://gitlab.com/bourbonltd/gist-web/issues"
   },
-  "homepage": "https://gitlab.com/bourbonltd/gist-web#readme"
+  "homepage": "https://docs.gist.build/libraries/web"
 }
