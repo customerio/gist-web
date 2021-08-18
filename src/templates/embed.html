@@ -1,5 +1,25 @@
 <div id="gist-embed">
   <style>
+    #gist-floating-top-banner, #gist-floating-top-left-banner, #gist-floating-top-right-banner {
+      position: fixed;
+      top: 0px;
+      z-index: 1000000;
+    }
+    #gist-floating-bottom-banner, #gist-floating-bottom-left-banner, #gist-floating-bottom-right-banner {
+      position: fixed;
+      bottom: 0px;
+      z-index: 1000000;
+    }
+    #gist-bottom-banner, #gist-bottom-banner, #gist-floating-top-banner, #gist-floating-bottom-banner {
+      width: 100%;
+    }
+    #gist-floating-top-left-banner, #gist-floating-top-right-banner, #gist-floating-bottom-left-banner, #gist-floating-bottom-right-banner {
+      width: 40%;
+      max-width: 414px;
+    }
+    #gist-floating-top-right-banner, #gist-floating-bottom-right-banner {
+      right: 0px;
+    }
     #gist-embed {
       position: relative;
       height: 100%;
@@ -14,6 +34,11 @@
       height: 100%;
       width: 100%;
       border: none;
+    }
+    @media (max-width: 800px) {
+      #gist-floating-top-left-banner, #gist-floating-top-right-banner, #gist-floating-bottom-left-banner, #gist-floating-bottom-right-banner {
+        width: 100%;
+      }
     }
   </style>
   <div id="gist-embed-container">
