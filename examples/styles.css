@@ -12,22 +12,31 @@ html, body {
   display: flex;
 }
 
+.row.examples {
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
 h1 {
   font-size: 34px;
   line-height: 1.5;
 }
 
 .button {
+  display: flex;
   font-size: 15px;
   font-weight: bold;
-  background-color: #f77f00;
+  background-color: #e76f51;
   color: #fff;
   border-radius: 10px;
   min-width: 100px;
   padding: 10px;
   font-style: normal;
   text-decoration: none;
-  margin-right: 16px;
+  height: 60px;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
 }
 
 #banner {
@@ -37,4 +46,10 @@ h1 {
 
 #banner.gist-visible {
   opacity: 1;
+}
+
+@media (max-width: 800px) {
+  .button {
+    width: 100%;
+  }
 }

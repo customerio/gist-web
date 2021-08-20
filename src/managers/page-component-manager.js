@@ -1,13 +1,13 @@
 import { log } from "../utilities/log";
 
-export var positions = ["gist-top-banner", "gist-floating-top-banner", "gist-bottom-banner", "gist-floating-bottom-banner", "gist-floating-bottom-left-banner", "gist-floating-bottom-right-banner", "gist-floating-top-left-banner", "gist-floating-top-right-banner"];
+export var positions = ["x-gist-top", "x-gist-floating-top", "x-gist-bottom", "x-gist-floating-bottom", "x-gist-floating-bottom-left", "x-gist-floating-bottom-right", "x-gist-floating-top-left", "x-gist-floating-top-right"];
 
 export function addPageElement(position) {
   const element = document.createElement("div");
   element.id = position
 
   switch (position) {
-    case "gist-top-banner":
+    case "x-gist-top":
       document.body.insertBefore(element, document.body.firstChild);
       break;
     default:
