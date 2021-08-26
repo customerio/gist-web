@@ -16,6 +16,7 @@ import {
   elementHasHeight
 } from "./message-component-manager";
 import { resolveMessageProperies } from "./gist-properties-manager";
+import { positions, addPageElement } from "./page-component-manager";
 
 export function showMessage(message) {
   if (Gist.isDocumentVisible) {
@@ -105,6 +106,7 @@ function loadMessageComponent(message, elementId = null) {
   window.addEventListener('touchstart', {});
 
   if (elementId) {
+    if (positions.includes(elementId)) { addPageElement(elementId); }
     loadEmbedComponent(elementId, url);
   } else {
     loadOverlayComponent(url, message.instanceId);

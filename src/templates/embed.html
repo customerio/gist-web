@@ -1,5 +1,25 @@
 <div id="gist-embed">
   <style>
+    #x-gist-floating-top, #x-gist-floating-top-left, #x-gist-floating-top-right {
+      position: fixed;
+      top: 0px;
+      z-index: 1000000;
+    }
+    #x-gist-floating-bottom, #x-gist-floating-bottom-left, #x-gist-floating-bottom-right {
+      position: fixed;
+      bottom: 0px;
+      z-index: 1000000;
+    }
+    #x-gist-bottom, #x-gist-bottom, #x-gist-floating-top, #x-gist-floating-bottom {
+      width: 100%;
+    }
+    #x-gist-floating-top-left, #x-gist-floating-top-right, #x-gist-floating-bottom-left, #x-gist-floating-bottom-right {
+      width: 40%;
+      max-width: 414px;
+    }
+    #x-gist-floating-top-right, #x-gist-floating-bottom-right {
+      right: 0px;
+    }
     #gist-embed {
       position: relative;
       height: 100%;
@@ -14,6 +34,11 @@
       height: 100%;
       width: 100%;
       border: none;
+    }
+    @media (max-width: 800px) {
+      #x-gist-floating-top-left, #x-gist-floating-top-right, #x-gist-floating-bottom-left, #x-gist-floating-bottom-right {
+        width: 100%;
+      }
     }
   </style>
   <div id="gist-embed-container">
