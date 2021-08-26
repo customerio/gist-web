@@ -13,8 +13,10 @@
     </div>
     <div class="row examples">
       <a href="#" class="button" onClick="showSimpleMessage()">Show Simple Message</a>
+      <a href="#" class="button" onClick="showMessageWithProperties()">Show Message With Properties</a>
       <a href="#" class="button" onClick="showComplexMessage()">Show Complex Message</a>
       <a href="#" class="button" onClick="embedBanner()">Embed Banner</a>
+      <a href="#" class="button" onClick="embedFloatingMessage()">Embed Floating Message</a>
     </div>
     <div class="row docs">
       <p>More information can be found on our <a target="_blank" href="https://docs.gist.build">docs</a>, if you have any question you can email us at <a target="_blank" href="mailto:support@gist.build">support@gist.build</a></p>
@@ -46,11 +48,15 @@
         console.log(`onMessageAction, Action: ${params.action} on route: ${params.message.currentRoute} with instanceId: ${params.message.instanceId}`);
       });
 
+      function showComplexMessage() {
+        Gist.showMessage({messageId: 'version-2-0', position: 'center'});
+      }
+
       function showSimpleMessage() {
         Gist.showMessage({messageId: 'welcome', position: 'center'});
       }
 
-      function showComplexMessage() {
+      function showMessageWithProperties() {
         Gist.showMessage(
           {
             messageId: 'artists',
@@ -66,6 +72,12 @@
       function embedBanner() {
         // Loads example-banner message in element id "banner".
         Gist.embedMessage({ messageId: "example-banner" }, "banner");
+      }
+
+      function embedFloatingMessage() {
+        // Loads example-notice message in a Gist preset position.
+        // Available positions are: "x-gist-top", "x-gist-floating-top", "x-gist-bottom", "x-gist-floating-bottom", "x-gist-floating-bottom-left", "x-gist-floating-bottom-right", "x-gist-floating-top-left", "x-gist-floating-top-right".
+        Gist.embedMessage({ messageId: "example-notice" }, "x-gist-floating-bottom-right");
       }
     </script>
   </body>
