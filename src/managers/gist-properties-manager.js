@@ -6,8 +6,12 @@ export function resolveMessageProperies(message) {
     var hasRouteRule = false;
     var hasPosition = false;
     var shouldScale = false;
+    var campaignId = null;
 
     if (message.properties && message.properties.gist) {
+        if (message.properties.gist.campaignId) {
+            campaignId = message.properties.gist.campaignId;
+        }
         if (message.properties.gist.elementId) {
             elementId = message.properties.gist.elementId;
             isEmbedded = true;
@@ -31,6 +35,7 @@ export function resolveMessageProperies(message) {
         routeRule: routeRule,
         position: position,
         hasPosition: hasPosition,
-        shouldScale: shouldScale
+        shouldScale: shouldScale,
+        campaignId: campaignId
     }
 }
