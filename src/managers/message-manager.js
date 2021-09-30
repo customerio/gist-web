@@ -201,7 +201,11 @@ function handleGistEvents(e) {
             case "loadPage":
               var url = url.searchParams.get('url');
               if (url) {
-                window.location.href = url;
+                if (url.startsWith("https://") || url.startsWith("http://") || url.startsWith("/")) {
+                  window.location.href = url;
+                } else {
+                  window.location.href = window.location + url;
+                }
               }
               break;
           }
