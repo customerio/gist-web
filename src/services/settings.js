@@ -7,7 +7,7 @@ export const settings = {
   GIST_QUEUE_API_ENDPOINT: {
     "prod": "https://queue.api.gist.build",
     "dev": "https://queue.api.dev.gist.build",
-    "local": "http://api.local.gist.build:86"
+    "local": "http://api.local.gist.build:5006"
   },
   GIST_ANALYTICS_API_ENDPOINT: {
     "prod": "https://analytics.api.gist.build",
