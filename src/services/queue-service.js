@@ -8,3 +8,12 @@ export async function getUserQueue(topics = []) {
     return error.response;
   }
 }
+
+export async function getUserSettings() {
+  try {
+    var response = await NetworkInstance().get(`/api/v1/settings`);
+    return response;
+  } catch (error) {
+    return error.response;
+  }
+}

@@ -11,7 +11,8 @@ export default class {
       useGuestSession: config.useGuestSession === undefined ? false : config.useGuestSession,
       organizationId: config.organizationId,
       env: config.env === undefined ? "prod" : config.env,
-      logging: config.logging === undefined ? false : config.logging
+      logging: config.logging === undefined ? false : config.logging,
+      experiments: config.experiments === undefined ? false : config.experiments
     }
     this.currentMessages = [];
     this.overlayInstanceId = null;

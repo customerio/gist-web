@@ -1,7 +1,7 @@
 import Gist from '../gist';
 import { log } from "../utilities/log";
 import { getUserToken } from "./user-manager";
-import { getUserQueue } from "../services/queue-service";
+import { getUserQueue, getUserSettings } from "../services/queue-service";
 import { showMessage, embedMessage } from "./message-manager";
 import { resolveMessageProperies } from "./gist-properties-manager";
 
@@ -15,9 +15,51 @@ export async function startQueueListener() {
       log("Queue watcher started");
       pollingSetup = true;
       poll(() => new Promise(() => pollMessageQueue()), 5000);
+
+      if (Gist.config.experiments) {
+        var response = await getUserSettings();
+        if (response.status === 200) {
+          var url = `https://realtime.ably.io/event-stream?channels=${response.data.userChannel}&v=1.2&key=${response.data.apiKey}`;
+          var eventSource = new EventSource(url);
+
+          log(`Listening on channel: ${response.data.userChannel}`)
+          eventSource.onmessage = function(event) {
+            var message = JSON.parse(event.data);
+            if (message.name === "queue") {
+              var queueMessage = JSON.parse(message.data);
+              handleMessage(queueMessage);
+            }
+          };
+        }
+      }
     } else {
       log(`User token not setup, queue not started.`);
     }
+  }
+}
+
+function handleMessage(message) {
+  var messageProperties = resolveMessageProperies(message);
+  if (messageProperties.hasRouteRule) {
+    var currentUrl = Gist.currentRoute
+    if (currentUrl == null) {
+      currentUrl = new URL(window.location.href).pathname;
+    }
+    var routeRule = messageProperties.routeRule;
+    log(`Verifying route against rule: ${routeRule}`);
+    var urlTester = new RegExp(routeRule);
+    if (!urlTester.test(currentUrl)) {
+      log(`Route ${currentUrl} does not match rule.`);
+      return;
+    }
+  }
+  if (messageProperties.hasPosition) {
+    message.position = messageProperties.position;
+  }
+  if (messageProperties.isEmbedded) {
+    embedMessage(message, messageProperties.elementId);
+  } else {
+    showMessage(message);
   }
 }
 
@@ -28,28 +70,7 @@ async function pollMessageQueue() {
       log(`Message queue checked for user ${getUserToken()}, ${response.data.length} messages found.`);
       if (response.data.length > 0) {
         response.data.forEach(message => {
-          var messageProperties = resolveMessageProperies(message);
-          if (messageProperties.hasRouteRule) {
-            var currentUrl = Gist.currentRoute
-            if (currentUrl == null) {
-              currentUrl = new URL(window.location.href).pathname;
-            }
-            var routeRule = messageProperties.routeRule;
-            log(`Verifying route against rule: ${routeRule}`);
-            var urlTester = new RegExp(routeRule);
-            if (!urlTester.test(currentUrl)) {
-              log(`Route ${currentUrl} does not match rule.`);
-              return;
-            }
-          }
-          if (messageProperties.hasPosition) {
-            message.position = messageProperties.position;
-          }
-          if (messageProperties.isEmbedded) {
-            embedMessage(message, messageProperties.elementId);
-          } else {
-            showMessage(message);
-          }
+          handleMessage(message);
         });
       } else {
         log(`No messages for user token.`);    
