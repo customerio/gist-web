@@ -4,7 +4,6 @@ import { getUserToken } from "./user-manager";
 import { getUserQueue, getUserSettings } from "../services/queue-service";
 import { showMessage, embedMessage } from "./message-manager";
 import { resolveMessageProperies } from "./gist-properties-manager";
-import * as Ably from 'ably/promises';
 
 var sleep = time => new Promise(resolve => setTimeout(resolve, time))
 var poll = (promiseFn, time) => promiseFn().then(sleep(time).then(() => poll(promiseFn, time)));
@@ -20,15 +19,19 @@ export async function startQueueListener() {
       if (Gist.config.experiments) {
         var response = await getUserSettings();
         if (response.status === 200) {
-          var ably = new Ably.Realtime(response.data.apiKey);
+          var url = `https://realtime.ably.io/event-stream?channels=${response.data.userChannel}&v=1.2&key=${response.data.apiKey}`;
+          var eventSource = new EventSource(url);
+
           log(`Listening on channel: ${response.data.userChannel}`)
-          var channel = ably.channels.get(response.data.userChannel);
-          channel.subscribe('queue', function(message) {
-            handleMessage(message.data);
-          });
+          eventSource.onmessage = function(event) {
+            var message = JSON.parse(event.data);
+            if (message.name === "queue") {
+              var queueMessage = JSON.parse(message.data);
+              handleMessage(queueMessage);
+            }
+          };
         }
       }
-
     } else {
       log(`User token not setup, queue not started.`);
     }
