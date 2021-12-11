@@ -4,6 +4,7 @@ import { getUserToken } from "./user-manager";
 import { getUserQueue, getUserSettings, cancelPendingGetUserSettingsRequests } from "../services/queue-service";
 import { showMessage, embedMessage } from "./message-manager";
 import { resolveMessageProperies } from "./gist-properties-manager";
+import { preloadRenderer } from "./message-component-manager";
 
 var sleep = time => new Promise(resolve => setTimeout(resolve, time))
 var poll = (promiseFn, time) => promiseFn().then(sleep(time).then(() => poll(promiseFn, time)));
@@ -12,6 +13,9 @@ var eventSource = null;
 
 export async function startQueueListener() {
   if (!pollingSetup) {
+    if (Gist.config.experiments) {
+      preloadRenderer();
+    }
     if (getUserToken() !== undefined) {
       log("Queue watcher started");
       pollingSetup = true;
@@ -24,9 +28,8 @@ export async function startQueueListener() {
 }
 
 async function startSSEListener() {
-  closeSSEConnection();
+  resetSSEConnection();
   if (Gist.config.experiments && getUserToken() !== undefined) {
-    cancelPendingGetUserSettingsRequests();
     var response = await getUserSettings();
     if (response != undefined && response.status === 200) {
       log(`Listening to SSE on endpoint: ${response.data.sseEndpoint}`);
@@ -44,7 +47,8 @@ async function startSSEListener() {
   }
 }
 
-function closeSSEConnection() {
+function resetSSEConnection() {
+  cancelPendingGetUserSettingsRequests();
   if (eventSource != null) {
     log("Closing EventSource connection");
     eventSource.close();
