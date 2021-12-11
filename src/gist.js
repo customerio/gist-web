@@ -11,7 +11,8 @@ export default class {
       useGuestSession: config.useGuestSession === undefined ? false : config.useGuestSession,
       organizationId: config.organizationId,
       env: config.env === undefined ? "prod" : config.env,
-      logging: config.logging === undefined ? false : config.logging
+      logging: config.logging === undefined ? false : config.logging,
+      experiments: config.experiments === undefined ? false : config.experiments
     }
     this.currentMessages = [];
     this.overlayInstanceId = null;
@@ -24,7 +25,7 @@ export default class {
     if (this.config.useGuestSession) {
       useGuestSession();
     }
-    startQueueListener();
+    await startQueueListener();
 
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") {
@@ -40,20 +41,17 @@ export default class {
     log(`Current route set to: ${route}`);
   }
 
-  static setUserToken(userToken, expiryDate) {
-    if (getUserToken() === undefined) {
-      setUserToken(userToken, expiryDate)
-      startQueueListener();
-    } else {
-      setUserToken(userToken, expiryDate)
-    }
+  static async setUserToken(userToken, expiryDate) {
+    setUserToken(userToken, expiryDate);
+    await startQueueListener();
   }
 
-  static clearUserToken() {
+  static async clearUserToken() {
     clearUserToken();
     if (this.config.useGuestSession) {
       useGuestSession();
     }
+    await startQueueListener();
   }
 
   static dismissMessage(instanceId) {

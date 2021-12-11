@@ -1,4 +1,12 @@
 import { log } from "../utilities/log";
+import { settings } from "../services/settings";
+
+export function preloadRenderer() {
+  var iframeElement = document.createElement("iframe");
+  iframeElement.setAttribute("src", `${settings.GIST_VIEW_ENDPOINT[Gist.config.env]}/index.html`);
+  iframeElement.style.display = "none";
+  document.body.appendChild(iframeElement);
+}
 
 export function loadEmbedComponent(elementId, url) {
   var element = document.querySelector(getElementId(elementId));
