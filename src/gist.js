@@ -1,7 +1,7 @@
 import EventEmitter from "./utilities/event-emitter";
 import { log } from "./utilities/log";
-import { startQueueListener } from "./managers/queue-manager";
-import { setUserToken, clearUserToken, getUserToken, useGuestSession } from "./managers/user-manager";
+import { startQueueListener, checkMessageQueue } from "./managers/queue-manager";
+import { setUserToken, clearUserToken, useGuestSession } from "./managers/user-manager";
 import { showMessage, embedMessage, hideMessage } from "./managers/message-manager";
 
 export default class {
@@ -36,9 +36,10 @@ export default class {
     }, false);
   }
 
-  static setCurrentRoute(route) {
+  static async setCurrentRoute(route) {
     this.currentRoute = route;
     log(`Current route set to: ${route}`);
+    await checkMessageQueue();
   }
 
   static async setUserToken(userToken, expiryDate) {
@@ -68,9 +69,10 @@ export default class {
     return message ? message.instanceId : null;
   }
 
-  static subscribeToTopic(topic) {
+  static async subscribeToTopic(topic) {
     if (this.topics.indexOf(topic) == -1) {
       this.topics.push(topic);
+      await checkMessageQueue();
     }
   }
 

@@ -13,23 +13,27 @@ var eventSource = null;
 
 export async function startQueueListener() {
   if (!pollingSetup) {
-    if (Gist.config.experiments) {
-      preloadRenderer();
-    }
+    preloadRenderer();
     if (getUserToken() !== undefined) {
       log("Queue watcher started");
       pollingSetup = true;
-      poll(() => new Promise(() => pollMessageQueue()), 5000);
+      poll(() => new Promise(() => pollMessageQueue()), 60000);
     } else {
       log(`User token not setup, queue not started.`);
     }
+  } else {
+    await checkMessageQueue();
   }
   await startSSEListener();
 }
 
+export async function checkMessageQueue() {
+  await pollMessageQueue();
+}
+
 async function startSSEListener() {
   resetSSEConnection();
-  if (Gist.config.experiments && getUserToken() !== undefined) {
+  if (getUserToken() !== undefined) {
     var response = await getUserSettings();
     if (response != undefined && response.status === 200) {
       log(`Listening to SSE on endpoint: ${response.data.sseEndpoint}`);
