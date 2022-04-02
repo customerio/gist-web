@@ -1,6 +1,6 @@
 import Gist from '../gist';
 import { log } from "../utilities/log";
-import { getUserToken } from "./user-manager";
+import { getUserToken, isUsingGuestUserToken } from "./user-manager";
 import { getUserQueue, getUserSettings, cancelPendingGetUserSettingsRequests } from "../services/queue-service";
 import { showMessage, embedMessage } from "./message-manager";
 import { resolveMessageProperies } from "./gist-properties-manager";
@@ -24,7 +24,13 @@ export async function startQueueListener() {
   } else {
     await checkMessageQueue();
   }
-  await startSSEListener();
+
+  if (isUsingGuestUserToken()) {
+    // Closing SSE connection when token is cleared and Guest session is active
+    resetSSEConnection();
+  } else {
+    await startSSEListener();
+  }
 }
 
 export async function checkMessageQueue() {
