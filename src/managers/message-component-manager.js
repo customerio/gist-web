@@ -1,5 +1,6 @@
 import { log } from "../utilities/log";
 import { settings } from "../services/settings";
+import Gist from '../gist';
 
 export function preloadRenderer() {
   var iframeElement = document.createElement("iframe");
