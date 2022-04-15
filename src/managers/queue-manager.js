@@ -1,5 +1,6 @@
 import Gist from '../gist';
 import { log } from "../utilities/log";
+import ReconnectingEventSource from '../utilities/reconnecting-eventsource';
 import { getUserToken, isUsingGuestUserToken } from "./user-manager";
 import { getUserQueue, getUserSettings, cancelPendingGetUserSettingsRequests } from "../services/queue-service";
 import { showMessage, embedMessage } from "./message-manager";
@@ -43,7 +44,7 @@ async function startSSEListener() {
     var response = await getUserSettings();
     if (response != undefined && response.status === 200) {
       log(`Listening to SSE on endpoint: ${response.data.sseEndpoint}`);
-      eventSource = new EventSource(response.data.sseEndpoint);
+      eventSource = new ReconnectingEventSource(response.data.sseEndpoint);
       eventSource.onmessage = function(event) {
         var message = JSON.parse(event.data);
         if (message.name === "queue") {
