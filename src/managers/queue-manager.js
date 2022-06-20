@@ -11,6 +11,7 @@ var sleep = time => new Promise(resolve => setTimeout(resolve, time))
 var poll = (promiseFn, time) => promiseFn().then(sleep(time).then(() => poll(promiseFn, time)));
 var pollingSetup = false;
 var eventSource = null;
+var messages = [];
 
 export async function startQueueListener() {
   if (!pollingSetup) {
@@ -23,7 +24,7 @@ export async function startQueueListener() {
       log(`User token not setup, queue not started.`);
     }
   } else {
-    await checkMessageQueue();
+    checkMessageQueue();
   }
 
   if (isUsingGuestUserToken()) {
@@ -34,8 +35,15 @@ export async function startQueueListener() {
   }
 }
 
-export async function checkMessageQueue() {
-  await pollMessageQueue();
+export function checkMessageQueue() {
+  log(`Messages in local queue: ${messages.length}`);
+  var keptMessages = [];
+  messages.forEach(message => {
+    if (!handleMessage(message)) {
+      keptMessages.push(message);
+    }
+  });
+  messages = keptMessages;
 }
 
 async function startSSEListener() {
@@ -49,7 +57,8 @@ async function startSSEListener() {
         var message = JSON.parse(event.data);
         if (message.name === "queue") {
           var queueMessage = JSON.parse(message.data);
-          handleMessage(queueMessage);
+          messages.push(queueMessage);
+          checkMessageQueue();
         }
       };
     }
@@ -78,16 +87,16 @@ function handleMessage(message) {
     var urlTester = new RegExp(routeRule);
     if (!urlTester.test(currentUrl)) {
       log(`Route ${currentUrl} does not match rule.`);
-      return;
+      return false;
     }
   }
   if (messageProperties.hasPosition) {
     message.position = messageProperties.position;
   }
   if (messageProperties.isEmbedded) {
-    embedMessage(message, messageProperties.elementId);
+    return embedMessage(message, messageProperties.elementId);
   } else {
-    showMessage(message);
+    return showMessage(message);
   }
 }
 
@@ -97,9 +106,8 @@ async function pollMessageQueue() {
     if (response.status === 200 || response.status === 204) {
       log(`Message queue checked for user ${getUserToken()}, ${response.data.length} messages found.`);
       if (response.data.length > 0) {
-        response.data.forEach(message => {
-          handleMessage(message);
-        });
+        messages = response.data;
+        checkMessageQueue();
       } else {
         log(`No messages for user token.`);    
       }

@@ -17,6 +17,7 @@ import {
 } from "./message-component-manager";
 import { resolveMessageProperies } from "./gist-properties-manager";
 import { positions, addPageElement } from "./page-component-manager";
+import { checkMessageQueue } from "./queue-manager";
 
 export function showMessage(message) {
   if (Gist.isDocumentVisible) {
@@ -37,6 +38,7 @@ export function showMessage(message) {
     }
   } else {
     log("Document hidden, not showing message now.");
+    return null;
   }
 }
 
@@ -53,6 +55,7 @@ export function embedMessage(message, elementId) {
     return message;
   } else {
     log("Document hidden, not showing message now.");
+    return null;
   }
 }
 
@@ -187,6 +190,7 @@ function handleGistEvents(e) {
             case "close":
               hideMessage(currentInstanceId);
               shouldLogEvent = false;
+              checkMessageQueue();
               break;
             case "showMessage":
               var messageId = url.searchParams.get('messageId');

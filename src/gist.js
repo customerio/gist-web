@@ -32,6 +32,7 @@ export default class {
         this.isDocumentVisible = false;
       } else  {
         this.isDocumentVisible = true;
+        checkMessageQueue();
       }
     }, false);
   }
@@ -39,7 +40,7 @@ export default class {
   static async setCurrentRoute(route) {
     this.currentRoute = route;
     log(`Current route set to: ${route}`);
-    await checkMessageQueue();
+    checkMessageQueue();
   }
 
   static async setUserToken(userToken, expiryDate) {
@@ -72,7 +73,7 @@ export default class {
   static async subscribeToTopic(topic) {
     if (this.topics.indexOf(topic) == -1) {
       this.topics.push(topic);
-      await checkMessageQueue();
+      checkMessageQueue();
     }
   }
 
