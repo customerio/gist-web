@@ -21,7 +21,6 @@
   },
   "dependencies": {
     "axios": "^0.21.1",
-    "js-cookie": "^3.0.0",
     "uuid": "^8.3.2"
   },
   "repository": {

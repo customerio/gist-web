@@ -16,7 +16,7 @@ var messages = [];
 export async function startQueueListener() {
   if (!pollingSetup) {
     preloadRenderer();
-    if (getUserToken() !== undefined) {
+    if (getUserToken()) {
       log("Queue watcher started");
       pollingSetup = true;
       poll(() => new Promise(() => pollMessageQueue()), 60000);
@@ -48,7 +48,7 @@ export function checkMessageQueue() {
 
 async function startSSEListener() {
   resetSSEConnection();
-  if (getUserToken() !== undefined) {
+  if (getUserToken()) {
     var response = await getUserSettings();
     if (response != undefined && response.status === 200) {
       log(`Listening to SSE on endpoint: ${response.data.sseEndpoint}`);
@@ -100,8 +100,8 @@ function handleMessage(message) {
   }
 }
 
-async function pollMessageQueue() {
-  if (getUserToken() !== undefined) {
+export async function pollMessageQueue() {
+  if (getUserToken()) {
     var response = await getUserQueue(Gist.topics);
     if (response.status === 200 || response.status === 204) {
       log(`Message queue checked for user ${getUserToken()}, ${response.data.length} messages found.`);

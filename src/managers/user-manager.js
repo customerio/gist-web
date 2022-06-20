@@ -1,16 +1,16 @@
-import Cookies from 'js-cookie';
 import { log } from '../utilities/log';
+import { setKeyWithExpiryToLocalStore, getKeyFromLocalStore, clearKeyFromLocalStore } from '../utilities/local-storage';
 import { v4 as uuidv4 } from 'uuid';
 const userTokenCookieName = "gist.web.userToken";
 const guestUserTokenCookieName = "gist.web.guestUserToken";
 const usingGuestUserTokenCookieName = "gist.web.usingGuestUserToken";
 
 export function isUsingGuestUserToken() {
-  return (Cookies.get(usingGuestUserTokenCookieName) !== undefined);
+  return (getKeyFromLocalStore(usingGuestUserTokenCookieName) !== null);
 }
 
 export function getUserToken() {
-  return Cookies.get(userTokenCookieName);
+  return getKeyFromLocalStore(userTokenCookieName);
 }
 
 export function setUserToken(userToken, expiryDate) {
@@ -18,26 +18,30 @@ export function setUserToken(userToken, expiryDate) {
     expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + 30);
   }
-  Cookies.set(userTokenCookieName, userToken, {expires: expiryDate});
-  Cookies.remove(usingGuestUserTokenCookieName);
+  setKeyWithExpiryToLocalStore(userTokenCookieName, userToken, expiryDate);
+  clearKeyFromLocalStore(usingGuestUserTokenCookieName);
   log(`Set user token "${userToken}" with expiry date set to ${expiryDate}`);
 }
 
 export function useGuestSession() {
+  var expiryDate = new Date();
+  expiryDate.setDate(expiryDate.getDate() + 365);
+
   // Guest sessions should never override existing sessions
-  if (getUserToken() === undefined) {
-    var guestUserToken = Cookies.get(guestUserTokenCookieName)
-    if (guestUserToken == undefined) {
+  if (getUserToken() === null) {
+    var guestUserToken = getKeyFromLocalStore(guestUserTokenCookieName);
+    if (guestUserToken == null) {
       guestUserToken = uuidv4();
-      Cookies.set(guestUserTokenCookieName, guestUserToken, {expires: 365});
+      setKeyWithExpiryToLocalStore(guestUserTokenCookieName, guestUserToken, expiryDate);
       log(`Set guest user token "${guestUserToken}" with expiry date set to 1 year from today`);
     }
-    Cookies.set(userTokenCookieName, guestUserToken, {expires: 365});
-    Cookies.set(usingGuestUserTokenCookieName, true, {expires: 365});
+
+    setKeyWithExpiryToLocalStore(userTokenCookieName, guestUserToken, expiryDate);
+    setKeyWithExpiryToLocalStore(usingGuestUserTokenCookieName, true, expiryDate);
   }
 }
 
 export function clearUserToken() {
-  Cookies.remove(userTokenCookieName);
+  clearKeyFromLocalStore(userTokenCookieName);
   log(`Cleared user token`);
 }
