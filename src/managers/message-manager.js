@@ -183,37 +183,39 @@ function handleGistEvents(e) {
         }
 
         var shouldLogEvent = true;
-        var url = new URL(action);
-        if (url && url.protocol === "gist:") {
-          var gistAction = url.href.replace("gist://", "").split('?')[0];
-          switch (gistAction) {
-            case "close":
-              hideMessage(currentInstanceId);
-              shouldLogEvent = false;
-              checkMessageQueue();
-              break;
-            case "showMessage":
-              var messageId = url.searchParams.get('messageId');
-              var properties = url.searchParams.get('properties');
-              if (messageId) {
-                if (properties) {
-                  properties = JSON.parse(atob(properties));
+        try {
+          var url = new URL(action);
+          if (url && url.protocol === "gist:") {
+            var gistAction = url.href.replace("gist://", "").split('?')[0];
+            switch (gistAction) {
+              case "close":
+                hideMessage(currentInstanceId);
+                shouldLogEvent = false;
+                checkMessageQueue();
+                break;
+              case "showMessage":
+                var messageId = url.searchParams.get('messageId');
+                var properties = url.searchParams.get('properties');
+                if (messageId) {
+                  if (properties) {
+                    properties = JSON.parse(atob(properties));
+                  }
+                  Gist.showMessage({ messageId: messageId, properties: properties });
                 }
-                Gist.showMessage({ messageId: messageId, properties: properties });
-              }
-              break;
-            case "loadPage":
-              var url = url.searchParams.get('url');
-              if (url) {
-                if (url.startsWith("https://") || url.startsWith("http://") || url.startsWith("/")) {
-                  window.location.href = url;
-                } else {
-                  window.location.href = window.location + url;
+                break;
+              case "loadPage":
+                var url = url.searchParams.get('url');
+                if (url) {
+                  if (url.startsWith("https://") || url.startsWith("http://") || url.startsWith("/")) {
+                    window.location.href = url;
+                  } else {
+                    window.location.href = window.location + url;
+                  }
                 }
-              }
-              break;
+                break;
+            }
           }
-        }
+        } catch (_) {}
 
         if (shouldLogEvent) {
           AnalyticsManager.logEvent(AnalyticsManager.GIST_ACTION, currentMessage);
