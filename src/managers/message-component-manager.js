@@ -2,6 +2,15 @@ import { log } from "../utilities/log";
 import { settings } from "../services/settings";
 import Gist from '../gist';
 
+export function isElementLoaded(elementId) {
+  var element = document.querySelector(getElementId(elementId));
+  if (element && element.classList.contains("gist-visible")) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
 export function preloadRenderer() {
   var iframeElement = document.createElement("iframe");
   iframeElement.setAttribute("src", `${settings.GIST_VIEW_ENDPOINT[Gist.config.env]}/index.html`);

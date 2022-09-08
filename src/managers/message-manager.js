@@ -13,7 +13,8 @@ import {
   showEmbedComponent, 
   hideEmbedComponent,
   resizeComponent,
-  elementHasHeight
+  elementHasHeight,
+  isElementLoaded
 } from "./message-component-manager";
 import { resolveMessageProperies } from "./gist-properties-manager";
 import { positions, addPageElement } from "./page-component-manager";
@@ -33,8 +34,7 @@ export function showMessage(message) {
       message.shouldScale = properties.shouldScale
       Gist.overlayInstanceId = message.instanceId;
       Gist.currentMessages.push(message);
-      loadMessageComponent(message);
-      return message;
+      return loadMessageComponent(message);
     }
   } else {
     log("Document hidden, not showing message now.");
@@ -51,8 +51,7 @@ export function embedMessage(message, elementId) {
     message.elementId = elementId;
     message.shouldResizeHeight = !elementHasHeight(elementId);
     Gist.currentMessages.push(message);
-    loadMessageComponent(message, elementId);
-    return message;
+    return loadMessageComponent(message, elementId);
   } else {
     log("Document hidden, not showing message now.");
     return null;
@@ -96,6 +95,11 @@ function resetOverlayState(hideFirst, message) {
 }
 
 function loadMessageComponent(message, elementId = null) {
+  if (elementId && isElementLoaded(elementId)) {
+    log(`Message ${message.messageId} already showing in element ${elementId}.`);
+    return null;
+  }
+
   var options = {
     organizationId: Gist.config.organizationId,
     messageId: message.messageId,
@@ -114,6 +118,8 @@ function loadMessageComponent(message, elementId = null) {
   } else {
     loadOverlayComponent(url, message.instanceId);
   }
+
+  return message;
 }
 
 function encodeUnicode(str) {
