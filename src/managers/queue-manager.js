@@ -40,7 +40,13 @@ export function checkMessageQueue() {
   var keptMessages = [];
   messages.forEach(message => {
     if (!handleMessage(message)) {
-      keptMessages.push(message);
+      var duplicateMessage = keptMessages.find(queueMessages => queueMessages.queueId === message.queueId);
+      var showingMessage = Gist.currentMessages.find(currentMessage => currentMessage.queueId === message.queueId);
+      if (duplicateMessage || showingMessage) {
+        log(`Message with queueId: ${message.queueId} already in queue, discarding.`);
+      } else {
+        keptMessages.push(message);
+      }
     }
   });
   messages = keptMessages;
