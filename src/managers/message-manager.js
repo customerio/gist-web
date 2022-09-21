@@ -181,7 +181,8 @@ function handleGistEvents(e) {
       }
       case "tap": {
         var action = e.data.gist.parameters.action;
-
+        Gist.messageAction(currentMessage, action);
+        
         if (e.data.gist.parameters.system == true) {
           AnalyticsManager.logEvent(AnalyticsManager.GIST_SYSTEM_ACTION, currentMessage);
           hideMessage(currentInstanceId);
@@ -226,7 +227,6 @@ function handleGistEvents(e) {
         if (shouldLogEvent) {
           AnalyticsManager.logEvent(AnalyticsManager.GIST_ACTION, currentMessage);
         }
-        Gist.messageAction(currentMessage, action);
         
         break;
       }
