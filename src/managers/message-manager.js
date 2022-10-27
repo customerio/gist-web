@@ -183,7 +183,8 @@ function handleGistEvents(e) {
       }
       case "tap": {
         var action = e.data.gist.parameters.action;
-        Gist.messageAction(currentMessage, action);
+        var name = e.data.gist.parameters.name;
+        Gist.messageAction(currentMessage, action, name);
         
         if (e.data.gist.parameters.system == true) {
           AnalyticsManager.logEvent(AnalyticsManager.GIST_SYSTEM_ACTION, currentMessage);

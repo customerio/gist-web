@@ -1,6 +1,6 @@
 {
   "name": "@gistproduct/web",
-  "version": "2.11.3",
+  "version": "2.12.0",
   "description": "Build beautiful in-app flows with no code and deliver them instantly to your app.",
   "private": false,
   "browser": "dist/gist.min.js",

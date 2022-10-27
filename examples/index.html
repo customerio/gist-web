@@ -45,7 +45,7 @@
       });
 
       Gist.events.on("messageAction", params => {
-        console.log(`onMessageAction, Action: ${params.action} on route: ${params.message.currentRoute} with instanceId: ${params.message.instanceId}`);
+        console.log(`onMessageAction, Action: ${params.action} with name ${params.name} on route: ${params.message.currentRoute} with instanceId: ${params.message.instanceId}`);
       });
 
       function showComplexMessage() {
