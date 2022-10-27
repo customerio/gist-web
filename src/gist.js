@@ -109,9 +109,9 @@ export default class {
     this.events.dispatch('messageError', message);
   }
 
-  static messageAction(message, action) {
-    log(`Message action: ${message.currentRoute}, ${action} on ${message.instanceId}`);
-    this.events.dispatch('messageAction', {message: message, action: action});
+  static messageAction(message, action, name) {
+    log(`Message action: ${message.currentRoute}, ${action} with name ${name} on ${message.instanceId}`);
+    this.events.dispatch('messageAction', {message: message, action: action, name: name});
   }
 
 }
