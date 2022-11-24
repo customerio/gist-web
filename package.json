@@ -1,6 +1,6 @@
 {
   "name": "@gistproduct/web",
-  "version": "2.12.0",
+  "version": "2.12.1",
   "description": "Build beautiful in-app flows with no code and deliver them instantly to your app.",
   "private": false,
   "browser": "dist/gist.min.js",
@@ -25,7 +25,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@gitlab.com/bourbonltd/gist-web.git"
+    "url": "git+ssh://git@github.com:customerio/gist-web.git"
   },
   "keywords": [
     "gist",
@@ -37,7 +37,7 @@
     "gist.build"
   ],
   "bugs": {
-    "url": "https://gitlab.com/bourbonltd/gist-web/issues"
+    "url": "https://github.com/customerio/gist-web/issues"
   },
   "homepage": "https://docs.gist.build/libraries/web"
 }
