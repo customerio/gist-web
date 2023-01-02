@@ -4,7 +4,7 @@ import { settings } from './settings';
 import { getUserToken } from "../managers/user-manager";
 
 export function NetworkInstance() {
-  var headers = { 'X-Bourbon-Organization-Id': `${Gist.config.organizationId}` };
+  var headers = { 'X-Gist-CIO-Site-Id': `${Gist.config.siteId}` };
   var userToken = getUserToken();
   if (userToken !== undefined || userToken !== null) {
     headers['X-Gist-User-Token'] = userToken;
