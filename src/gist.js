@@ -10,6 +10,7 @@ export default class {
     this.config = {
       useGuestSession: config.useGuestSession === undefined ? false : config.useGuestSession,
       siteId: config.siteId,
+      dataCenter: config.dataCenter,
       env: config.env === undefined ? "prod" : config.env,
       logging: config.logging === undefined ? false : config.logging,
       experiments: config.experiments === undefined ? false : config.experiments
