@@ -6,7 +6,7 @@ let cancelGetUserSettingsRequest;
 
 export async function getUserQueue() {
   try {
-    var response = await NetworkInstance().post(`/api/v1/users`);
+    var response = await NetworkInstance().post(`/api/v1/users`, {});
     return response;
   } catch (error) {
     return error.response;
