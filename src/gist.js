@@ -9,7 +9,8 @@ export default class {
     this.events = new EventEmitter();
     this.config = {
       useGuestSession: config.useGuestSession === undefined ? false : config.useGuestSession,
-      organizationId: config.organizationId,
+      siteId: config.siteId,
+      dataCenter: config.dataCenter,
       env: config.env === undefined ? "prod" : config.env,
       logging: config.logging === undefined ? false : config.logging,
       experiments: config.experiments === undefined ? false : config.experiments
@@ -17,7 +18,6 @@ export default class {
     this.currentMessages = [];
     this.overlayInstanceId = null;
     this.currentRoute = null;
-    this.topics = [];
     this.isDocumentVisible = true;
 
     log(`Setup complete on ${this.config.env} environment.`);
@@ -69,25 +69,6 @@ export default class {
   static showMessage(message) {
     var message = showMessage(message);
     return message ? message.instanceId : null;
-  }
-
-  static async subscribeToTopic(topic) {
-    if (this.topics.indexOf(topic) == -1) {
-      this.topics.push(topic);
-      await pollMessageQueue();
-    }
-  }
-
-  static unsubscribeFromTopic(topic) {
-    this.topics = this.topics.filter(item => item !== topic)
-  }
-
-  static clearTopics() {
-    this.topics = [];
-  }
-
-  static getTopics() {
-    return this.topics;
   }
 
   // Actions

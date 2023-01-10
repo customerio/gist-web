@@ -1,7 +1,6 @@
 import Gist from '../gist';
 import { log } from "../utilities/log";
 import { logMessageView, logUserMessageView } from "../services/log-service";
-import * as AnalyticsManager from "./analytics-manager";
 import { v4 as uuidv4 } from 'uuid';
 import { settings } from "../services/settings";
 import { 
@@ -61,7 +60,6 @@ export function embedMessage(message, elementId) {
 export function hideMessage(instanceId) {
   var message = fetchMessageByInstanceId(instanceId);
   if (message) {
-    AnalyticsManager.logEvent(AnalyticsManager.GIST_DISMISSED, message);
     Gist.messageDismissed(message);
 
     if (message.overlay) {
@@ -101,7 +99,7 @@ function loadMessageComponent(message, elementId = null) {
   }
 
   var options = {
-    organizationId: Gist.config.organizationId,
+    siteId: Gist.config.siteId,
     messageId: message.messageId,
     instanceId: message.instanceId,
     endpoint: settings.GIST_API_ENDPOINT[Gist.config.env],
@@ -168,7 +166,6 @@ function handleGistEvents(e) {
     switch (e.data.gist.method) {
       case "routeLoaded": {
         currentMessage.currentRoute = e.data.gist.parameters.route;
-        AnalyticsManager.logEvent(AnalyticsManager.GIST_LOADED, currentMessage);
         if (currentMessage.firstLoad) {
           if (currentMessage.overlay) {
             showOverlayComponent(currentMessage);
@@ -187,12 +184,10 @@ function handleGistEvents(e) {
         Gist.messageAction(currentMessage, action, name);
         
         if (e.data.gist.parameters.system == true) {
-          AnalyticsManager.logEvent(AnalyticsManager.GIST_SYSTEM_ACTION, currentMessage);
           hideMessage(currentInstanceId);
           break;
         }
 
-        var shouldLogEvent = true;
         try {
           var url = new URL(action);
           if (url && url.protocol === "gist:") {
@@ -200,7 +195,6 @@ function handleGistEvents(e) {
             switch (gistAction) {
               case "close":
                 hideMessage(currentInstanceId);
-                shouldLogEvent = false;
                 checkMessageQueue();
                 break;
               case "showMessage":
@@ -226,10 +220,6 @@ function handleGistEvents(e) {
             }
           }
         } catch (_) {}
-
-        if (shouldLogEvent) {
-          AnalyticsManager.logEvent(AnalyticsManager.GIST_ACTION, currentMessage);
-        }
         
         break;
       }

@@ -4,9 +4,9 @@ import axios from 'axios';
 const CancelToken = axios.CancelToken;
 let cancelGetUserSettingsRequest;
 
-export async function getUserQueue(topics = []) {
+export async function getUserQueue() {
   try {
-    var response = await NetworkInstance().post(`/api/v1/users`, { 'topics': topics });
+    var response = await NetworkInstance().post(`/api/v1/users`, {});
     return response;
   } catch (error) {
     return error.response;
