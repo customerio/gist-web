@@ -11,7 +11,7 @@ export const settings = {
   },
   GIST_VIEW_ENDPOINT: {
     "prod": "https://renderer.gist.build/1.0",
-    "dev": "https://renderer.gist.build/1.0",
+    "dev": "https://code.gist.build/renderer/0.0.20",
     "local": "http://app.local.gist.build:8080/web"
   }
 }
