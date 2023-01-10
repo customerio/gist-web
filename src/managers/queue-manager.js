@@ -108,7 +108,7 @@ function handleMessage(message) {
 
 export async function pollMessageQueue() {
   if (getUserToken()) {
-    var response = await getUserQueue(Gist.topics);
+    var response = await getUserQueue();
     if (response != undefined && (response.status === 200 || response.status === 204)) {
       log(`Message queue checked for user ${getUserToken()}, ${response.data.length} messages found.`);
       if (response.data.length > 0) {
