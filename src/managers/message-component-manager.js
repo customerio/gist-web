@@ -3,7 +3,7 @@ import { settings } from "../services/settings";
 import Gist from '../gist';
 
 export function isElementLoaded(elementId) {
-  var element = document.querySelector(getElementId(elementId));
+  var element = safelyFetchElement(elementId);
   if (element && element.classList.contains("gist-visible")) {
     return true;
   } else {
@@ -19,7 +19,7 @@ export function preloadRenderer() {
 }
 
 export function loadEmbedComponent(elementId, url) {
-  var element = document.querySelector(getElementId(elementId));
+  var element = safelyFetchElement(elementId);
   if (element) {
     if (!elementHasHeight(elementId)) {
       element.style.height = "0px";
@@ -31,14 +31,14 @@ export function loadEmbedComponent(elementId, url) {
 }
 
 export function showEmbedComponent(elementId) {
-  var element = document.querySelector(getElementId(elementId));
+  var element = safelyFetchElement(elementId);
   if (element) {
     element.classList.add("gist-visible");
   }
 }
 
 export function hideEmbedComponent(elementId) {
-  var element = document.querySelector(getElementId(elementId));
+  var element = safelyFetchElement(elementId);
   if (element) {
     element.classList.remove("gist-visible");
     element.style.removeProperty("height");
@@ -47,14 +47,14 @@ export function hideEmbedComponent(elementId) {
 }
 
 export function elementHasHeight(elementId) {
-  var element = document.querySelector(getElementId(elementId));
+  var element = safelyFetchElement(elementId);
   if (element) {
     return element.style && element.style.height && element.style.height != "0px";
   }
 }
 
 export function resizeComponent(elementId, size, shouldScale) {
-  var element = document.querySelector(getElementId(elementId));
+  var element = safelyFetchElement(elementId);
   if (element) {
     var style = element.style;
     if (size.height > 0) {
@@ -110,10 +110,6 @@ export function removeOverlayComponent() {
   }
 }
 
-function getElementId(elementId) {
-  return `#${elementId}`;
-}
-
 function showMessage() {
   var message = document.querySelector("#gist-message");
   if (message) message.classList.add("visible");
@@ -130,4 +126,17 @@ function component(url, instanceId) {
   template = template.replace("${url}", url);
   template = template.replace("${instanceId}", instanceId);
   return template;
+}
+
+function safelyFetchElement(elementId) {
+  try {
+    var element = document.querySelector(`#${elementId}`);
+    if (element) {
+      return element;
+    } else {
+      return null;
+    }
+  } catch {
+    return null;
+  }
 }
