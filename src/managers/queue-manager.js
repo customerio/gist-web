@@ -109,16 +109,20 @@ function handleMessage(message) {
 export async function pollMessageQueue() {
   if (getUserToken()) {
     var response = await getUserQueue();
-    if (response != undefined && (response.status === 200 || response.status === 204)) {
-      log(`Message queue checked for user ${getUserToken()}, ${response.data.length} messages found.`);
-      if (response.data.length > 0) {
-        messages = response.data;
-        checkMessageQueue();
+    if (response != undefined) {
+      if (response.status === 200 || response.status === 204) {
+        log(`Message queue checked for user ${getUserToken()}, ${response.data.length} messages found.`);
+        if (response.data.length > 0) {
+          messages = response.data;
+          checkMessageQueue();
+        } else {
+          log(`No messages for user token.`);    
+        }
       } else {
-        log(`No messages for user token.`);    
+        log(`There was an error while checking message queue: ${response.status}`);
       }
     } else {
-      log(`There was an error while checking message queue: ${response.status}`);
+      log(`User queue not found, skipping queue check.`);  
     }
   } else {
     log(`User token reset, skipping queue check.`);
