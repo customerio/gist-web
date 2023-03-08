@@ -72,7 +72,7 @@ export async function pollMessageQueue() {
   if (getUserToken()) {
     if (Gist.isDocumentVisible) {
       var response = await getUserQueue();
-      if (response != undefined && (response.status === 200 || response.status === 204)) {
+      if (response && (response.status === 200 || response.status === 204)) {
         log(`Message queue checked for user ${getUserToken()}, ${response.data.length} messages found.`);
         if (response.data.length > 0) {
           messages = response.data;
@@ -81,7 +81,7 @@ export async function pollMessageQueue() {
           log(`No messages for user token.`);    
         }
       } else {
-        log(`There was an error while checking message queue: ${response.status}`);
+        log(`There was an error while checking message queue.`);
       }
     } else {
       log(`Document not visible, skipping queue check.`);  
