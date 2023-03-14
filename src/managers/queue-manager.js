@@ -1,16 +1,15 @@
 import Gist from '../gist';
 import { log } from "../utilities/log";
-import ReconnectingEventSource from '../utilities/reconnecting-eventsource';
-import { getUserToken, isUsingGuestUserToken } from "./user-manager";
-import { getUserQueue, getUserSettings, cancelPendingGetUserSettingsRequests } from "../services/queue-service";
+import { getUserToken } from "./user-manager";
+import { getUserQueue } from "../services/queue-service";
 import { showMessage, embedMessage } from "./message-manager";
 import { resolveMessageProperies } from "./gist-properties-manager";
 import { preloadRenderer } from "./message-component-manager";
 
+const POLLING_DELAY_IN_SECONDS = 1000 * 10;
 var sleep = time => new Promise(resolve => setTimeout(resolve, time))
 var poll = (promiseFn, time) => promiseFn().then(sleep(time).then(() => poll(promiseFn, time)));
 var pollingSetup = false;
-var eventSource = null;
 var messages = [];
 
 export async function startQueueListener() {
@@ -19,19 +18,12 @@ export async function startQueueListener() {
     if (getUserToken()) {
       log("Queue watcher started");
       pollingSetup = true;
-      poll(() => new Promise(() => pollMessageQueue()), 60000);
+      poll(() => new Promise(() => pollMessageQueue()), POLLING_DELAY_IN_SECONDS);
     } else {
       log(`User token not setup, queue not started.`);
     }
   } else {
     checkMessageQueue();
-  }
-
-  if (isUsingGuestUserToken()) {
-    // Closing SSE connection when token is cleared and Guest session is active
-    resetSSEConnection();
-  } else {
-    await startSSEListener();
   }
 }
 
@@ -50,35 +42,6 @@ export function checkMessageQueue() {
     }
   });
   messages = keptMessages;
-}
-
-async function startSSEListener() {
-  resetSSEConnection();
-  if (getUserToken()) {
-    var response = await getUserSettings();
-    if (response != undefined && response.status === 200) {
-      log(`Listening to SSE on endpoint: ${response.data.sseEndpoint}`);
-      eventSource = new ReconnectingEventSource(response.data.sseEndpoint);
-      eventSource.onmessage = function(event) {
-        var message = JSON.parse(event.data);
-        if (message.name === "queue") {
-          var queueMessage = JSON.parse(message.data);
-          messages.push(queueMessage);
-          checkMessageQueue();
-        }
-      };
-    }
-  } else {
-    eventSource = null;
-  }
-}
-
-function resetSSEConnection() {
-  cancelPendingGetUserSettingsRequests();
-  if (eventSource != null) {
-    log("Closing EventSource connection");
-    eventSource.close();
-  }
 }
 
 function handleMessage(message) {
@@ -108,17 +71,21 @@ function handleMessage(message) {
 
 export async function pollMessageQueue() {
   if (getUserToken()) {
-    var response = await getUserQueue();
-    if (response && (response.status === 200 || response.status === 204)) {
-      log(`Message queue checked for user ${getUserToken()}, ${response.data.length} messages found.`);
-      if (response.data.length > 0) {
-        messages = response.data;
-        checkMessageQueue();
+    if (Gist.isDocumentVisible) {
+      var response = await getUserQueue();
+      if (response && (response.status === 200 || response.status === 204)) {
+        log(`Message queue checked for user ${getUserToken()}, ${response.data.length} messages found.`);
+        if (response.data.length > 0) {
+          messages = response.data;
+          checkMessageQueue();
+        } else {
+          log(`No messages for user token.`);    
+        }
       } else {
-        log(`No messages for user token.`);    
+        log(`There was an error while checking message queue.`);
       }
     } else {
-      log(`There was an error while checking message queue.`);
+      log(`Document not visible, skipping queue check.`);  
     }
   } else {
     log(`User token reset, skipping queue check.`);
