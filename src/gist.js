@@ -1,6 +1,6 @@
 import EventEmitter from "./utilities/event-emitter";
 import { log } from "./utilities/log";
-import { startQueueListener, checkMessageQueue, pollMessageQueue } from "./managers/queue-manager";
+import { startQueueListener, checkMessageQueue } from "./managers/queue-manager";
 import { setUserToken, clearUserToken, useGuestSession } from "./managers/user-manager";
 import { showMessage, embedMessage, hideMessage } from "./managers/message-manager";
 
