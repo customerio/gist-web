@@ -6,6 +6,7 @@ import { showMessage, embedMessage } from "./message-manager";
 import { resolveMessageProperies } from "./gist-properties-manager";
 import { preloadRenderer } from "./message-component-manager";
 
+const POLLING_DELAY_IN_SECONDS = 1000 * 10;
 var sleep = time => new Promise(resolve => setTimeout(resolve, time))
 var poll = (promiseFn, time) => promiseFn().then(sleep(time).then(() => poll(promiseFn, time)));
 var pollingSetup = false;
@@ -17,7 +18,7 @@ export async function startQueueListener() {
     if (getUserToken()) {
       log("Queue watcher started");
       pollingSetup = true;
-      poll(() => new Promise(() => pollMessageQueue()), 10000);
+      poll(() => new Promise(() => pollMessageQueue()), POLLING_DELAY_IN_SECONDS);
     } else {
       log(`User token not setup, queue not started.`);
     }
