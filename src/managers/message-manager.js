@@ -30,7 +30,8 @@ export function showMessage(message) {
       message.overlay = true;
       message.firstLoad = true;
       message.shouldResizeHeight = true;
-      message.shouldScale = properties.shouldScale
+      message.shouldScale = properties.shouldScale;
+      message.renderStartTime = new Date().getTime();
       Gist.overlayInstanceId = message.instanceId;
       Gist.currentMessages.push(message);
       return loadMessageComponent(message);
@@ -49,6 +50,7 @@ export function embedMessage(message, elementId) {
     message.shouldScale = false;
     message.elementId = elementId;
     message.shouldResizeHeight = !elementHasHeight(elementId);
+    message.renderStartTime = new Date().getTime();
     Gist.currentMessages.push(message);
     return loadMessageComponent(message, elementId);
   } else {
@@ -165,6 +167,8 @@ function handleGistEvents(e) {
     var currentMessage = fetchMessageByInstanceId(currentInstanceId);
     switch (e.data.gist.method) {
       case "routeLoaded": {
+        var timeElapsed = (new Date().getTime() - currentMessage.renderStartTime) * 0.001;
+        log(`Engine render for message: ${currentMessage.messageId} timer elapsed in ${timeElapsed.toFixed(3)} seconds`);
         currentMessage.currentRoute = e.data.gist.parameters.route;
         if (currentMessage.firstLoad) {
           if (currentMessage.overlay) {
@@ -225,6 +229,7 @@ function handleGistEvents(e) {
       }
       case "routeChanged": {
         currentMessage.currentRoute = e.data.gist.parameters.route;
+        currentMessage.renderStartTime = new Date().getTime();
         updateMessageByInstanceId(currentInstanceId, currentMessage);
         log(`Route changed to: ${currentMessage.currentRoute}`);
         break;
