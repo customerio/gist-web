@@ -8,7 +8,6 @@ export function NetworkInstance() {
   var userToken = getUserToken();
   if (userToken != null) {
     headers['X-Gist-Encoded-User-Token'] = btoa(userToken);
-    headers['X-Gist-User-Token'] = userToken;
   }
   return axios.create({
     baseURL: settings.GIST_QUEUE_API_ENDPOINT[Gist.config.env],
