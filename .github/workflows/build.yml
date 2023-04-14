@@ -1,0 +1,69 @@
+name: Build Gist Web
+run-name: Build ${{ github.event.action == 'dependency-trigger' && format('from trigger {0} on branch {1}', github.event.client_payload.dependency-package, github.event.client_payload.dependency-branch) || format('from push to {0} - {1}',(github.head_ref || github.ref_name),(github.event.commits[0].message || github.event.pull_request.title)) }}
+
+on:
+  push:
+    branches:
+      - 'develop'
+  # TODO: remove PR
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Add Private Github
+        run: |
+          dotnet nuget add source --username "ami-ci" --password ${{ secrets.SRE_GHACTIONS_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/customerio/index.json" || true
+          dotnet nuget update source "github" --username "ami-ci" --password ${{ secrets.SRE_GHACTIONS_TOKEN }} --store-password-in-clear-text --source "https://nuget.pkg.github.com/customerio/index.json"
+      - name: Checkout reusable workflow dir
+        uses: actions/checkout@v3
+        with:
+          repository: customerio/gist-workflows
+          ref: master
+          token: ${{ secrets.SRE_GHACTIONS_TOKEN }}
+          path: reusable-workflow-repo-temp
+      - name: Move workflow files to temp path
+        run: |
+          mv ${GITHUB_WORKSPACE}/reusable-workflow-repo-temp ${{ runner.temp }}/reusable-workflow-repo
+          echo "path ${{ runner.temp }}/reusable-workflow-repo"
+          ls -R ${{ runner.temp }}/reusable-workflow-repo
+      - name: Version name
+        run: ${{ runner.temp }}/reusable-workflow-repo/scripts/determine-next-version.sh
+      - name: Build and merge to develop
+        shell: bash
+        run: |
+          npm run build:prod
+          git add .
+          git commit -a -m "New version of gist-web"
+          git push
+      - name: Release to master
+        shell: bash
+        run: |
+          git config user.name "ami-ci"
+          git config user.email "<>"
+          echo "Release $NEXT_VERSION"
+          git remote update
+          git checkout release/$NEXT_VERSION 2>/dev/null || git checkout -b release/$NEXT_VERSION origin/develop
+          git push origin release/$NEXT_VERSION
+          git checkout master
+          git branch
+          git pull origin master
+          git merge -Xours release/$NEXT_VERSION
+          git push origin master
+          git checkout develop
+          git branch
+          git merge -Xours release/$NEXT_VERSION
+          git push origin develop
+          git branch -D release/$NEXT_VERSION
+          git branch
+          git push origin :release/$NEXT_VERSION
+          git branch -avv
+          echo "Release complete"
+          echo "final tags:"
+          git tag --sort='creatordate' --merged master
