@@ -3,6 +3,7 @@ import { log } from "./utilities/log";
 import { startQueueListener, checkMessageQueue } from "./managers/queue-manager";
 import { setUserToken, clearUserToken, useGuestSession } from "./managers/user-manager";
 import { showMessage, embedMessage, hideMessage } from "./managers/message-manager";
+import { bootstrapEngine } from "./managers/engine-manager";
 
 export default class {
   static async setup(config) {
@@ -19,6 +20,7 @@ export default class {
     this.overlayInstanceId = null;
     this.currentRoute = null;
     this.isDocumentVisible = true;
+    this.engineConfiguration = null;
 
     log(`Setup complete on ${this.config.env} environment.`);
 
@@ -26,6 +28,7 @@ export default class {
       useGuestSession();
     }
     await startQueueListener();
+    await bootstrapEngine();
 
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") {

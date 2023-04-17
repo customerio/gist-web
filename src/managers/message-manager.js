@@ -101,12 +101,12 @@ function loadMessageComponent(message, elementId = null) {
   }
 
   var options = {
-    siteId: Gist.config.siteId,
-    messageId: message.messageId,
     instanceId: message.instanceId,
-    endpoint: settings.GIST_API_ENDPOINT[Gist.config.env],
+    endpoint: settings.ENGINE_API_ENDPOINT[Gist.config.env],
+    messageId: message.messageId,
     livePreview: false,
-    properties: message.properties
+    properties: message.properties,
+    engineConfiguration: Gist.engineConfiguration
   }
   var url = `${settings.GIST_VIEW_ENDPOINT[Gist.config.env]}/index.html?options=${encodeUnicode(JSON.stringify(options))}`
   window.addEventListener('message', handleGistEvents);
