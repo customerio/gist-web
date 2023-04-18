@@ -10,7 +10,7 @@ export async function bootstrapEngine() {
 
   var expiry = new Date();
   expiry.setHours(expiry.getHours() + 1);
-  setKeyWithExpiryToLocalStore(engineConfigurationLocalStoreName, response.data, expiry)
+  setKeyWithExpiryToLocalStore(engineConfigurationLocalStoreName, response.data, expiry);
   log(`Engine configuration for ${response.data.organizationId} fetched.`);
   return response.data;
 }
