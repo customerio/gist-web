@@ -20,7 +20,6 @@ export default class {
     this.overlayInstanceId = null;
     this.currentRoute = null;
     this.isDocumentVisible = true;
-    this.engineConfiguration = null;
 
     log(`Setup complete on ${this.config.env} environment.`);
 
@@ -64,13 +63,13 @@ export default class {
     checkMessageQueue();
   }
 
-  static embedMessage(message, elementId) {
-    var message = embedMessage(message, elementId);
+  static async embedMessage(message, elementId) {
+    var message = await embedMessage(message, elementId);
     return message.instanceId;
   }
 
-  static showMessage(message) {
-    var message = showMessage(message);
+  static async showMessage(message) {
+    var message = await showMessage(message);
     return message ? message.instanceId : null;
   }
 
