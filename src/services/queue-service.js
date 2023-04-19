@@ -1,8 +1,8 @@
-import { NetworkInstance } from './queue-network';
+import { UserNetworkInstance } from './network';
 
 export async function getUserQueue() {
   try {
-    var response = await NetworkInstance().post(`/api/v1/users`, {});
+    var response = await UserNetworkInstance().post(`/api/v1/users`, {});
     return response;
   } catch (error) {
     return error.response;

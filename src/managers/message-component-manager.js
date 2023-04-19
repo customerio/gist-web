@@ -1,6 +1,7 @@
 import { log } from "../utilities/log";
-import { settings } from "../services/settings";
-import Gist from '../gist';
+import { v4 as uuidv4, v4 } from 'uuid';
+import { embedMessage } from "./message-manager";
+const delay = ms => new Promise(res => setTimeout(res, ms));
 
 export function isElementLoaded(elementId) {
   var element = safelyFetchElement(elementId);
@@ -11,11 +12,15 @@ export function isElementLoaded(elementId) {
   }
 }
 
-export function preloadRenderer() {
-  var iframeElement = document.createElement("iframe");
-  iframeElement.setAttribute("src", `${settings.GIST_VIEW_ENDPOINT[Gist.config.env]}/index.html`);
-  iframeElement.style.display = "none";
-  document.body.appendChild(iframeElement);
+export async function preloadRenderer() {
+  var preloadFrameId = `G${uuidv4().substring(0,8)}`;
+  var preloadFrameElement = document.createElement("div");
+  preloadFrameElement.setAttribute("id", preloadFrameId);
+  preloadFrameElement.style.display = "none";
+  document.body.appendChild(preloadFrameElement);
+  
+  await delay(5000);
+  embedMessage({messageId: ""}, preloadFrameId);
 }
 
 export function loadEmbedComponent(elementId, url) {

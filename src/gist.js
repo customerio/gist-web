@@ -3,6 +3,7 @@ import { log } from "./utilities/log";
 import { startQueueListener, checkMessageQueue } from "./managers/queue-manager";
 import { setUserToken, clearUserToken, useGuestSession } from "./managers/user-manager";
 import { showMessage, embedMessage, hideMessage } from "./managers/message-manager";
+import { bootstrapEngine } from "./managers/engine-manager";
 
 export default class {
   static async setup(config) {
@@ -26,6 +27,7 @@ export default class {
       useGuestSession();
     }
     await startQueueListener();
+    await bootstrapEngine();
 
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") {
@@ -61,13 +63,13 @@ export default class {
     checkMessageQueue();
   }
 
-  static embedMessage(message, elementId) {
-    var message = embedMessage(message, elementId);
+  static async embedMessage(message, elementId) {
+    var message = await embedMessage(message, elementId);
     return message.instanceId;
   }
 
-  static showMessage(message) {
-    var message = showMessage(message);
+  static async showMessage(message) {
+    var message = await showMessage(message);
     return message ? message.instanceId : null;
   }
 

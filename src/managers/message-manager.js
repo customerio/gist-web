@@ -18,8 +18,9 @@ import {
 import { resolveMessageProperies } from "./gist-properties-manager";
 import { positions, addPageElement } from "./page-component-manager";
 import { checkMessageQueue } from "./queue-manager";
+import { fetchEngineConfiguration } from './engine-manager';
 
-export function showMessage(message) {
+export async function showMessage(message) {
   if (Gist.isDocumentVisible) {
     if (Gist.overlayInstanceId) {
       log(`Message ${Gist.overlayInstanceId} already showing.`);
@@ -34,7 +35,9 @@ export function showMessage(message) {
       message.renderStartTime = new Date().getTime();
       Gist.overlayInstanceId = message.instanceId;
       Gist.currentMessages.push(message);
-      return loadMessageComponent(message);
+
+      var engineConfiguration = await fetchEngineConfiguration();
+      return loadMessageComponent(engineConfiguration, message);
     }
   } else {
     log("Document hidden, not showing message now.");
@@ -42,7 +45,7 @@ export function showMessage(message) {
   }
 }
 
-export function embedMessage(message, elementId) {
+export async function embedMessage(message, elementId) {
   if (Gist.isDocumentVisible) {
     message.instanceId = uuidv4();
     message.overlay = false;
@@ -52,7 +55,9 @@ export function embedMessage(message, elementId) {
     message.shouldResizeHeight = !elementHasHeight(elementId);
     message.renderStartTime = new Date().getTime();
     Gist.currentMessages.push(message);
-    return loadMessageComponent(message, elementId);
+
+    var engineConfiguration = await fetchEngineConfiguration();
+    return loadMessageComponent(engineConfiguration, message, elementId);
   } else {
     log("Document hidden, not showing message now.");
     return null;
@@ -94,19 +99,19 @@ function resetOverlayState(hideFirst, message) {
   }
 }
 
-function loadMessageComponent(message, elementId = null) {
+function loadMessageComponent(engineConfiguration, message, elementId = null) {
   if (elementId && isElementLoaded(elementId)) {
     log(`Message ${message.messageId} already showing in element ${elementId}.`);
     return null;
   }
 
   var options = {
-    siteId: Gist.config.siteId,
-    messageId: message.messageId,
     instanceId: message.instanceId,
-    endpoint: settings.GIST_API_ENDPOINT[Gist.config.env],
+    endpoint: settings.ENGINE_API_ENDPOINT[Gist.config.env],
+    messageId: message.messageId,
     livePreview: false,
-    properties: message.properties
+    properties: message.properties,
+    engineConfiguration: engineConfiguration
   }
   var url = `${settings.GIST_VIEW_ENDPOINT[Gist.config.env]}/index.html?options=${encodeUnicode(JSON.stringify(options))}`
   window.addEventListener('message', handleGistEvents);

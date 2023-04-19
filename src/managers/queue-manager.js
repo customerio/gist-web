@@ -27,11 +27,13 @@ export async function startQueueListener() {
   }
 }
 
-export function checkMessageQueue() {
+export async function checkMessageQueue() {
   log(`Messages in local queue: ${messages.length}`);
   var keptMessages = [];
-  messages.forEach(message => {
-    if (!handleMessage(message)) {
+
+  for (const message of messages) {
+    var handledMessage = await handleMessage(message);
+    if (!handledMessage) {
       var duplicateMessage = keptMessages.find(queueMessages => queueMessages.queueId === message.queueId);
       var showingMessage = Gist.currentMessages.find(currentMessage => currentMessage.queueId === message.queueId);
       if (duplicateMessage || showingMessage) {
@@ -40,11 +42,11 @@ export function checkMessageQueue() {
         keptMessages.push(message);
       }
     }
-  });
+  }
   messages = keptMessages;
 }
 
-function handleMessage(message) {
+async function handleMessage(message) {
   var messageProperties = resolveMessageProperies(message);
   if (messageProperties.hasRouteRule) {
     var currentUrl = Gist.currentRoute
@@ -63,9 +65,9 @@ function handleMessage(message) {
     message.position = messageProperties.position;
   }
   if (messageProperties.isEmbedded) {
-    return embedMessage(message, messageProperties.elementId);
+    return await embedMessage(message, messageProperties.elementId);
   } else {
-    return showMessage(message);
+    return await showMessage(message);
   }
 }
 

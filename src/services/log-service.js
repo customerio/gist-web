@@ -1,8 +1,8 @@
-import { NetworkInstance } from './queue-network';
+import { UserNetworkInstance } from './network';
 
 export async function logUserMessageView(queueId) {
   try {
-    var response = await NetworkInstance().post(`/api/v1/logs/queue/${queueId}`);
+    var response = await UserNetworkInstance().post(`/api/v1/logs/queue/${queueId}`);
     return response;
   } catch (error) {
     return error.response;
@@ -11,7 +11,7 @@ export async function logUserMessageView(queueId) {
 
 export async function logMessageView(messageId) {
   try {
-    var response = await NetworkInstance().post(`/api/v1/logs/message/${messageId}`);
+    var response = await UserNetworkInstance().post(`/api/v1/logs/message/${messageId}`);
     return response;
   } catch (error) {
     return error.response;
