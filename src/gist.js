@@ -58,6 +58,7 @@ export default class {
 
   static dismissMessage(instanceId) {
     hideMessage(instanceId);
+    removePersistentMessage(instanceId);
     checkMessageQueue();
   }
 

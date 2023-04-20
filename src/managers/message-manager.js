@@ -71,6 +71,18 @@ export function hideMessage(instanceId) {
     } else {
       resetEmbedState(message);
     }
+} else {
+    log(`Message with instance id: ${instanceId} not found`);
+  }
+}
+
+function removePersistentMessage(instanceId) {
+  var message = fetchMessageByInstanceId(instanceId);
+  if (message) {
+    if (message.properties.gist.persistent) {
+      log(`Persistent message dismissed, logging view`);
+      reportMessageView(message);
+    }
   } else {
     log(`Message with instance id: ${instanceId} not found`);
   }
@@ -179,7 +191,13 @@ function handleGistEvents(e) {
           } else {
             showEmbedComponent(currentMessage.elementId);
           }
-          reportMessageView(currentMessage);
+
+          if (currentMessage.properties.gist.persistent) {
+            log(`Persistent message shown, skipping logging view`);
+          } else {
+            reportMessageView(currentMessage);
+          }
+
           currentMessage.firstLoad = false;
         }
         updateMessageByInstanceId(currentInstanceId, currentMessage);
@@ -202,6 +220,7 @@ function handleGistEvents(e) {
             switch (gistAction) {
               case "close":
                 hideMessage(currentInstanceId);
+                removePersistentMessage(instanceId);
                 checkMessageQueue();
                 break;
               case "showMessage":
