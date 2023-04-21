@@ -18,7 +18,6 @@ import {
 import { resolveMessageProperies } from "./gist-properties-manager";
 import { positions, addPageElement } from "./page-component-manager";
 import { checkMessageQueue } from "./queue-manager";
-import { fetchEngineConfiguration } from './engine-manager';
 
 export async function showMessage(message) {
   if (Gist.isDocumentVisible) {
@@ -36,8 +35,7 @@ export async function showMessage(message) {
       Gist.overlayInstanceId = message.instanceId;
       Gist.currentMessages.push(message);
 
-      var engineConfiguration = await fetchEngineConfiguration();
-      return loadMessageComponent(engineConfiguration, message);
+      return loadMessageComponent(message);
     }
   } else {
     log("Document hidden, not showing message now.");
@@ -56,8 +54,7 @@ export async function embedMessage(message, elementId) {
     message.renderStartTime = new Date().getTime();
     Gist.currentMessages.push(message);
 
-    var engineConfiguration = await fetchEngineConfiguration();
-    return loadMessageComponent(engineConfiguration, message, elementId);
+    return loadMessageComponent(message, elementId);
   } else {
     log("Document hidden, not showing message now.");
     return null;
@@ -99,19 +96,20 @@ function resetOverlayState(hideFirst, message) {
   }
 }
 
-function loadMessageComponent(engineConfiguration, message, elementId = null) {
+function loadMessageComponent(message, elementId = null) {
   if (elementId && isElementLoaded(elementId)) {
     log(`Message ${message.messageId} already showing in element ${elementId}.`);
     return null;
   }
 
   var options = {
-    instanceId: message.instanceId,
     endpoint: settings.ENGINE_API_ENDPOINT[Gist.config.env],
+    siteId: Gist.config.siteId,
+    dataCenter: Gist.config.dataCenter,
     messageId: message.messageId,
+    instanceId: message.instanceId,
     livePreview: false,
-    properties: message.properties,
-    engineConfiguration: engineConfiguration
+    properties: message.properties
   }
   var url = `${settings.GIST_VIEW_ENDPOINT[Gist.config.env]}/index.html?options=${encodeUnicode(JSON.stringify(options))}`
   window.addEventListener('message', handleGistEvents);

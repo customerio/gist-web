@@ -15,12 +15,3 @@ export function UserNetworkInstance() {
     headers: headers
   });
 }
-
-export function EngineNetworkInstance() {
-  var headers = { "X-CIO-Site-Id": Gist.config.siteId, "X-CIO-Datacenter": Gist.config.dataCenter };
-  return axios.create({
-    baseURL: settings.ENGINE_API_ENDPOINT[Gist.config.env],
-    timeout: 20000,
-    headers: headers
-  });
-}

@@ -3,7 +3,6 @@ import { log } from "./utilities/log";
 import { startQueueListener, checkMessageQueue } from "./managers/queue-manager";
 import { setUserToken, clearUserToken, useGuestSession } from "./managers/user-manager";
 import { showMessage, embedMessage, hideMessage } from "./managers/message-manager";
-import { bootstrapEngine } from "./managers/engine-manager";
 
 export default class {
   static async setup(config) {
@@ -27,7 +26,6 @@ export default class {
       useGuestSession();
     }
     await startQueueListener();
-    await bootstrapEngine();
 
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") {
