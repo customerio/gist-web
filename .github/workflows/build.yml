@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - 'develop'
+      - 'master'
 
 jobs:
   build:
@@ -22,12 +23,11 @@ jobs:
         run: |
           npm install
           npm run build:prod
-      - name: Merge to develop
+      - name: Commit any changes
         shell: bash
         run: |
           git config user.name "ami-ci"
           git config user.email "<>"
-          git checkout develop
           git add .
           set +e  # Grep succeeds with nonzero exit codes to show results.
           git status | grep modified
@@ -40,11 +40,3 @@ jobs:
               set -e
               echo "No changes since last run"
           fi
-      - name: Release to master
-        shell: bash
-        run: |
-          git merge origin/master
-          git checkout master
-          git merge develop
-          git push origin master
-          echo "Release complete"
