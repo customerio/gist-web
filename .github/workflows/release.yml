@@ -15,8 +15,15 @@ jobs:
       AWS_BUCKET: 'gist-code'
     steps:
       - uses: actions/checkout@v3
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
         with:
-          ref: 'master'
+          node-version: 16
+      - name: Build
+        shell: bash
+        run: |
+          npm install
+          npm run build:prod
       - name: Version name
         shell: bash
         run: |
