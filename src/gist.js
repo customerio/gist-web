@@ -2,7 +2,7 @@ import EventEmitter from "./utilities/event-emitter";
 import { log } from "./utilities/log";
 import { startQueueListener, checkMessageQueue } from "./managers/queue-manager";
 import { setUserToken, clearUserToken, useGuestSession } from "./managers/user-manager";
-import { showMessage, embedMessage, hideMessage } from "./managers/message-manager";
+import { showMessage, embedMessage, hideMessage, removePersistentMessage } from "./managers/message-manager";
 
 export default class {
   static async setup(config) {

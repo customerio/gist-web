@@ -76,7 +76,7 @@ export function hideMessage(instanceId) {
   }
 }
 
-function removePersistentMessage(instanceId) {
+export function removePersistentMessage(instanceId) {
   var message = fetchMessageByInstanceId(instanceId);
   if (message) {
     if (message.properties.gist.persistent) {
@@ -220,7 +220,7 @@ function handleGistEvents(e) {
             switch (gistAction) {
               case "close":
                 hideMessage(currentInstanceId);
-                removePersistentMessage(instanceId);
+                removePersistentMessage(currentInstanceId);
                 checkMessageQueue();
                 break;
               case "showMessage":
