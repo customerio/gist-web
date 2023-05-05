@@ -81,6 +81,7 @@ export async function pollMessageQueue() {
           messages = response.data;
           checkMessageQueue();
         } else {
+          messages = [];
           log(`No messages for user token.`);    
         }
       } else {

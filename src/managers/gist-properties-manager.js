@@ -7,6 +7,7 @@ export function resolveMessageProperies(message) {
     var hasPosition = false;
     var shouldScale = false;
     var campaignId = null;
+    var persistent = false;
 
     if (message.properties && message.properties.gist) {
         if (message.properties.gist.campaignId) {
@@ -27,6 +28,10 @@ export function resolveMessageProperies(message) {
         if (message.properties.gist.scale) {
             shouldScale = message.properties.gist.scale;
         }
+        if (message.properties.gist.persistent)
+        {
+            persistent = true
+        }
     }
     return {
         isEmbedded: isEmbedded,
@@ -36,6 +41,7 @@ export function resolveMessageProperies(message) {
         position: position,
         hasPosition: hasPosition,
         shouldScale: shouldScale,
-        campaignId: campaignId
+        campaignId: campaignId,
+        persistent: persistent
     }
 }
