@@ -208,7 +208,7 @@ function handleGistEvents(e) {
         var name = e.data.gist.parameters.name;
         Gist.messageAction(currentMessage, action, name);
         
-        if (e.data.gist.parameters.system == true) {
+        if (e.data.gist.parameters.system && !currentMessage.properties.gist.persistent) {
           hideMessage(currentInstanceId);
           break;
         }
@@ -219,8 +219,8 @@ function handleGistEvents(e) {
             var gistAction = url.href.replace("gist://", "").split('?')[0];
             switch (gistAction) {
               case "close":
-                hideMessage(currentInstanceId);
                 removePersistentMessage(currentInstanceId);
+                hideMessage(currentInstanceId);
                 checkMessageQueue();
                 break;
               case "showMessage":
