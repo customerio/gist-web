@@ -78,8 +78,9 @@ export function hideMessage(instanceId) {
 
 export function removePersistentMessage(instanceId) {
   var message = fetchMessageByInstanceId(instanceId);
+  var messageProperties = resolveMessageProperies(message);
   if (message) {
-    if (message.properties.gist.persistent) {
+    if (messageProperties.persistent) {
       log(`Persistent message dismissed, logging view`);
       reportMessageView(message);
     }
@@ -180,6 +181,7 @@ function handleGistEvents(e) {
   if (e.data.gist) {
     var currentInstanceId = e.data.gist.instanceId;
     var currentMessage = fetchMessageByInstanceId(currentInstanceId);
+    var messageProperties = resolveMessageProperies(currentMessage);
     switch (e.data.gist.method) {
       case "routeLoaded": {
         var timeElapsed = (new Date().getTime() - currentMessage.renderStartTime) * 0.001;
@@ -192,7 +194,7 @@ function handleGistEvents(e) {
             showEmbedComponent(currentMessage.elementId);
           }
 
-          if (currentMessage.properties.gist.persistent) {
+          if (messageProperties.persistent) {
             log(`Persistent message shown, skipping logging view`);
           } else {
             reportMessageView(currentMessage);
@@ -208,7 +210,7 @@ function handleGistEvents(e) {
         var name = e.data.gist.parameters.name;
         Gist.messageAction(currentMessage, action, name);
         
-        if (e.data.gist.parameters.system && !currentMessage.properties.gist.persistent) {
+        if (e.data.gist.parameters.system && !messageProperties.persistent) {
           hideMessage(currentInstanceId);
           break;
         }
