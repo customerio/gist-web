@@ -168,6 +168,7 @@ function handleGistEvents(e) {
   if (e.data.gist) {
     var currentInstanceId = e.data.gist.instanceId;
     var currentMessage = fetchMessageByInstanceId(currentInstanceId);
+    if (!currentMessage) { return; }
     switch (e.data.gist.method) {
       case "routeLoaded": {
         var timeElapsed = (new Date().getTime() - currentMessage.renderStartTime) * 0.001;
