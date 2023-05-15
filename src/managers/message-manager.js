@@ -181,6 +181,7 @@ function handleGistEvents(e) {
   if (e.data.gist) {
     var currentInstanceId = e.data.gist.instanceId;
     var currentMessage = fetchMessageByInstanceId(currentInstanceId);
+    if (!currentMessage) { return; }
     var messageProperties = resolveMessageProperies(currentMessage);
     switch (e.data.gist.method) {
       case "routeLoaded": {
