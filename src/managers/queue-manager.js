@@ -75,7 +75,7 @@ export async function pollMessageQueue() {
   if (getUserToken()) {
     if (Gist.isDocumentVisible) {
       var response = await getUserQueue();
-      if (response && (response.status === 200 || response.status === 204)) {
+      if (response && (response.status === 200 || response.status === 204 || response.status === 304)) {
         log(`Message queue checked for user ${getUserToken()}, ${response.data.length} messages found.`);
         if (response.data.length > 0) {
           messages = response.data;
