@@ -81,10 +81,15 @@ export async function pollMessageQueue() {
           messages = response.data;
           checkMessageQueue();
         } else {
-          log(`No messages for user token.`);    
+          messages = [];
+          log(`No messages for user token.`);
         }
       } else {
-        log(`There was an error while checking message queue.`);
+        if (response.status === 304) {
+          log(`No changes to the queue.`);
+        } else {
+          log(`There was an error while checking message queue.`);
+        }
       }
     } else {
       log(`Document not visible, skipping queue check.`);  

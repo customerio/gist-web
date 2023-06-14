@@ -71,6 +71,19 @@ export function hideMessage(instanceId) {
     } else {
       resetEmbedState(message);
     }
+} else {
+    log(`Message with instance id: ${instanceId} not found`);
+  }
+}
+
+export function removePersistentMessage(instanceId) {
+  var message = fetchMessageByInstanceId(instanceId);
+  var messageProperties = resolveMessageProperies(message);
+  if (message) {
+    if (messageProperties.persistent) {
+      log(`Persistent message dismissed, logging view`);
+      reportMessageView(message);
+    }
   } else {
     log(`Message with instance id: ${instanceId} not found`);
   }
@@ -169,6 +182,7 @@ function handleGistEvents(e) {
     var currentInstanceId = e.data.gist.instanceId;
     var currentMessage = fetchMessageByInstanceId(currentInstanceId);
     if (!currentMessage) { return; }
+    var messageProperties = resolveMessageProperies(currentMessage);
     switch (e.data.gist.method) {
       case "routeLoaded": {
         var timeElapsed = (new Date().getTime() - currentMessage.renderStartTime) * 0.001;
@@ -180,7 +194,13 @@ function handleGistEvents(e) {
           } else {
             showEmbedComponent(currentMessage.elementId);
           }
-          reportMessageView(currentMessage);
+
+          if (messageProperties.persistent) {
+            log(`Persistent message shown, skipping logging view`);
+          } else {
+            reportMessageView(currentMessage);
+          }
+
           currentMessage.firstLoad = false;
         }
         updateMessageByInstanceId(currentInstanceId, currentMessage);
@@ -191,7 +211,7 @@ function handleGistEvents(e) {
         var name = e.data.gist.parameters.name;
         Gist.messageAction(currentMessage, action, name);
         
-        if (e.data.gist.parameters.system == true) {
+        if (e.data.gist.parameters.system && !messageProperties.persistent) {
           hideMessage(currentInstanceId);
           break;
         }
@@ -202,6 +222,7 @@ function handleGistEvents(e) {
             var gistAction = url.href.replace("gist://", "").split('?')[0];
             switch (gistAction) {
               case "close":
+                removePersistentMessage(currentInstanceId);
                 hideMessage(currentInstanceId);
                 checkMessageQueue();
                 break;
