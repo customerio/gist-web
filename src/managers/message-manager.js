@@ -105,7 +105,7 @@ function resetOverlayState(hideFirst, message) {
 
   if (Gist.currentMessages.length == 0) {
     window.removeEventListener('message', handleGistEvents);
-    window.removeEventListener('touchstart', {});
+    window.removeEventListener('touchstart', handleTouchStartEvents);
   }
 }
 
@@ -126,7 +126,7 @@ function loadMessageComponent(message, elementId = null) {
   }
   var url = `${settings.GIST_VIEW_ENDPOINT[Gist.config.env]}/index.html?options=${encodeUnicode(JSON.stringify(options))}`
   window.addEventListener('message', handleGistEvents);
-  window.addEventListener('touchstart', {});
+  window.addEventListener('touchstart', handleTouchStartEvents);
 
   if (elementId) {
     if (positions.includes(elementId)) { addPageElement(elementId); }
@@ -176,6 +176,9 @@ function updateMessageByInstanceId(instanceId, message) {
   removeMessageByInstanceId(instanceId);
   Gist.currentMessages.push(message);
 }
+
+// Added this to avoid errors in the console
+function handleTouchStartEvents(e) {}
 
 function handleGistEvents(e) {
   if (e.data.gist) {

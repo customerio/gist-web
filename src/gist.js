@@ -63,13 +63,13 @@ export default class {
   }
 
   static async embedMessage(message, elementId) {
-    var message = await embedMessage(message, elementId);
-    return message.instanceId;
+    var messageResponse = await embedMessage(message, elementId);
+    return messageResponse.instanceId;
   }
 
   static async showMessage(message) {
-    var message = await showMessage(message);
-    return message ? message.instanceId : null;
+    var messageResponse = await showMessage(message);
+    return messageResponse ? messageResponse.instanceId : null;
   }
 
   // Actions
