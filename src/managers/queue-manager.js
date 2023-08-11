@@ -85,7 +85,7 @@ export async function pollMessageQueue() {
           log(`No messages for user token.`);
         }
       } else {
-        if (response.status === 304) {
+        if (response && response.status === 304) {
           log(`No changes to the queue.`);
         } else {
           log(`There was an error while checking message queue.`);
