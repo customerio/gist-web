@@ -1,44 +1,15 @@
-name: Release Gist Web
-run-name: Release gist-web
+name: Release
 
 on:
-  push:
-    tags:
-      - '*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number for the release (e.g., 1.14.1)'
+        required: true
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
-    env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.GIST_WEB_AWS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.GIST_WEB_AWS_SECRET_ACCESS_KEY }}
-      AWS_BUCKET: 'gist-code'
-    steps:
-      - uses: actions/checkout@v3
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v2
-        with:
-          node-version: 16
-      - name: Build
-        shell: bash
-        run: |
-          npm install
-          npm run build:prod
-      - name: Version name
-        shell: bash
-        run: |
-          RELEASE_VERSION="${GITHUB_REF#refs/*/}"
-          echo "RELEASE_VERSION=$RELEASE_VERSION" >> $GITHUB_ENV
-          echo "RELEASE_VERSION=$RELEASE_VERSION"
-
-          AWS_DEST="web/$RELEASE_VERSION"
-          echo "AWS_DEST=$AWS_DEST" >> $GITHUB_ENV
-          echo "AWS_DEST=$AWS_DEST"
-      - uses: shallwefootball/s3-upload-action@master
-        with:
-          aws_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          aws_bucket: ${{ env.AWS_BUCKET }}
-          source_dir: 'dist'          
-          destination_dir: ${{ env.AWS_DEST }}
-          endpoint: 'ams3.digitaloceanspaces.com'
+  build-test-publish:
+    uses: customerio/gist-workflows/.github/workflows/release.yml@master
+    secrets: inherit
+    with:
+      version: ${{ github.event.inputs.version }}
