@@ -77,17 +77,19 @@ export async function pollMessageQueue() {
   if (getUserToken()) {
     if (Gist.isDocumentVisible) {
       var response = await getUserQueue();
+      var responseData = [];
       if (response) {
         if (response.status === 200 || response.status === 204) {
           var expiryDate = new Date(new Date().getTime() + 1 * 60000);
-          setKeyWithExpiryToLocalStore(userQueueLocalStoreName, response, expiryDate);
+          setKeyWithExpiryToLocalStore(userQueueLocalStoreName, response.data, expiryDate);
+          responseData = response.data;
         }
         else if (response.status === 304) {
-          response = getKeyFromLocalStore(userQueueLocalStoreName);
+          responseData = getKeyFromLocalStore(userQueueLocalStoreName);
         }
-        if (response && response.data.length > 0) {
-          log(`Message queue checked for user ${getUserToken()}, ${response.data.length} messages found.`);
-          messages = response.data;
+        if (responseData && responseData.length > 0) {
+          log(`Message queue checked for user ${getUserToken()}, ${responseData.length} messages found.`);
+          messages = responseData;
           checkMessageQueue();
         } else {
           messages = [];
