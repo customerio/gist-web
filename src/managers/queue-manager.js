@@ -5,7 +5,9 @@ import { getUserQueue } from "../services/queue-service";
 import { showMessage, embedMessage } from "./message-manager";
 import { resolveMessageProperies } from "./gist-properties-manager";
 import { preloadRenderer } from "./message-component-manager";
+import { setKeyWithExpiryToLocalStore, getKeyFromLocalStore } from '../utilities/local-storage';
 
+const userQueueLocalStoreName = "gist.web.userQueue";
 const POLLING_DELAY_IN_SECONDS = 1000 * 10;
 var sleep = time => new Promise(resolve => setTimeout(resolve, time))
 var poll = (promiseFn, time) => promiseFn().then(sleep(time).then(() => poll(promiseFn, time)));
@@ -75,21 +77,26 @@ export async function pollMessageQueue() {
   if (getUserToken()) {
     if (Gist.isDocumentVisible) {
       var response = await getUserQueue();
-      if (response && (response.status === 200 || response.status === 204)) {
-        log(`Message queue checked for user ${getUserToken()}, ${response.data.length} messages found.`);
-        if (response.data.length > 0) {
-          messages = response.data;
+      var responseData = [];
+      if (response) {
+        if (response.status === 200 || response.status === 204) {
+          var expiryDate = new Date(new Date().getTime() + 1 * 60000);
+          setKeyWithExpiryToLocalStore(userQueueLocalStoreName, response.data, expiryDate);
+          responseData = response.data;
+        }
+        else if (response.status === 304) {
+          responseData = getKeyFromLocalStore(userQueueLocalStoreName);
+        }
+        if (responseData && responseData.length > 0) {
+          log(`Message queue checked for user ${getUserToken()}, ${responseData.length} messages found.`);
+          messages = responseData;
           checkMessageQueue();
         } else {
           messages = [];
           log(`No messages for user token.`);
         }
       } else {
-        if (response && response.status === 304) {
-          log(`No changes to the queue.`);
-        } else {
-          log(`There was an error while checking message queue.`);
-        }
+        log(`There was an error while checking message queue.`);
       }
     } else {
       log(`Document not visible, skipping queue check.`);  
