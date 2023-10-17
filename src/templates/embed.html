@@ -14,8 +14,7 @@
       width: 100%;
     }
     #x-gist-floating-top-left, #x-gist-floating-top-right, #x-gist-floating-bottom-left, #x-gist-floating-bottom-right {
-      width: 40%;
-      max-width: 414px;
+      width: '${messageWidth}';
     }
     #x-gist-floating-top-right, #x-gist-floating-bottom-right {
       right: 0px;
@@ -35,7 +34,7 @@
       width: 100%;
       border: none;
     }
-    @media (max-width: 800px) {
+    @media (max-width: '${maxWidth}') {
       #x-gist-floating-top-left, #x-gist-floating-top-right, #x-gist-floating-bottom-left, #x-gist-floating-bottom-right {
         width: 100%;
       }

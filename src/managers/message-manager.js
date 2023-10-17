@@ -130,9 +130,9 @@ function loadMessageComponent(message, elementId = null) {
 
   if (elementId) {
     if (positions.includes(elementId)) { addPageElement(elementId); }
-    loadEmbedComponent(elementId, url);
+    loadEmbedComponent(elementId, url, message);
   } else {
-    loadOverlayComponent(url, message.instanceId);
+    loadOverlayComponent(url, message);
   }
 
   return message;
