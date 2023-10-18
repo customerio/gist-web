@@ -123,18 +123,26 @@ function showMessage() {
 
 function embed(url, message) {
   var messageProperties = resolveMessageProperies(message);
+  var windowMaxWidth = 800;
+  if (messageProperties.maxWidth > 800) {
+    windowMaxWidth = messageProperties.maxWidth;    
+  }
   var template = require("html-loader!../templates/embed.html");
   template = template.replace("'${messageWidth}'", messageProperties.maxWidth + "px");
-  template = template.replace("'${maxWidth}'", messageProperties.maxWidth + "px");
+  template = template.replace("'${maxWidth}'", windowMaxWidth + "px");
   template = template.replace("${url}", url);
   return template;
 }
 
 function component(url, message) {
   var messageProperties = resolveMessageProperies(message);
+  var windowMaxWidth = 600;
+  if (messageProperties.maxWidth > 600) {
+    windowMaxWidth = messageProperties.maxWidth;    
+  }
   var template = require("html-loader!../templates/message.html");
   template = template.replace("'${messageWidth}'", messageProperties.maxWidth + "px");
-  template = template.replace("'${maxWidth}'", messageProperties.maxWidth + "px");
+  template = template.replace("'${maxWidth}'", windowMaxWidth + "px");
   template = template.replace("'${overlayColor}'", messageProperties.overlayColor);
   template = template.replace("${url}", url);
   template = template.replace("${instanceId}", message.instanceId);
