@@ -2,7 +2,7 @@ import EventEmitter from "./utilities/event-emitter";
 import { log } from "./utilities/log";
 import { startQueueListener, checkMessageQueue } from "./managers/queue-manager";
 import { setUserToken, clearUserToken, useGuestSession } from "./managers/user-manager";
-import { showMessage, embedMessage, hideMessage, removePersistentMessage } from "./managers/message-manager";
+import { showMessage, embedMessage, hideMessage, removePersistentMessage, fetchMessageByInstanceId } from "./managers/message-manager";
 
 export default class {
   static async setup(config) {
@@ -27,12 +27,12 @@ export default class {
     }
     await startQueueListener();
 
-    document.addEventListener("visibilitychange", () => {
+    document.addEventListener("visibilitychange", async () => {
       if (document.visibilityState === "hidden") {
         this.isDocumentVisible = false;
       } else  {
         this.isDocumentVisible = true;
-        checkMessageQueue();
+        await checkMessageQueue();
       }
     }, false);
   }
@@ -40,7 +40,7 @@ export default class {
   static async setCurrentRoute(route) {
     this.currentRoute = route;
     log(`Current route set to: ${route}`);
-    checkMessageQueue();
+    await checkMessageQueue();
   }
 
   static async setUserToken(userToken, expiryDate) {
@@ -56,10 +56,11 @@ export default class {
     await startQueueListener();
   }
 
-  static dismissMessage(instanceId) {
-    removePersistentMessage(instanceId);
-    hideMessage(instanceId);
-    checkMessageQueue();
+  static async dismissMessage(instanceId) {
+    var message = fetchMessageByInstanceId(instanceId);
+    await hideMessage(message);
+    await removePersistentMessage(message);
+    await checkMessageQueue();
   }
 
   static async embedMessage(message, elementId) {

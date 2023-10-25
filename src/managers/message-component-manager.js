@@ -98,14 +98,13 @@ export function showOverlayComponent(message) {
   }
 }
 
-export function hideOverlayComponent() {
+export async function hideOverlayComponent() {
   var message = document.querySelector("#gist-message");
   if (message) {
     message.classList.remove("visible");
-    setTimeout(removeOverlayComponent, 300);
-  } else {
-    removeOverlayComponent();
+    await delay(300);
   }
+  removeOverlayComponent();
 }
 
 export function removeOverlayComponent() {

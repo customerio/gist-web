@@ -2,7 +2,7 @@ import Gist from '../gist';
 import { log } from "../utilities/log";
 import { getUserToken } from "./user-manager";
 import { getUserQueue } from "../services/queue-service";
-import { showMessage, embedMessage } from "./message-manager";
+import { showMessage, embedMessage, hasMessageBeenShownBefore } from "./message-manager";
 import { resolveMessageProperies } from "./gist-properties-manager";
 import { preloadRenderer } from "./message-component-manager";
 import { setKeyWithExpiryToLocalStore, getKeyFromLocalStore } from '../utilities/local-storage';
@@ -25,7 +25,7 @@ export async function startQueueListener() {
       log(`User token not setup, queue not started.`);
     }
   } else {
-    checkMessageQueue();
+    await checkMessageQueue();
   }
 }
 
@@ -49,6 +49,11 @@ export async function checkMessageQueue() {
 }
 
 async function handleMessage(message) {
+  if (hasMessageBeenShownBefore(message)) {
+    log(`Message with ${message.queueId} has been shown before, skipping.`);
+    return;
+  }
+
   var messageProperties = resolveMessageProperies(message);
   if (messageProperties.hasRouteRule) {
     var currentUrl = Gist.currentRoute
@@ -90,7 +95,7 @@ export async function pollMessageQueue() {
         if (responseData && responseData.length > 0) {
           log(`Message queue checked for user ${getUserToken()}, ${responseData.length} messages found.`);
           messages = responseData;
-          checkMessageQueue();
+          await checkMessageQueue();
         } else {
           messages = [];
           log(`No messages for user token.`);
