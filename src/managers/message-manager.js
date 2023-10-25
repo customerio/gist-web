@@ -19,6 +19,8 @@ import { resolveMessageProperies } from "./gist-properties-manager";
 import { positions, addPageElement } from "./page-component-manager";
 import { checkMessageQueue } from "./queue-manager";
 
+var shownMessages = [];
+
 export async function showMessage(message) {
   if (Gist.isDocumentVisible) {
     if (Gist.overlayInstanceId) {
@@ -61,28 +63,26 @@ export async function embedMessage(message, elementId) {
   }
 }
 
-export function hideMessage(instanceId) {
-  var message = fetchMessageByInstanceId(instanceId);
+export async function hideMessage(message) {
   if (message) {
     Gist.messageDismissed(message);
 
     if (message.overlay) {
-      resetOverlayState(true, message);
+      await resetOverlayState(true, message);
     } else {
       resetEmbedState(message);
     }
-} else {
+  } else {
     log(`Message with instance id: ${instanceId} not found`);
   }
 }
 
-export function removePersistentMessage(instanceId) {
-  var message = fetchMessageByInstanceId(instanceId);
+export async function removePersistentMessage(message) {
   var messageProperties = resolveMessageProperies(message);
   if (message) {
     if (messageProperties.persistent) {
       log(`Persistent message dismissed, logging view`);
-      reportMessageView(message);
+      await reportMessageView(message);
     }
   } else {
     log(`Message with instance id: ${instanceId} not found`);
@@ -94,11 +94,11 @@ function resetEmbedState(message) {
   hideEmbedComponent(message.elementId);
 }
 
-function resetOverlayState(hideFirst, message) {
+async function resetOverlayState(hideFirst, message) {
   removeMessageByInstanceId(message.instanceId);
   Gist.overlayInstanceId = null;
   if (hideFirst) {
-    hideOverlayComponent();
+    await hideOverlayComponent();
   } else {
     removeOverlayComponent();
   }
@@ -164,7 +164,7 @@ async function reportMessageView(message) {
   }
 }
 
-function fetchMessageByInstanceId(instanceId) {
+export function fetchMessageByInstanceId(instanceId) {
   return Gist.currentMessages.find(message => message.instanceId === instanceId);
 }
 
@@ -180,7 +180,7 @@ function updateMessageByInstanceId(instanceId, message) {
 // Added this to avoid errors in the console
 function handleTouchStartEvents(e) {}
 
-function handleGistEvents(e) {
+async function handleGistEvents(e) {
   if (e.data.gist) {
     var currentInstanceId = e.data.gist.instanceId;
     var currentMessage = fetchMessageByInstanceId(currentInstanceId);
@@ -192,6 +192,7 @@ function handleGistEvents(e) {
         log(`Engine render for message: ${currentMessage.messageId} timer elapsed in ${timeElapsed.toFixed(3)} seconds`);
         currentMessage.currentRoute = e.data.gist.parameters.route;
         if (currentMessage.firstLoad) {
+          shownMessages.push(currentMessage);
           if (currentMessage.overlay) {
             showOverlayComponent(currentMessage);
           } else {
@@ -201,7 +202,7 @@ function handleGistEvents(e) {
           if (messageProperties.persistent) {
             log(`Persistent message shown, skipping logging view`);
           } else {
-            reportMessageView(currentMessage);
+            await reportMessageView(currentMessage);
           }
 
           currentMessage.firstLoad = false;
@@ -215,7 +216,7 @@ function handleGistEvents(e) {
         Gist.messageAction(currentMessage, action, name);
         
         if (e.data.gist.parameters.system && !messageProperties.persistent) {
-          hideMessage(currentInstanceId);
+          await hideMessage(currentMessage);
           break;
         }
 
@@ -225,9 +226,9 @@ function handleGistEvents(e) {
             var gistAction = url.href.replace("gist://", "").split('?')[0];
             switch (gistAction) {
               case "close":
-                removePersistentMessage(currentInstanceId);
-                hideMessage(currentInstanceId);
-                checkMessageQueue();
+                await hideMessage(currentMessage);
+                await removePersistentMessage(currentMessage);
+                await checkMessageQueue();
                 break;
               case "showMessage":
                 var messageId = url.searchParams.get('messageId');
@@ -236,7 +237,7 @@ function handleGistEvents(e) {
                   if (properties) {
                     properties = JSON.parse(atob(properties));
                   }
-                  Gist.showMessage({ messageId: messageId, properties: properties });
+                  await Gist.showMessage({ messageId: messageId, properties: properties });
                 }
                 break;
               case "loadPage":
@@ -283,4 +284,8 @@ function handleGistEvents(e) {
       }
     }
   }
+}
+
+export function hasMessageBeenShownBefore(message) {
+  return shownMessages.find(msg => msg.queueId === message.queueId) !== undefined;
 }
