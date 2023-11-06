@@ -32,8 +32,8 @@ export async function startQueueListener() {
 export async function checkMessageQueue() {
   log(`Messages in local queue: ${messages.length}`);
   var keptMessages = [];
-
-  for (const message of messages) {
+  var orderedMessages = messages.sort((a, b) => a.priority - b.priority);
+  for (const message of orderedMessages) {
     var handledMessage = await handleMessage(message);
     if (!handledMessage) {
       var duplicateMessage = keptMessages.find(queueMessages => queueMessages.queueId === message.queueId);
