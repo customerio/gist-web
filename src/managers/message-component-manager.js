@@ -1,7 +1,7 @@
 import { log } from "../utilities/log";
 import { v4 as uuidv4 } from 'uuid';
 import { embedMessage } from "./message-manager";
-import { resolveMessageProperies } from "./gist-properties-manager";
+import { resolveMessageProperties } from "./gist-properties-manager";
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
 export function isElementLoaded(elementId) {
@@ -121,7 +121,7 @@ function showMessage() {
 }
 
 function embed(url, message) {
-  var messageProperties = resolveMessageProperies(message);
+  var messageProperties = resolveMessageProperties(message);
   var windowMaxWidth = 800;
   if (messageProperties.messageWidth > 800) {
     windowMaxWidth = messageProperties.messageWidth;    
@@ -134,7 +134,7 @@ function embed(url, message) {
 }
 
 function component(url, message) {
-  var messageProperties = resolveMessageProperies(message);
+  var messageProperties = resolveMessageProperties(message);
   var windowMaxWidth = 600;
   if (messageProperties.messageWidth > 600) {
     windowMaxWidth = messageProperties.messageWidth;    

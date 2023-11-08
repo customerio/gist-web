@@ -15,7 +15,7 @@ import {
   elementHasHeight,
   isElementLoaded
 } from "./message-component-manager";
-import { resolveMessageProperies } from "./gist-properties-manager";
+import { resolveMessageProperties } from "./gist-properties-manager";
 import { positions, addPageElement } from "./page-component-manager";
 import { checkMessageQueue } from "./queue-manager";
 
@@ -27,7 +27,7 @@ export async function showMessage(message) {
       log(`Message ${Gist.overlayInstanceId} already showing.`);
       return null;
     } else {
-      var properties = resolveMessageProperies(message)
+      var properties = resolveMessageProperties(message)
       message.instanceId = uuidv4();
       message.overlay = true;
       message.firstLoad = true;
@@ -78,7 +78,7 @@ export async function hideMessage(message) {
 }
 
 export async function removePersistentMessage(message) {
-  var messageProperties = resolveMessageProperies(message);
+  var messageProperties = resolveMessageProperties(message);
   if (message) {
     if (messageProperties.persistent) {
       log(`Persistent message dismissed, logging view`);
@@ -185,7 +185,7 @@ async function handleGistEvents(e) {
     var currentInstanceId = e.data.gist.instanceId;
     var currentMessage = fetchMessageByInstanceId(currentInstanceId);
     if (!currentMessage) { return; }
-    var messageProperties = resolveMessageProperies(currentMessage);
+    var messageProperties = resolveMessageProperties(currentMessage);
     switch (e.data.gist.method) {
       case "routeLoaded": {
         var timeElapsed = (new Date().getTime() - currentMessage.renderStartTime) * 0.001;

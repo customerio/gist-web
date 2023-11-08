@@ -1,4 +1,4 @@
-export function resolveMessageProperies(message) {
+export function resolveMessageProperties(message) {
     var elementId = "";
     var routeRule = "";
     var position = "";
