@@ -10,6 +10,7 @@ export function resolveMessageProperties(message) {
     var persistent = false;
     var overlayColor = "#00000033";
     var messageWidth = 414;
+    var hasCustomWidth = false;
 
     if (message.properties && message.properties.gist) {
         if (message.properties.gist.campaignId) {
@@ -35,6 +36,7 @@ export function resolveMessageProperties(message) {
         }
         if (message.properties.gist.messageWidth && message.properties.gist.messageWidth > 0) {
             messageWidth = message.properties.gist.messageWidth;
+            hasCustomWidth = true;
         }
         if (message.properties.gist.persistent)
         {
@@ -52,6 +54,7 @@ export function resolveMessageProperties(message) {
         campaignId: campaignId,
         messageWidth: messageWidth,
         overlayColor: overlayColor,
-        persistent: persistent
+        persistent: persistent,
+        hasCustomWidth: hasCustomWidth
     }
 }

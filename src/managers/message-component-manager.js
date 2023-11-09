@@ -121,13 +121,21 @@ function showMessage() {
 }
 
 function embed(url, message) {
+  const wideOverlayPositions = ["x-gist-bottom", "x-gist-bottom", "x-gist-floating-top", "x-gist-floating-bottom"];
   var messageProperties = resolveMessageProperties(message);
   var maxWidthBreakpoint = 800;
   if (messageProperties.messageWidth > maxWidthBreakpoint) {
-    maxWidthBreakpoint = messageProperties.messageWidth;    
+    maxWidthBreakpoint = messageProperties.messageWidth;
   }
+
+  var messageWidth = messageProperties.messageWidth + "px";
+  if (wideOverlayPositions.includes(messageProperties.elementId) && !messageProperties.hasCustomWidth) {
+    messageWidth = "100%";
+  }
+
   var template = require("html-loader!../templates/embed.html");
-  template = template.replace("'${messageWidth}'", messageProperties.messageWidth + "px");
+  template = template.replace("'${topBottomMessageWidth}'", messageWidth);
+  template = template.replace("'${cornersMessageWidth}'", messageWidth);
   template = template.replace("'${maxWidth}'", maxWidthBreakpoint + "px");
   template = template.replace("${url}", url);
   return template;
