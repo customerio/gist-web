@@ -122,26 +122,26 @@ function showMessage() {
 
 function embed(url, message) {
   var messageProperties = resolveMessageProperties(message);
-  var windowMaxWidth = 800;
-  if (messageProperties.messageWidth > 800) {
-    windowMaxWidth = messageProperties.messageWidth;    
+  var maxWidthBreakpoint = 800;
+  if (messageProperties.messageWidth > maxWidthBreakpoint) {
+    maxWidthBreakpoint = messageProperties.messageWidth;    
   }
   var template = require("html-loader!../templates/embed.html");
   template = template.replace("'${messageWidth}'", messageProperties.messageWidth + "px");
-  template = template.replace("'${maxWidth}'", windowMaxWidth + "px");
+  template = template.replace("'${maxWidth}'", maxWidthBreakpoint + "px");
   template = template.replace("${url}", url);
   return template;
 }
 
 function component(url, message) {
   var messageProperties = resolveMessageProperties(message);
-  var windowMaxWidth = 600;
-  if (messageProperties.messageWidth > 600) {
-    windowMaxWidth = messageProperties.messageWidth;    
+  var maxWidthBreakpoint = 600;
+  if (messageProperties.messageWidth > maxWidthBreakpoint) {
+    maxWidthBreakpoint = messageProperties.messageWidth;    
   }
   var template = require("html-loader!../templates/message.html");
   template = template.replace("'${messageWidth}'", messageProperties.messageWidth + "px");
-  template = template.replace("'${maxWidth}'", windowMaxWidth + "px");
+  template = template.replace("'${maxWidth}'", maxWidthBreakpoint + "px");
   template = template.replace("'${overlayColor}'", messageProperties.overlayColor);
   template = template.replace("${url}", url);
   template = template.replace("${instanceId}", message.instanceId);
