@@ -7,7 +7,7 @@
       top: 0;
       width: 100%;
       height: 100%;
-      background-color: rgba(0, 0, 0, .2);
+      background-color: '${overlayColor}';
       visibility: hidden;
     }
     #gist-overlay.background.visible {
@@ -17,7 +17,7 @@
       display: block;
     }
     #gist-message {
-      width: 414px;
+      width: '${messageWidth}';
       position: absolute;
       border: none;
       opacity: 0;
@@ -39,7 +39,7 @@
     #gist-message.top {
       top: 0;
     }
-    @media (max-width: 600px) {
+    @media (max-width: '${maxWidth}') {
       #gist-message {
         width: 100%;
       }

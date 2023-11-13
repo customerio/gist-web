@@ -3,7 +3,7 @@ import { log } from "../utilities/log";
 import { getUserToken } from "./user-manager";
 import { getUserQueue } from "../services/queue-service";
 import { showMessage, embedMessage, hasMessageBeenShownBefore } from "./message-manager";
-import { resolveMessageProperies } from "./gist-properties-manager";
+import { resolveMessageProperties } from "./gist-properties-manager";
 import { preloadRenderer } from "./message-component-manager";
 import { setKeyWithExpiryToLocalStore, getKeyFromLocalStore } from '../utilities/local-storage';
 
@@ -54,7 +54,7 @@ async function handleMessage(message) {
     return;
   }
 
-  var messageProperties = resolveMessageProperies(message);
+  var messageProperties = resolveMessageProperties(message);
   if (messageProperties.hasRouteRule) {
     var currentUrl = Gist.currentRoute
     if (currentUrl == null) {

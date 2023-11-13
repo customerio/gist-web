@@ -1,4 +1,4 @@
-export function resolveMessageProperies(message) {
+export function resolveMessageProperties(message) {
     var elementId = "";
     var routeRule = "";
     var position = "";
@@ -8,6 +8,9 @@ export function resolveMessageProperies(message) {
     var shouldScale = false;
     var campaignId = null;
     var persistent = false;
+    var overlayColor = "#00000033";
+    var messageWidth = 414;
+    var hasCustomWidth = false;
 
     if (message.properties && message.properties.gist) {
         if (message.properties.gist.campaignId) {
@@ -28,6 +31,13 @@ export function resolveMessageProperies(message) {
         if (message.properties.gist.scale) {
             shouldScale = message.properties.gist.scale;
         }
+        if (message.properties.gist.overlayColor) {
+            overlayColor = message.properties.gist.overlayColor;
+        }
+        if (message.properties.gist.messageWidth && message.properties.gist.messageWidth > 0) {
+            messageWidth = message.properties.gist.messageWidth;
+            hasCustomWidth = true;
+        }
         if (message.properties.gist.persistent)
         {
             persistent = true
@@ -42,6 +52,9 @@ export function resolveMessageProperies(message) {
         hasPosition: hasPosition,
         shouldScale: shouldScale,
         campaignId: campaignId,
-        persistent: persistent
+        messageWidth: messageWidth,
+        overlayColor: overlayColor,
+        persistent: persistent,
+        hasCustomWidth: hasCustomWidth
     }
 }
