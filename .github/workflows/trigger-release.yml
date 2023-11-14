@@ -6,6 +6,7 @@ on:
     inputs:
       version:
         description: 'Semantic version change'
+        type: choice
         required: true
         options:
           - 'patch'
