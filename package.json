@@ -1,7 +1,7 @@
 {
-  "name": "@gistproduct/web",
-  "version": "2.12.1",
-  "description": "Build beautiful in-app flows with no code and deliver them instantly to your app.",
+  "name": "customerio-gist-web",
+  "version": "3.6.0",
+  "description": "Build beautiful in-app flows with no code and deliver them instantly to your app. http://customer.io",
   "private": false,
   "browser": "dist/gist.min.js",
   "scripts": {
@@ -10,7 +10,7 @@
     "watch:build": "webpack --watch --progress --mode=development",
     "watch:server": "http-server"
   },
-  "author": "Bourbon Ltd",
+  "author": "Customer.io (https://customer.io)",
   "license": "SEE LICENSE IN LICENSE",
   "devDependencies": {
     "html-loader": "^1.1.0",
@@ -25,7 +25,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com:customerio/gist-web.git"
+    "url": "git://github.com/customerio/gist-web.git"
   },
   "keywords": [
     "gist",
@@ -34,10 +34,11 @@
     "product",
     "messaging",
     "in-product",
-    "gist.build"
+    "gist.build",
+    "customerio"
   ],
   "bugs": {
     "url": "https://github.com/customerio/gist-web/issues"
   },
-  "homepage": "https://docs.gist.build/libraries/web"
+  "homepage": "https://github.com/customerio/gist-web"
 }
