@@ -42,3 +42,7 @@ jobs:
           source_dir: 'dist'          
           destination_dir: ${{ env.AWS_DEST }}
           endpoint: 'ams3.digitaloceanspaces.com'
+      - name: Publish to NPM
+        uses: JS-DevTools/npm-publish@v3
+        with:
+          token: ${{ secrets.NPM_TOKEN }}          
