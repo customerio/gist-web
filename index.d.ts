@@ -1,1 +1,1 @@
-declare module 'Gist';
+declare module 'customerio-gist-web';
