@@ -148,7 +148,6 @@ function encodeUnicode(str) {
 }
 
 async function reportMessageView(message) {
-  Gist.messageShown(message);
   log(`Message shown, logging view for: ${message.messageId}`);
   var response = {};
   if (message.queueId != null) {
@@ -199,6 +198,7 @@ async function handleGistEvents(e) {
             showEmbedComponent(currentMessage.elementId);
           }
 
+          Gist.messageShown(currentMessage);
           if (messageProperties.persistent) {
             log(`Persistent message shown, skipping logging view`);
           } else {
