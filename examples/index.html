@@ -12,11 +12,13 @@
       <h1>Gist for Web</h1>
     </div>
     <div class="row examples">
+      <a href="#" class="button" onClick="showHTMLMessage()">Show HTML Message</a>
       <a href="#" class="button" onClick="showSimpleMessage()">Show Simple Message</a>
       <a href="#" class="button" onClick="showMessageWithProperties()">Show Message With Properties</a>
       <a href="#" class="button" onClick="showComplexMessage()">Show Complex Message</a>
       <a href="#" class="button" onClick="embedBanner()">Embed Banner</a>
       <a href="#" class="button" onClick="embedFloatingMessage()">Embed Floating Message</a>
+      <a href="#" class="button" onClick="embedHTMLFloatingMessage()">Embed HTML Floating Message</a>
     </div>
     <div class="row docs">
       <p>More information can be found on our <a target="_blank" href="https://docs.gist.build">docs</a>, if you have any question you can email us at <a target="_blank" href="mailto:support@gist.build">support@gist.build</a></p>
@@ -27,8 +29,9 @@
         Dev Setup Options
         { siteId: "a9dbcd8d5644fbb673ef", dataCenter: "us", useGuestSession: true, env: "local", logging: true, experiments: true }
       */
-      Gist.setup({ siteId: "a5ec106751ef4b34a0b9", dataCenter: "eu", logging: true, env: "prod" });
-      Gist.setUserToken("ABC123");
+      //Gist.setup({ siteId: "a5ec106751ef4b34a0b9", dataCenter: "eu", logging: true, env: "prod" });
+      Gist.setup({ siteId: "siteid", dataCenter: "eu", logging: true, env: "dev" });
+      Gist.setUserToken("HTML001");
       Gist.setCurrentRoute("home");
 
       Gist.events.on("messageShown", message => {
@@ -46,6 +49,20 @@
       Gist.events.on("messageAction", params => {
         console.log(`onMessageAction, Action: ${params.action} with name ${params.name} on route: ${params.message.currentRoute} with instanceId: ${params.message.instanceId}`);
       });
+
+      function showHTMLMessage() {
+        Gist.showMessage(
+          {
+            messageId: 'html-message',
+            position: 'center',
+            properties: { 
+              gist: { 
+                encodedMessageHtml: "eNrdWFFv2zYQfs+vuGkPTgDLsuO4K1zbRZeua4e0GRAXxR4p8SRxoUiBpOy4w/77SMtJFEVylXYomhCOI5HHO9593/FIz356fX66/OvP3yA1GV8czNw/4EQkcw+F5zqQ0MUB2DbL0BCIUqI0mrn3cfnGf+5VhwTJcO6tGK5zqYwHkRQGhRVdM2rSOcUVi9DfvvSBCWYY4b6OCMf5aDC8VmWY4bj44+L8AxgJb5fvz2DNTAqnFxezoBwsBbXZXD+7Fkq6gX9uXl2L7QL8mGSMb6bwSllzfdBEaF+jYvGLG9l/D24eBxlqTRJ8o6wzNXUhiS4TJQtB/UhyqabwcxxX1JSrUBSVrwhlhZ7CaJhf3RXIiEqYmMLxvZGcUMpE0jQUyitfp4TK9RSGcJxfwYn9U0lIDod92H0Go6Nml2J2hfSMafOJ0QRNzSvKdM6JDVDMsWbW9fiUKYwMk3bN1usiE3uMvJWKfbZBJ/xrzP1daMPijb/jTSnio6DNFsl2VTsjLEtqhrY8m8L4XjBTZElqmkaiQmkHay6ZXYFqNmvwqtmzLds0+4wW9uf3VO8IMx6Pm/ngmALDPbH9XTG6P6KJlbir3PX4BjM7btAv4bOsVJgjMYeTPoxiddQwJSF5nbutkR+EXEaXjStrSJjh8JfwCzlzUo/dQygT4V3kXCOcJcJnNg66WaAVd9eMsjsGKxOg7pBNurEGJBofGKhpKleouoRr8iwcd1HeiZbP2mg53LaW/WjSxgNdqBVuLtwOfkZC5LqFmR1w0zmxtSFEs0Zs22GktOAsrZ81M851fwtyM7zVCJx0SsyKWdII1dYkxUgqUjLDgoaKM4GddxT3PQt2RWwWlHV25qrYrr5RtoKIE63nXrUoebclrypSIVdFoi5VKwU1yUbppj29YV59bpWdHkhxyll0OfcsJTKm9TvxKs/fl14dHr1o0bfV6XZ2raK5lxqT62kQWPVo9CCxqxmEBeM0uN7hdMAyq1AHjrpos4hLjYNcJJ7dA+w55NS9w6+FMVK0uRBYHxqi0tLdCYAm6dt09RbLlGmwHwJlQsG1P+XBh4AjmbBRcInWh1SuYS0LTmEjCzeGwMzL77XwLzOoddZtBdsz6xt41DvPnSyMensZ9XUx+H9i0pUSoxbcGnV0E+0g1kXk26A5fvzQHD9RaMaPH5rxE4Xm5PFDc/JEoZk8fmgmPyI0e4a/10mnG07VGffuQw8451QReW3ZZo98OmZIH0jhqpqLjjp+gFjf3u28xScijPvpL1LozrZlUDVwdolg7FH5JczIbXLKHMVHxd+JD7hekvCw564J9paQSJlwHEQy6/WhFzN7qZaF8TOpsHfkLVwH2A5wHbOALAbdXa11VV53j7OgvMbZW537VfU/BfpCHA=="
+              }
+            }
+          }
+        );
+      }
 
       function showComplexMessage() {
         Gist.showMessage({messageId: 'version-2-0', position: 'center'});
@@ -77,6 +94,17 @@
         // Loads example-notice message in a Gist preset position.
         // Available positions are: "x-gist-top", "x-gist-floating-top", "x-gist-bottom", "x-gist-floating-bottom", "x-gist-floating-bottom-left", "x-gist-floating-bottom-right", "x-gist-floating-top-left", "x-gist-floating-top-right".
         Gist.embedMessage({ messageId: "example-notice" }, "x-gist-floating-bottom-right");
+      }
+
+      function embedHTMLFloatingMessage() {
+        Gist.embedMessage({
+            messageId: 'embed-html-message',
+            properties: { 
+              gist: { 
+                encodedMessageHtml: "eNrdWFFv2zYQfs+vuGkPTgDLsuO4K1zbRZeua4e0GRAXxR4p8SRxoUiBpOy4w/77SMtJFEVylXYomhCOI5HHO9593/FIz356fX66/OvP3yA1GV8czNw/4EQkcw+F5zqQ0MUB2DbL0BCIUqI0mrn3cfnGf+5VhwTJcO6tGK5zqYwHkRQGhRVdM2rSOcUVi9DfvvSBCWYY4b6OCMf5aDC8VmWY4bj44+L8AxgJb5fvz2DNTAqnFxezoBwsBbXZXD+7Fkq6gX9uXl2L7QL8mGSMb6bwSllzfdBEaF+jYvGLG9l/D24eBxlqTRJ8o6wzNXUhiS4TJQtB/UhyqabwcxxX1JSrUBSVrwhlhZ7CaJhf3RXIiEqYmMLxvZGcUMpE0jQUyitfp4TK9RSGcJxfwYn9U0lIDod92H0Go6Nml2J2hfSMafOJ0QRNzSvKdM6JDVDMsWbW9fiUKYwMk3bN1usiE3uMvJWKfbZBJ/xrzP1daMPijb/jTSnio6DNFsl2VTsjLEtqhrY8m8L4XjBTZElqmkaiQmkHay6ZXYFqNmvwqtmzLds0+4wW9uf3VO8IMx6Pm/ngmALDPbH9XTG6P6KJlbir3PX4BjM7btAv4bOsVJgjMYeTPoxiddQwJSF5nbutkR+EXEaXjStrSJjh8JfwCzlzUo/dQygT4V3kXCOcJcJnNg66WaAVd9eMsjsGKxOg7pBNurEGJBofGKhpKleouoRr8iwcd1HeiZbP2mg53LaW/WjSxgNdqBVuLtwOfkZC5LqFmR1w0zmxtSFEs0Zs22GktOAsrZ81M851fwtyM7zVCJx0SsyKWdII1dYkxUgqUjLDgoaKM4GddxT3PQt2RWwWlHV25qrYrr5RtoKIE63nXrUoebclrypSIVdFoi5VKwU1yUbppj29YV59bpWdHkhxyll0OfcsJTKm9TvxKs/fl14dHr1o0bfV6XZ2raK5lxqT62kQWPVo9CCxqxmEBeM0uN7hdMAyq1AHjrpos4hLjYNcJJ7dA+w55NS9w6+FMVK0uRBYHxqi0tLdCYAm6dt09RbLlGmwHwJlQsG1P+XBh4AjmbBRcInWh1SuYS0LTmEjCzeGwMzL77XwLzOoddZtBdsz6xt41DvPnSyMensZ9XUx+H9i0pUSoxbcGnV0E+0g1kXk26A5fvzQHD9RaMaPH5rxE4Xm5PFDc/JEoZk8fmgmPyI0e4a/10mnG07VGffuQw8451QReW3ZZo98OmZIH0jhqpqLjjp+gFjf3u28xScijPvpL1LozrZlUDVwdolg7FH5JczIbXLKHMVHxd+JD7hekvCw564J9paQSJlwHEQy6/WhFzN7qZaF8TOpsHfkLVwH2A5wHbOALAbdXa11VV53j7OgvMbZW537VfU/BfpCHA=="
+              }
+            }
+          }, "x-gist-floating-bottom-right");
       }
     </script>
   </body>

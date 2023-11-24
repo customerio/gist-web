@@ -10,8 +10,8 @@ export const settings = {
     "local": "http://api.local.gist.build:86"
   },
   GIST_VIEW_ENDPOINT: {
-    "prod": "https://renderer.gist.build/2.0",
-    "dev": "https://renderer.gist.build/2.0",
+    "prod": "https://code.gist.build/renderer/beta",
+    "dev": "https://code.gist.build/renderer/beta",
     "local": "http://app.local.gist.build:8080/web"
   }
 }

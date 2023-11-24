@@ -65,7 +65,7 @@ export default class {
 
   static async embedMessage(message, elementId) {
     var messageResponse = await embedMessage(message, elementId);
-    return messageResponse.instanceId;
+    return messageResponse ? messageResponse.instanceId : null;
   }
 
   static async showMessage(message) {
