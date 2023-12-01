@@ -1,0 +1,9 @@
+name: Release hotfix from master
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    uses: customerio/gist-workflows/.github/workflows/release_hotfix_version.yml@master
+    secrets: inherit
