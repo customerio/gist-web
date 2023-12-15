@@ -15,7 +15,29 @@ on:
 
 jobs:
   release:
-    uses: customerio/gist-workflows/.github/workflows/release_version.yml@master
-    secrets: inherit
-    with:
-      component: ${{ inputs.component }}
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        ref: develop
+        token: ${{ secrets.SRE_GHACTIONS_TOKEN }}
+    - uses: actions-ecosystem/action-get-latest-tag@v1
+      id: get-latest-tag
+    - uses: actions-ecosystem/action-bump-semver@v1
+      id: bump-semver
+      with:
+        current_version: ${{ steps.get-latest-tag.outputs.tag }}
+        level: ${{ inputs.component }}      
+    - name: Release Package
+      shell: bash
+      env:
+        GIT_AUTH_TOKEN: ${{ secrets.SRE_GHACTIONS_TOKEN }}
+      run: |
+        git pull origin develop
+        git checkout master
+        git merge develop
+        git push origin master
+        git tag ${{ steps.bump-semver.outputs.new_version }}
+        git push origin ${{ steps.bump-semver.outputs.new_version }}
+      
