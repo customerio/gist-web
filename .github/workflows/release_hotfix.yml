@@ -5,5 +5,26 @@ on:
 
 jobs:
   release:
-    uses: customerio/gist-workflows/.github/workflows/release_hotfix_version.yml@master
-    secrets: inherit
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        ref: master
+        token: ${{ secrets.SRE_GHACTIONS_TOKEN }}
+    - uses: actions-ecosystem/action-get-latest-tag@v1
+      id: get-latest-tag
+    - uses: actions-ecosystem/action-bump-semver@v1
+      id: bump-semver
+      with:
+        current_version: ${{ steps.get-latest-tag.outputs.tag }}
+        level: patch
+    - name: Release Package
+      shell: bash
+      env:
+        GIT_AUTH_TOKEN: ${{ secrets.SRE_GHACTIONS_TOKEN }}
+      run: |
+        git config user.name "ami-ci"
+        git config user.email "<>"
+        git tag ${{ steps.bump-semver.outputs.new_version }}
+        git push origin ${{ steps.bump-semver.outputs.new_version }}
