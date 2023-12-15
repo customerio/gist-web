@@ -3,17 +3,20 @@
   "version": "3.6.4",
   "description": "Build beautiful in-app flows with no code and deliver them instantly to your app. http://customer.io",
   "private": false,
-  "browser": "dist/gist.min.js",
   "scripts": {
     "start": "npm-run-all --parallel watch:server watch:build",
     "build:prod": "webpack -p --mode=production -o dist/gist.min.js",
     "watch:build": "webpack --watch --progress --mode=development",
     "watch:server": "http-server"
   },
+  "browser": "dist/gist.min.js",
+  "exports": {
+    "require": "./dist/gist.min.js",
+    "import": "./src/index.js"
+  },
   "author": "Customer.io (https://customer.io)",
   "license": "SEE LICENSE IN LICENSE",
   "devDependencies": {
-    "html-loader": "^1.1.0",
     "http-server": "^0.12.3",
     "npm-run-all": "^4.1.5",
     "webpack": "^4.44.1",
@@ -21,6 +24,7 @@
   },
   "dependencies": {
     "axios": "^0.21.1",
+    "html-loader": "^1.1.0",
     "uuid": "^8.3.2"
   },
   "repository": {

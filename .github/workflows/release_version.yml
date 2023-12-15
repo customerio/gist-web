@@ -1,0 +1,21 @@
+name: Release new version from develop
+
+on:
+  workflow_dispatch:
+    inputs:
+      component:
+        description: 'Semantic version component to bump'
+        type: choice
+        required: true
+        options:
+          - 'patch'
+          - 'minor'
+          - 'major'
+        default: 'patch'
+
+jobs:
+  release:
+    uses: customerio/gist-workflows/.github/workflows/release_version.yml@master
+    secrets: inherit
+    with:
+      component: ${{ inputs.component }}
