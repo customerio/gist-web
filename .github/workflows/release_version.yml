@@ -34,6 +34,8 @@ jobs:
       env:
         GIT_AUTH_TOKEN: ${{ secrets.SRE_GHACTIONS_TOKEN }}
       run: |
+        git config user.name "ami-ci"
+        git config user.email "<>"
         git checkout develop
     
         # Update the package.json version. Skip the git tag, we'll do that later
