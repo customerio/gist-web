@@ -43,7 +43,7 @@ jobs:
     
         # Commit the changed package.json file to develop
         git add package.json
-        git commit -m "Bump version to ${{ steps.bump-semver.outputs.new_version }} [skip ci]"
+        git commit -m "Bump version to ${{ steps.bump-semver.outputs.new_version }}"
         git push origin develop
 
         # Merge develop into master
