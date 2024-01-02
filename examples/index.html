@@ -12,20 +12,23 @@
       <h1>Gist for Web</h1>
     </div>
     <div class="row examples">
+      <a href="#" class="button" onClick="showHTMLMessage()">Show HTML Message</a>
       <a href="#" class="button" onClick="showSimpleMessage()">Show Simple Message</a>
       <a href="#" class="button" onClick="showMessageWithProperties()">Show Message With Properties</a>
       <a href="#" class="button" onClick="showComplexMessage()">Show Complex Message</a>
       <a href="#" class="button" onClick="embedBanner()">Embed Banner</a>
       <a href="#" class="button" onClick="embedFloatingMessage()">Embed Floating Message</a>
+      <a href="#" class="button" onClick="embedHTMLFloatingMessage()">Embed HTML Floating Message</a>
     </div>
     <div class="row docs">
       <p>More information can be found on our <a target="_blank" href="https://docs.gist.build">docs</a>, if you have any question you can email us at <a target="_blank" href="mailto:support@gist.build">support@gist.build</a></p>
     </div>
     <script src="../dist/gist.js"></script>
     <script type="text/javascript">
+      var EncodedTestHTMLMessage = "eNrdWG1v2zYQ/p5fwWkfkgCWZcd2V7i2hy1dVwxpMyAphn0aKPEkcaFIgaT80qL/fUfLSRRFcpVsKwoTdiKRx7vjPc+RPM++e315fv3n77+Q1GZicTRz/4igMpl7ID3XAZQtjgi2WQaWkiil2oCdex+u3/gvveqQpBnMvSWHVa609UikpAWJoivObDpnsOQR+NuXHuGSW06FbyIqYD7sD25VWW4FLH67unxPrCJvr99dkBW3KTm/upoF5WApaOzm9tm1ULEN+XT36lqMDvgxzbjYTMlPGs31iKHS+AY0j1/dyX4+unvsZ2AMTeCNxsXU1IU0ukm0KiTzIyWUnpLv47iipvRCM9C+powXZkqGg3z9UCCjOuFySs4ejeSUMS6TpqFQrX2TUqZWUzIgZ/majPGrk5CeDHpk9+kPT5uXFPM1sAtu7B+cJWBrq2Lc5IJigGIBNbOux2dcQ2S5Qp9x1UUm9xh5qzT/iEGn4jnm/i6M5fHG3/GmFPFBsmaLdOvVzgjPkpqhLc+mZPQomCnwJLVNI1GhjYM1Vxw90M1mLaybV7Zlm+EfAWF/+Uj1jjCj0aiZD44pZLAntr9qzvZHNEGJh8pdj28hw3ELfgkfslJDDtSeTHpkGOvThikJzevcbY18PxQqumn0rCFhBoMfwi/kzLgeu6dQJoKHyLlGBU+kzzEOplmgFXfXrMYdg5cJUF8QJt3IEKAGnhioaaqWoLuEa/IiHHVR3omWL9poOdi2lv1o0sYDU+glbK7cDn5BQxCmhZkdcDM5xbMhBLsCaNthlEJwrnGdNTNu6f4W5GZ4qxEYd0rMilnaCNXWJINIaVoyA0EDLbiEzjuK+zsLdofYLCjP2Zk7xXbnG+NLEglqzNyrHkre/ZFXFamQqyJRl6odBTXJRummPb1hXn1ulZ0eUfJc8OjmbiV9pEbGjTk5fdWia6vP7epGR3MvtTY30yBA1WBNP0FP+mHBBQtudzcT8AwVm8DRFjCDhDLQz2XiYf7jHeTcvZOfC2uVbHM/QP8bItLS3Sn4TdL3qeotrlNuCH4oKZOJ3K6nvPRQ4ggmMQouyXokVSuyUoVgZKMKNwaE2x+/luNfZk/rrPvTa8+sZ3Lok7t4To8vcydNhsef95LqeWH4b8LSlRXDFugadXQT7SDWReTfonN2AOicHSw6owNAZ3Sw6IwPAJ3xwaIzOQB0Jt8iOnuGv9bFpxtO1RmPSqMnXHuqiLxGouEN0MQc2BNZXFVz1VHHNxDr+zLPW1zgZR9vxMYSozIgWF/dYAnf7j19nKwqB/lBi5NjV0JgBZEolQjoRyo77pFdBsccS25VWD9TGrDbUu1q9OO/QkHlDea1t7hENYRLvJBLWKFAOAtoexiV/p99rLqENabGqhfr9QRaveqOXq2r8rp7nAVlkYo1q/vN+B8CSHpg";
       /*
         Dev Setup Options
-        { siteId: "a9dbcd8d5644fbb673ef", dataCenter: "us", useGuestSession: true, env: "local", logging: true, experiments: true }
+        { siteId: "siteid", dataCenter: "us", env: "dev", logging: true }
       */
       Gist.setup({ siteId: "a5ec106751ef4b34a0b9", dataCenter: "eu", logging: true, env: "prod" });
       Gist.setUserToken("ABC123");
@@ -46,6 +49,20 @@
       Gist.events.on("messageAction", params => {
         console.log(`onMessageAction, Action: ${params.action} with name ${params.name} on route: ${params.message.currentRoute} with instanceId: ${params.message.instanceId}`);
       });
+
+      function showHTMLMessage() {
+        Gist.showMessage(
+          {
+            messageId: 'html-message',
+            position: 'center',
+            properties: { 
+              gist: { 
+                encodedMessageHtml: EncodedTestHTMLMessage
+              }
+            }
+          }
+        );
+      }
 
       function showComplexMessage() {
         Gist.showMessage({messageId: 'version-2-0', position: 'center'});
@@ -77,6 +94,17 @@
         // Loads example-notice message in a Gist preset position.
         // Available positions are: "x-gist-top", "x-gist-floating-top", "x-gist-bottom", "x-gist-floating-bottom", "x-gist-floating-bottom-left", "x-gist-floating-bottom-right", "x-gist-floating-top-left", "x-gist-floating-top-right".
         Gist.embedMessage({ messageId: "example-notice" }, "x-gist-floating-bottom-right");
+      }
+
+      function embedHTMLFloatingMessage() {
+        Gist.embedMessage({
+            messageId: 'embed-html-message',
+            properties: { 
+              gist: { 
+                encodedMessageHtml: EncodedTestHTMLMessage
+              }
+            }
+          }, "x-gist-floating-bottom-right");
       }
     </script>
   </body>
