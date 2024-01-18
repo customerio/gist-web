@@ -133,11 +133,56 @@ function embed(url, message) {
     messageWidth = "100%";
   }
 
-  var template = require("html-loader!../templates/embed.html");
-  template = template.replace("'${topBottomMessageWidth}'", messageWidth);
-  template = template.replace("'${cornersMessageWidth}'", messageWidth);
-  template = template.replace("'${maxWidth}'", maxWidthBreakpoint + "px");
-  template = template.replace("${url}", url);
+  var template = `
+  <div id="gist-embed">
+    <style>
+      #x-gist-floating-top, #x-gist-floating-top-left, #x-gist-floating-top-right {
+        position: fixed;
+        top: 0px;
+        z-index: 1000000;
+      }
+      #x-gist-floating-bottom, #x-gist-floating-bottom-left, #x-gist-floating-bottom-right {
+        position: fixed;
+        bottom: 0px;
+        z-index: 1000000;
+      }
+      #x-gist-bottom, #x-gist-top, #x-gist-floating-top, #x-gist-floating-bottom {
+        left: 50%;
+        transform: translate(-50%, 0%);
+        width: '${messageWidth}';
+      }
+      #x-gist-floating-top-left, #x-gist-floating-top-right, #x-gist-floating-bottom-left, #x-gist-floating-bottom-right {
+        width: '${messageWidth}';
+      }
+      #x-gist-floating-top-right, #x-gist-floating-bottom-right {
+        right: 0px;
+      }
+      #gist-embed {
+        position: relative;
+        height: 100%;
+        width: 100%;
+      }
+      #gist-embed-container {
+        position: relative;
+        height: 100%;
+        width: 100%;
+      }
+      #gist-embed-container .gist-frame {
+        height: 100%;
+        width: 100%;
+        border: none;
+      }
+      @media (max-width: '${maxWidthBreakpoint}px') {
+        #x-gist-bottom, #x-gist-bottom, #x-gist-floating-top, #x-gist-floating-bottom, #x-gist-floating-top-left, #x-gist-floating-top-right, #x-gist-floating-bottom-left, #x-gist-floating-bottom-right {
+          width: 100%;
+        }
+      }
+    </style>
+    <div id="gist-embed-container">
+      <iframe class="gist-frame" src="${url}"></iframe>
+    </div>
+  </div>
+  `;
   return template;
 }
 
@@ -147,12 +192,58 @@ function component(url, message) {
   if (messageProperties.messageWidth > maxWidthBreakpoint) {
     maxWidthBreakpoint = messageProperties.messageWidth;    
   }
-  var template = require("html-loader!../templates/message.html");
-  template = template.replace("'${messageWidth}'", messageProperties.messageWidth + "px");
-  template = template.replace("'${maxWidth}'", maxWidthBreakpoint + "px");
-  template = template.replace("'${overlayColor}'", messageProperties.overlayColor);
-  template = template.replace("${url}", url);
-  template = template.replace("${instanceId}", message.instanceId);
+  var template = `
+    <div id="gist-embed-message">
+    <style>
+      #gist-overlay.background {
+        position: fixed;
+        z-index: 9999999998;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: '${messageProperties.overlayColor}';
+        visibility: hidden;
+      }
+      #gist-overlay.background.visible {
+        visibility: visible;
+      }
+      #gist-overlay.background.is-blacked-out {
+        display: block;
+      }
+      #gist-message {
+        width: '${messageProperties.messageWidth}px';
+        position: absolute;
+        border: none;
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+        z-index: 9999999999;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+      #gist-message.visible {
+        opacity: 1;
+      }
+      #gist-message.center {
+        transform: translate(-50%, -50%);
+        top: 50%;
+      }
+      #gist-message.bottom {
+        bottom: 0;
+      }
+      #gist-message.top {
+        top: 0;
+      }
+      @media (max-width: '${maxWidthBreakpoint}px') {
+        #gist-message {
+          width: 100%;
+        }
+      }
+    </style>
+    <div id="gist-overlay" class="background">
+      <iframe id="gist-message" class="message" src="${url}"></iframe>
+    </div>
+  </div>`;
   return template;
 }
 
