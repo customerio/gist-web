@@ -2,6 +2,8 @@ import { log } from "../utilities/log";
 import { v4 as uuidv4 } from 'uuid';
 import { embedMessage } from "./message-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
+import { embedHTMLTemplate } from "../templates/embed";
+import { messageHTMLTemplate } from "../templates/message";
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
 export function isElementLoaded(elementId) {
@@ -121,38 +123,14 @@ function showMessage() {
 }
 
 function embed(url, message) {
-  const wideOverlayPositions = ["x-gist-bottom", "x-gist-bottom", "x-gist-floating-top", "x-gist-floating-bottom"];
   var messageProperties = resolveMessageProperties(message);
-  var maxWidthBreakpoint = 800;
-  if (messageProperties.messageWidth > maxWidthBreakpoint) {
-    maxWidthBreakpoint = messageProperties.messageWidth;
-  }
-
-  var messageWidth = messageProperties.messageWidth + "px";
-  if (wideOverlayPositions.includes(messageProperties.elementId) && !messageProperties.hasCustomWidth) {
-    messageWidth = "100%";
-  }
-
-  var template = require("html-loader!../templates/embed.html");
-  template = template.replace("'${topBottomMessageWidth}'", messageWidth);
-  template = template.replace("'${cornersMessageWidth}'", messageWidth);
-  template = template.replace("'${maxWidth}'", maxWidthBreakpoint + "px");
-  template = template.replace("${url}", url);
+  var template = embedHTMLTemplate(messageProperties, url);
   return template;
 }
 
 function component(url, message) {
   var messageProperties = resolveMessageProperties(message);
-  var maxWidthBreakpoint = 600;
-  if (messageProperties.messageWidth > maxWidthBreakpoint) {
-    maxWidthBreakpoint = messageProperties.messageWidth;    
-  }
-  var template = require("html-loader!../templates/message.html");
-  template = template.replace("'${messageWidth}'", messageProperties.messageWidth + "px");
-  template = template.replace("'${maxWidth}'", maxWidthBreakpoint + "px");
-  template = template.replace("'${overlayColor}'", messageProperties.overlayColor);
-  template = template.replace("${url}", url);
-  template = template.replace("${instanceId}", message.instanceId);
+  var template = messageHTMLTemplate(messageProperties, url);
   return template;
 }
 
