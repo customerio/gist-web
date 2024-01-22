@@ -1,5 +1,5 @@
 export function embedHTMLTemplate(messageProperties, url) {
-    const wideOverlayPositions = ["x-gist-bottom", "x-gist-bottom", "x-gist-floating-top", "x-gist-floating-bottom"];
+    const wideOverlayPositions = ["x-gist-top", "x-gist-bottom", "x-gist-floating-top", "x-gist-floating-bottom"];
     var maxWidthBreakpoint = 800;
     if (messageProperties.messageWidth > maxWidthBreakpoint) {
         maxWidthBreakpoint = messageProperties.messageWidth;
@@ -48,7 +48,7 @@ export function embedHTMLTemplate(messageProperties, url) {
                 border: none;
             }
             @media (max-width: ${maxWidthBreakpoint}px) {
-                #x-gist-bottom, #x-gist-bottom, #x-gist-floating-top, #x-gist-floating-bottom, #x-gist-floating-top-left, #x-gist-floating-top-right, #x-gist-floating-bottom-left, #x-gist-floating-bottom-right {
+                #x-gist-top, #x-gist-bottom, #x-gist-floating-top, #x-gist-floating-bottom, #x-gist-floating-top-left, #x-gist-floating-top-right, #x-gist-floating-bottom-left, #x-gist-floating-bottom-right {
                 width: 100%;
                 }
             }
