@@ -8,6 +8,7 @@ import { preloadRenderer } from "./message-component-manager";
 import { setKeyWithExpiryToLocalStore, getKeyFromLocalStore } from '../utilities/local-storage';
 
 const userQueueLocalStoreName = "gist.web.userQueue";
+const MESSAGES_LOCAL_STORE_CACHE_IN_MINUTES = 60000 * 60;
 
 var sleep = time => new Promise(resolve => setTimeout(resolve, time))
 var poll = (promiseFn, time) => promiseFn().then(sleep(time).then(() => poll(promiseFn, time)));
@@ -87,7 +88,7 @@ export async function pullMessagesFromQueue() {
         var responseData = [];
         if (response) {
           if (response.status === 200 || response.status === 204) {
-            var expiryDate = new Date(new Date().getTime() + 1 * 60000);
+            var expiryDate = new Date(new Date().getTime() + MESSAGES_LOCAL_STORE_CACHE_IN_MINUTES);
             setKeyWithExpiryToLocalStore(userQueueLocalStoreName, response.data, expiryDate);
             responseData = response.data;
           }

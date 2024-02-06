@@ -2,8 +2,7 @@ import { UserNetworkInstance } from './network';
 import { setKeyWithExpiryToLocalStore } from '../utilities/local-storage';
 import { log } from "../utilities/log";
 
-//const DEFAULT_POLLING_DELAY_IN_SECONDS = 600;
-const DEFAULT_POLLING_DELAY_IN_SECONDS = 10;
+const DEFAULT_POLLING_DELAY_IN_SECONDS = 600;
 var currentPollingDelayInSeconds = DEFAULT_POLLING_DELAY_IN_SECONDS;
 var checkInProgress = false;
 
