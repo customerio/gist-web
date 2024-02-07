@@ -1,6 +1,6 @@
 {
   "name": "customerio-gist-web",
-  "version": "3.6.14",
+  "version": "3.7.0",
   "description": "Build beautiful in-app flows with no code and deliver them instantly to your app. http://customer.io",
   "private": false,
   "scripts": {
