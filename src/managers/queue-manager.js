@@ -88,13 +88,13 @@ export async function pullMessagesFromQueue() {
         var responseData = [];
         if (response) {
           if (response.status === 200 || response.status === 204) {
-            var expiryDate = new Date(new Date().getTime() + MESSAGES_LOCAL_STORE_CACHE_IN_MINUTES);
-            setKeyWithExpiryToLocalStore(userQueueLocalStoreName, response.data, expiryDate);
+            log("200 response, updating local store.");
             responseData = response.data;
+            updateQueueLocalStore(responseData);
           }
           else if (response.status === 304) {
             log("304 response, using local store.");
-            responseData = getKeyFromLocalStore(userQueueLocalStoreName);
+            responseData = getMessagesFromLocalStore();
           }
           if (responseData && responseData.length > 0) {
             log(`Message queue checked for user ${getUserToken()}, ${responseData.length} messages found.`);
@@ -116,4 +116,13 @@ export async function pullMessagesFromQueue() {
   } else {
     log(`User token reset, skipping queue check.`);
   }
+}
+
+export function updateQueueLocalStore(messages) {
+  var expiryDate = new Date(new Date().getTime() + MESSAGES_LOCAL_STORE_CACHE_IN_MINUTES);
+  setKeyWithExpiryToLocalStore(userQueueLocalStoreName, messages, expiryDate);
+}
+
+export function getMessagesFromLocalStore() {
+  return getKeyFromLocalStore(userQueueLocalStoreName);
 }
