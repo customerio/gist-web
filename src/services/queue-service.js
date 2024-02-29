@@ -11,8 +11,9 @@ export async function getUserQueue() {
   var response;
   try {
     if (!checkInProgress) {
+      var timestamp = new Date().getTime();
       checkInProgress = true;
-      response = await UserNetworkInstance().post(`/api/v1/users`, {});
+      response = await UserNetworkInstance().post(`/api/v1/users?timestamp=${timestamp}`, {});
     }
   } catch (error) {
     if (error.response) {

@@ -17,7 +17,7 @@ import {
 } from "./message-component-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
 import { positions, addPageElement } from "./page-component-manager";
-import { checkMessageQueue } from "./queue-manager";
+import { checkMessageQueue, updateQueueLocalStore, getMessagesFromLocalStore } from "./queue-manager";
 
 var shownMessages = [];
 
@@ -191,7 +191,7 @@ async function handleGistEvents(e) {
         log(`Engine render for message: ${currentMessage.messageId} timer elapsed in ${timeElapsed.toFixed(3)} seconds`);
         currentMessage.currentRoute = e.data.gist.parameters.route;
         if (currentMessage.firstLoad) {
-          shownMessages.push(currentMessage);
+          messageShown(currentMessage);
           if (currentMessage.overlay) {
             showOverlayComponent(currentMessage);
           } else {
@@ -283,6 +283,14 @@ async function handleGistEvents(e) {
         break;
       }
     }
+  }
+}
+
+function messageShown(message) {
+  shownMessages.push(message);
+  var messagesInLocalStore = getMessagesFromLocalStore();
+  if (messagesInLocalStore != null && messagesInLocalStore.length > 0) {
+    updateQueueLocalStore(messagesInLocalStore.filter(item => item.queueId !== message.queueId));
   }
 }
 
