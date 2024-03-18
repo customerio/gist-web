@@ -34,6 +34,7 @@ export function messageHTMLTemplate(messageProperties, url) {
             }
             #gist-message.visible {
                 opacity: 1;
+                pointer-events: auto;
             }
             #gist-message.center {
                 transform: translate(-50%, -50%);
