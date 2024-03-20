@@ -83,7 +83,6 @@ export async function removePersistentMessage(message) {
     if (messageProperties.persistent) {
       log(`Persistent message dismissed, logging view`);
       await reportMessageView(message);
-      logMessageShownLocally(message);
     }
   } else {
     log(`Message with instance id: ${instanceId} not found`);
@@ -152,6 +151,7 @@ async function reportMessageView(message) {
   log(`Message shown, logging view for: ${message.messageId}`);
   var response = {};
   if (message.queueId != null) {
+    logUserMessageViewLocally(message);
     response = await logUserMessageView(message.queueId);
   } else {
     response = await logMessageView(message.messageId);
@@ -202,7 +202,6 @@ async function handleGistEvents(e) {
           if (messageProperties.persistent) {
             log(`Persistent message shown, skipping logging view`);
           } else {
-            logMessageShownLocally(currentMessage);
             await reportMessageView(currentMessage);
           }
 
@@ -287,7 +286,7 @@ async function handleGistEvents(e) {
   }
 }
 
-function logMessageShownLocally(message) {
+function logUserMessageViewLocally(message) {
   shownMessages.push(message);
   var messagesInLocalStore = getMessagesFromLocalStore();
   if (messagesInLocalStore != null && messagesInLocalStore.length > 0) {
