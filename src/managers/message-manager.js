@@ -83,6 +83,7 @@ export async function removePersistentMessage(message) {
     if (messageProperties.persistent) {
       log(`Persistent message dismissed, logging view`);
       await reportMessageView(message);
+      logMessageShownLocally(message);
     }
   } else {
     log(`Message with instance id: ${instanceId} not found`);
@@ -191,7 +192,6 @@ async function handleGistEvents(e) {
         log(`Engine render for message: ${currentMessage.messageId} timer elapsed in ${timeElapsed.toFixed(3)} seconds`);
         currentMessage.currentRoute = e.data.gist.parameters.route;
         if (currentMessage.firstLoad) {
-          messageShown(currentMessage);
           if (currentMessage.overlay) {
             showOverlayComponent(currentMessage);
           } else {
@@ -202,6 +202,7 @@ async function handleGistEvents(e) {
           if (messageProperties.persistent) {
             log(`Persistent message shown, skipping logging view`);
           } else {
+            logMessageShownLocally(currentMessage);
             await reportMessageView(currentMessage);
           }
 
@@ -286,7 +287,7 @@ async function handleGistEvents(e) {
   }
 }
 
-function messageShown(message) {
+function logMessageShownLocally(message) {
   shownMessages.push(message);
   var messagesInLocalStore = getMessagesFromLocalStore();
   if (messagesInLocalStore != null && messagesInLocalStore.length > 0) {
