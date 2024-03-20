@@ -151,6 +151,7 @@ async function reportMessageView(message) {
   log(`Message shown, logging view for: ${message.messageId}`);
   var response = {};
   if (message.queueId != null) {
+    logUserMessageViewLocally(message);
     response = await logUserMessageView(message.queueId);
   } else {
     response = await logMessageView(message.messageId);
@@ -191,7 +192,6 @@ async function handleGistEvents(e) {
         log(`Engine render for message: ${currentMessage.messageId} timer elapsed in ${timeElapsed.toFixed(3)} seconds`);
         currentMessage.currentRoute = e.data.gist.parameters.route;
         if (currentMessage.firstLoad) {
-          messageShown(currentMessage);
           if (currentMessage.overlay) {
             showOverlayComponent(currentMessage);
           } else {
@@ -286,7 +286,7 @@ async function handleGistEvents(e) {
   }
 }
 
-function messageShown(message) {
+function logUserMessageViewLocally(message) {
   shownMessages.push(message);
   var messagesInLocalStore = getMessagesFromLocalStore();
   if (messagesInLocalStore != null && messagesInLocalStore.length > 0) {
