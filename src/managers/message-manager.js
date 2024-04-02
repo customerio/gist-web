@@ -13,7 +13,8 @@ import {
   hideEmbedComponent,
   resizeComponent,
   elementHasHeight,
-  isElementLoaded
+  isElementLoaded,
+  changeOverlayTitle
 } from "./message-component-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
 import { positions, addPageElement } from "./page-component-manager";
@@ -264,12 +265,17 @@ async function handleGistEvents(e) {
         break;
       }
       case "sizeChanged": {
-        log(`Size Changed Width: ${e.data.gist.parameters.width} - Height: ${e.data.gist.parameters.height}`)
+        log(`Size Changed Width: ${e.data.gist.parameters.width} - Height: ${e.data.gist.parameters.height}`);
         if (currentMessage.elementId && currentMessage.shouldResizeHeight) {
           resizeComponent(currentMessage.elementId, e.data.gist.parameters, currentMessage.shouldScale);
         } else {
           resizeComponent("gist-message", e.data.gist.parameters, currentMessage.shouldScale);
         }
+        break;
+      }
+      case "titleChanged": {
+        log(`Overlay title changed to: ${e.data.gist.parameters.title}`);
+        changeOverlayTitle(e.data.gist.parameters.title);
         break;
       }
       case "error":

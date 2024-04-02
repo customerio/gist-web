@@ -82,7 +82,7 @@ export function resizeComponent(elementId, size, shouldScale) {
 }
 
 export function loadOverlayComponent(url, message) {
-  document.body.insertAdjacentHTML('beforeend', component(url, message));
+  document.body.insertAdjacentHTML('afterbegin', component(url, message));
 }
 
 export function showOverlayComponent(message) {
@@ -114,6 +114,13 @@ export function removeOverlayComponent() {
   var mainMessageElement = document.querySelector("#gist-embed-message");
   if (mainMessageElement) {
     mainMessageElement.parentNode.removeChild(mainMessageElement);
+  }
+}
+
+export function changeOverlayTitle(title) {
+  var element = safelyFetchElement("gist-message");
+  if (element) {
+    element.title = title;
   }
 }
 
