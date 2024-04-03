@@ -1,4 +1,4 @@
-export function messageHTMLTemplate(messageProperties, url) {
+export function messageHTMLTemplate(instanceId, messageProperties, url) {
     var maxWidthBreakpoint = 600;
     if (messageProperties.messageWidth > maxWidthBreakpoint) {
       maxWidthBreakpoint = messageProperties.messageWidth;    
@@ -22,7 +22,7 @@ export function messageHTMLTemplate(messageProperties, url) {
             #gist-overlay.background.is-blacked-out {
                 display: block;
             }
-            #gist-message {
+            .gist-message {
                 width: ${messageProperties.messageWidth}px;
                 position: absolute;
                 border: none;
@@ -32,28 +32,28 @@ export function messageHTMLTemplate(messageProperties, url) {
                 left: 50%;
                 transform: translateX(-50%);
             }
-            #gist-message.visible {
+            .gist-message.visible {
                 opacity: 1;
                 pointer-events: auto;
             }
-            #gist-message.center {
+            .gist-message.center {
                 transform: translate(-50%, -50%);
                 top: 50%;
             }
-            #gist-message.bottom {
+            .gist-message.bottom {
                 bottom: 0;
             }
-            #gist-message.top {
+            .gist-message.top {
                 top: 0;
             }
             @media (max-width: ${maxWidthBreakpoint}px) {
-                #gist-message {
+                .gist-message {
                     width: 100%;
                 }
             }
         </style>
         <div id="gist-overlay" class="background">
-            <iframe id="gist-message" class="message" src="${url}"></iframe>
+            <iframe id="${instanceId}" class="gist-message" src="${url}"></iframe>
         </div>
     </div>`;
     return template;

@@ -61,14 +61,15 @@ export function elementHasHeight(elementId) {
   }
 }
 
-export function resizeComponent(elementId, size, shouldScale) {
+export function resizeComponent(message, size) {
+  var elementId = message.elementId ? message.elementId : getMessageElementId(message.instanceId);
   var element = safelyFetchElement(elementId);
   if (element) {
     var style = element.style;
     if (size.height > 0) {
       if (size.height > window.innerHeight) {
         var heightScale = 1 - ((size.height / window.innerHeight) - 1);
-        if (shouldScale && heightScale >= 0.4) {
+        if (message.shouldScale && heightScale >= 0.4) {
           style.height = `${size.height}px`;
           style.transform = `translateX(-50%) translateY(-50%) scale(${heightScale})`;
         } else {
@@ -89,7 +90,7 @@ export function showOverlayComponent(message) {
   var mainMessageElement = document.querySelector("#gist-overlay");
   if (mainMessageElement) {
     mainMessageElement.classList.add("visible");
-    var messageElement = document.querySelector("#gist-message");
+    var messageElement = document.querySelector(".gist-message");
     if (message.position) {
       messageElement.classList.add(message.position);
     } else {
@@ -102,7 +103,7 @@ export function showOverlayComponent(message) {
 }
 
 export async function hideOverlayComponent() {
-  var message = document.querySelector("#gist-message");
+  var message = document.querySelector(".gist-message");
   if (message) {
     message.classList.remove("visible");
     await delay(300);
@@ -117,27 +118,31 @@ export function removeOverlayComponent() {
   }
 }
 
-export function changeOverlayTitle(title) {
-  var element = safelyFetchElement("gist-message");
+export function changeOverlayTitle(instanceId, title) {
+  var element = safelyFetchElement(getMessageElementId(instanceId));
   if (element) {
     element.title = title;
   }
 }
 
+function getMessageElementId(instanceId) {
+  return `gist-${instanceId}`;
+}
+
 function showMessage() {
-  var messageElement = document.querySelector("#gist-message");
+  var messageElement = document.querySelector(".gist-message");
   if (messageElement) messageElement.classList.add("visible");
 }
 
 function embed(url, message) {
   var messageProperties = resolveMessageProperties(message);
-  var template = embedHTMLTemplate(messageProperties, url);
+  var template = embedHTMLTemplate(getMessageElementId(message.instanceId), messageProperties, url);
   return template;
 }
 
 function component(url, message) {
   var messageProperties = resolveMessageProperties(message);
-  var template = messageHTMLTemplate(messageProperties, url);
+  var template = messageHTMLTemplate(getMessageElementId(message.instanceId), messageProperties, url);
   return template;
 }
 
