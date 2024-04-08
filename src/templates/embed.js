@@ -1,4 +1,4 @@
-export function embedHTMLTemplate(messageProperties, url) {
+export function embedHTMLTemplate(instanceId, messageProperties, url) {
     const wideOverlayPositions = ["x-gist-top", "x-gist-bottom", "x-gist-floating-top", "x-gist-floating-bottom"];
     var maxWidthBreakpoint = 800;
     if (messageProperties.messageWidth > maxWidthBreakpoint) {
@@ -54,7 +54,7 @@ export function embedHTMLTemplate(messageProperties, url) {
             }
         </style>
         <div id="gist-embed-container">
-            <iframe class="gist-frame" src="${url}"></iframe>
+            <iframe id="${instanceId}" class="gist-frame" src="${url}"></iframe>
         </div>
     </div>`;
     return template
