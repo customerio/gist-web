@@ -15,44 +15,43 @@ on:
 
 jobs:
   release:
-    runs-on:
-      - self-hosted
-      - ephemeral
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          ref: develop
-          token: ${{ secrets.SRE_GHACTIONS_TOKEN }}
-      - uses: actions-ecosystem/action-get-latest-tag@v1
-        id: get-latest-tag
-      - uses: actions-ecosystem/action-bump-semver@v1
-        id: bump-semver
-        with:
-          current_version: ${{ steps.get-latest-tag.outputs.tag }}
-          level: ${{ inputs.component }}
-      - name: Release Package
-        shell: bash
-        env:
-          GIT_AUTH_TOKEN: ${{ secrets.SRE_GHACTIONS_TOKEN }}
-        run: |
-          git config user.name "ami-ci"
-          git config user.email "<>"
-          git checkout develop
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        ref: develop
+        token: ${{ secrets.SRE_GHACTIONS_TOKEN }}
+    - uses: actions-ecosystem/action-get-latest-tag@v1
+      id: get-latest-tag
+    - uses: actions-ecosystem/action-bump-semver@v1
+      id: bump-semver
+      with:
+        current_version: ${{ steps.get-latest-tag.outputs.tag }}
+        level: ${{ inputs.component }}      
+    - name: Release Package
+      shell: bash
+      env:
+        GIT_AUTH_TOKEN: ${{ secrets.SRE_GHACTIONS_TOKEN }}
+      run: |
+        git config user.name "ami-ci"
+        git config user.email "<>"
+        git checkout develop
+    
+        # Update the package.json version. Skip the git tag, we'll do that later
+        npm version ${{ steps.bump-semver.outputs.new_version }} --no-git-tag-version
+    
+        # Commit the changed package.json file to develop
+        git add package.json
+        git commit -m "Bump version to ${{ steps.bump-semver.outputs.new_version }}"
+        git push origin develop
 
-          # Update the package.json version. Skip the git tag, we'll do that later
-          npm version ${{ steps.bump-semver.outputs.new_version }} --no-git-tag-version
+        # Merge develop into master
+        git checkout master
+        git merge develop
+        git push origin master
 
-          # Commit the changed package.json file to develop
-          git add package.json
-          git commit -m "Bump version to ${{ steps.bump-semver.outputs.new_version }}"
-          git push origin develop
-
-          # Merge develop into master
-          git checkout master
-          git merge develop
-          git push origin master
-
-          # Tag the new version
-          git tag ${{ steps.bump-semver.outputs.new_version }}
-          git push origin ${{ steps.bump-semver.outputs.new_version }}
+        # Tag the new version
+        git tag ${{ steps.bump-semver.outputs.new_version }}
+        git push origin ${{ steps.bump-semver.outputs.new_version }}
+      
