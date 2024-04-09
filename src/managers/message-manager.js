@@ -276,6 +276,10 @@ async function handleGistEvents(e) {
         changeOverlayTitle(currentInstanceId, e.data.gist.parameters.title);
         break;
       }
+      case "internalEvent": {
+        Gist.events.dispatch("internalEvent", { "name": e.data.gist.parameters.name, "payload": e.data.gist.parameters.payload });
+        break;
+      }
       case "error":
       case "routeError": {
         Gist.messageError(currentMessage);
