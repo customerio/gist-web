@@ -11,7 +11,7 @@ export function addPageElement(position) {
       document.body.insertBefore(element, document.body.firstChild);
       break;
     default:
-      document.body.insertAdjacentElement("beforeend", element);
+      document.body.insertAdjacentElement("afterbegin", element);
       break;
   }
 
