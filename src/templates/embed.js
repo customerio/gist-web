@@ -1,12 +1,7 @@
 export function embedHTMLTemplate(instanceId, messageProperties, url) {
-    const wideOverlayPositions = ["x-gist-top", "x-gist-bottom", "x-gist-floating-top", "x-gist-floating-bottom"];
     var maxWidthBreakpoint = 800;
     if (messageProperties.messageWidth > maxWidthBreakpoint) {
         maxWidthBreakpoint = messageProperties.messageWidth;
-    }
-    var messageWidth = messageProperties.messageWidth + "px";
-    if (wideOverlayPositions.includes(messageProperties.elementId) && !messageProperties.hasCustomWidth) {
-        messageWidth = "100%";
     }
     var template = `
     <div id="gist-embed">
@@ -24,10 +19,6 @@ export function embedHTMLTemplate(instanceId, messageProperties, url) {
             #x-gist-bottom, #x-gist-top, #x-gist-floating-top, #x-gist-floating-bottom {
                 left: 50%;
                 transform: translate(-50%, 0%);
-                width: ${messageWidth};
-            }
-            #x-gist-floating-top-left, #x-gist-floating-top-right, #x-gist-floating-bottom-left, #x-gist-floating-bottom-right {
-                width: ${messageWidth};
             }
             #x-gist-floating-top-right, #x-gist-floating-bottom-right {
                 right: 0px;
@@ -49,7 +40,7 @@ export function embedHTMLTemplate(instanceId, messageProperties, url) {
             }
             @media (max-width: ${maxWidthBreakpoint}px) {
                 #x-gist-top, #x-gist-bottom, #x-gist-floating-top, #x-gist-floating-bottom, #x-gist-floating-top-left, #x-gist-floating-top-right, #x-gist-floating-bottom-left, #x-gist-floating-bottom-right {
-                width: 100%;
+                width: 100% !important;
                 }
             }
         </style>

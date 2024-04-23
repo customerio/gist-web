@@ -4,7 +4,9 @@ import { embedMessage } from "./message-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
 import { embedHTMLTemplate } from "../templates/embed";
 import { messageHTMLTemplate } from "../templates/message";
+import { positions } from "./page-component-manager";
 const delay = ms => new Promise(res => setTimeout(res, ms));
+const wideOverlayPositions = ["x-gist-top", "x-gist-bottom", "x-gist-floating-top", "x-gist-floating-bottom"];
 
 export function isElementLoaded(elementId) {
   var element = safelyFetchElement(elementId);
@@ -29,10 +31,19 @@ export async function preloadRenderer() {
 export function loadEmbedComponent(elementId, url, message) {
   var element = safelyFetchElement(elementId);
   if (element) {
+    var messageProperties = resolveMessageProperties(message);
+    var messageWidth = messageProperties.messageWidth + "px";
+    if (wideOverlayPositions.includes(messageProperties.elementId) && !messageProperties.hasCustomWidth) {
+        messageWidth = "100%";
+    }
+    // Only set the width if it's a position offered by the SDK
+    if (positions.includes(messageProperties.elementId)) {
+      element.style.width = messageWidth;
+    }
     if (!elementHasHeight(elementId)) {
       element.style.height = "0px";
     }
-    element.innerHTML = embed(url, message);
+    element.innerHTML = embed(url, message, messageProperties);
   } else {
     log(`Message could not be embedded, elementId ${elementId} not found.`);
   }
@@ -134,8 +145,7 @@ function showMessage() {
   if (messageElement) messageElement.classList.add("visible");
 }
 
-function embed(url, message) {
-  var messageProperties = resolveMessageProperties(message);
+function embed(url, message, messageProperties) {
   var template = embedHTMLTemplate(getMessageElementId(message.instanceId), messageProperties, url);
   return template;
 }
