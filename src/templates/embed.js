@@ -1,4 +1,4 @@
-export function embedHTMLTemplate(instanceId, messageProperties, url) {
+export function embedHTMLTemplate(elementId, messageProperties, url) {
     var maxWidthBreakpoint = 800;
     if (messageProperties.messageWidth > maxWidthBreakpoint) {
         maxWidthBreakpoint = messageProperties.messageWidth;
@@ -39,13 +39,20 @@ export function embedHTMLTemplate(instanceId, messageProperties, url) {
                 border: none;
             }
             @media (max-width: ${maxWidthBreakpoint}px) {
-                #x-gist-top, #x-gist-bottom, #x-gist-floating-top, #x-gist-floating-bottom, #x-gist-floating-top-left, #x-gist-floating-top-right, #x-gist-floating-bottom-left, #x-gist-floating-bottom-right {
-                width: 100% !important;
+                #x-gist-top.${elementId},
+                #x-gist-bottom.${elementId},
+                #x-gist-floating-top.${elementId},
+                #x-gist-floating-bottom.${elementId},
+                #x-gist-floating-top-left.${elementId},
+                #x-gist-floating-top-right.${elementId},
+                #x-gist-floating-bottom-left.${elementId},
+                #x-gist-floating-bottom-right.${elementId} {
+                    width: 100% !important;
                 }
             }
         </style>
         <div id="gist-embed-container">
-            <iframe id="${instanceId}" class="gist-frame" src="${url}"></iframe>
+            <iframe id="${elementId}" class="gist-frame" src="${url}"></iframe>
         </div>
     </div>`;
     return template
