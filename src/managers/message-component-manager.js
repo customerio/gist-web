@@ -31,6 +31,7 @@ export async function preloadRenderer() {
 export function loadEmbedComponent(elementId, url, message) {
   var element = safelyFetchElement(elementId);
   if (element) {
+    element.classList.add(getMessageElementId(message.instanceId));
     var messageProperties = resolveMessageProperties(message);
     var messageWidth = messageProperties.messageWidth + "px";
     if (wideOverlayPositions.includes(messageProperties.elementId) && !messageProperties.hasCustomWidth) {

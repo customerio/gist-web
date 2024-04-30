@@ -1,4 +1,4 @@
-export function messageHTMLTemplate(instanceId, messageProperties, url) {
+export function messageHTMLTemplate(elementId, messageProperties, url) {
     var maxWidthBreakpoint = 600;
     if (messageProperties.messageWidth > maxWidthBreakpoint) {
       maxWidthBreakpoint = messageProperties.messageWidth;    
@@ -53,7 +53,7 @@ export function messageHTMLTemplate(instanceId, messageProperties, url) {
             }
         </style>
         <div id="gist-overlay" class="background">
-            <iframe id="${instanceId}" class="gist-message" src="${url}"></iframe>
+            <iframe id="${elementId}" class="gist-message" src="${url}"></iframe>
         </div>
     </div>`;
     return template;
