@@ -18,7 +18,7 @@
 - Head over to the repo's feature release [action page](https://github.com/customerio/gist-web/actions/workflows/release_version.yml).
 - Select **Run Workflow**
 - Choose between:
-    - *patch* - Bug fixes / hotfixes
+    - *patch* - Bug/hot fixes
     - *minor* - New features
     - *major* - New / replaced APIs (usually breaking)
 
