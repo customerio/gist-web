@@ -34,11 +34,11 @@ export function loadEmbedComponent(elementId, url, message) {
     element.classList.add(getMessageElementId(message.instanceId));
     var messageProperties = resolveMessageProperties(message);
     var messageWidth = messageProperties.messageWidth + "px";
-    if (wideOverlayPositions.includes(messageProperties.elementId) && !messageProperties.hasCustomWidth) {
+    if (wideOverlayPositions.includes(elementId) && !messageProperties.hasCustomWidth) {
         messageWidth = "100%";
     }
     // Only set the width if it's a position offered by the SDK
-    if (positions.includes(messageProperties.elementId)) {
+    if (positions.includes(elementId)) {
       element.style.width = messageWidth;
     }
     if (!elementHasHeight(elementId)) {
