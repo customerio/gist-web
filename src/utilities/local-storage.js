@@ -1,3 +1,13 @@
+export function setKeyToLocalStore(key, value) {
+    let maxExpiryDate = new Date();
+    maxExpiryDate.setDate(maxExpiryDate.getDate() + 365);
+    const item = {
+        value: value,
+        expiry: maxExpiryDate,
+    };
+    localStorage.setItem(key, JSON.stringify(item));
+}
+
 export function setKeyWithExpiryToLocalStore(key, value, ttl) {
     const item = {
         value: value,

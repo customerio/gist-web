@@ -1,5 +1,5 @@
 import { log } from '../utilities/log';
-import { setKeyWithExpiryToLocalStore, getKeyFromLocalStore, clearKeyFromLocalStore } from '../utilities/local-storage';
+import { setKeyWithExpiryToLocalStore, setKeyToLocalStore, getKeyFromLocalStore, clearKeyFromLocalStore } from '../utilities/local-storage';
 import { v4 as uuidv4 } from 'uuid';
 const userTokenLocalStoreName = "gist.web.userToken";
 const guestUserTokenLocalStoreName = "gist.web.guestUserToken";
@@ -30,20 +30,17 @@ export function setUserToken(userToken, expiryDate) {
 }
 
 export function useGuestSession() {
-  var expiryDate = new Date();
-  expiryDate.setDate(expiryDate.getDate() + 365);
-
   // Guest sessions should never override existing sessions
   if (getUserToken() === null) {
     var guestUserToken = getKeyFromLocalStore(guestUserTokenLocalStoreName);
     if (guestUserToken == null) {
       guestUserToken = uuidv4();
-      setKeyWithExpiryToLocalStore(guestUserTokenLocalStoreName, guestUserToken, expiryDate);
-      log(`Set guest user token "${guestUserToken}" with expiry date set to 1 year from today`);
+      setKeyToLocalStore(guestUserTokenLocalStoreName, guestUserToken);
+      log(`Set guest user token "${guestUserToken}"`);
     }
 
-    setKeyWithExpiryToLocalStore(userTokenLocalStoreName, guestUserToken, expiryDate);
-    setKeyWithExpiryToLocalStore(usingGuestUserTokenLocalStoreName, true, expiryDate);
+    setKeyToLocalStore(userTokenLocalStoreName, guestUserToken);
+    setKeyToLocalStore(usingGuestUserTokenLocalStoreName, true);
   }
 }
 
