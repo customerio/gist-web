@@ -52,5 +52,5 @@ function fetchBroadcast(broadcastId) {
   return broadcasts.find(message => message.queueId === broadcastId);
 }
 
-function numberOfTimesShownLocalStoreName(broadcastId) { `gist.web.broadcasts.${broadcastId}.numberOfTimesShown` };
-function broadcastShouldShowLocalStoreName(broadcastId) { `gist.web.broadcasts.${broadcastId}.shouldShow`};
+function numberOfTimesShownLocalStoreName(broadcastId) { `${broadcastsLocalStoreName}.${broadcastId}.numberOfTimesShown` };
+function broadcastShouldShowLocalStoreName(broadcastId) { `${broadcastsLocalStoreName}.${broadcastId}.shouldShow`};
