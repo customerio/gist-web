@@ -50,7 +50,7 @@ export async function markBroadcastAsSeen(broadcastId) {
   var numberOfTimesShown = getKeyFromLocalStore(numberOfTimesShownLocalStoreName) || 0;
   setKeyToLocalStore(numberOfTimesShownLocalStoreName, numberOfTimesShown + 1);
 
-  if (broadcastDetails.frequency.count <= 1) {
+  if (broadcastDetails.frequency.count == 1) {
     setKeyToLocalStore(broadcastShouldShowLocalStoreName, false);
     log(`Marked broadcast ${broadcastId} as seen.`);
   } else {
