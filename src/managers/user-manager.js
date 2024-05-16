@@ -26,7 +26,7 @@ export function setUserToken(userToken, expiryDate) {
     clearKeyFromLocalStore(userQueueNextPullCheckLocalStoreName);
     clearKeyFromLocalStore(usingGuestUserTokenLocalStoreName);
   }
-  log(`Set user token "${userToken}" with expiry date set to ${expiryDate}`);
+  log(`Set user token ${userToken} with expiry date set to ${expiryDate}`);
 }
 
 export function useGuestSession() {

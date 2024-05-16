@@ -21,14 +21,14 @@ export async function getEligibleBroadcasts() {
   const messageBroadcastLocalStoreName = await getMessageBroadcastLocalStoreName();
   if (!messageBroadcastLocalStoreName) return;
 
-  var broadcasts = getKeyFromLocalStore(messageBroadcastLocalStoreName) ?? [];
+  const broadcasts = getKeyFromLocalStore(messageBroadcastLocalStoreName) ?? [];
   var eligibleBroadcasts = [];
 
   broadcasts.forEach(broadcast => {
-    var broadcastDetails = broadcast.properties.gist.broadcast;
-    var shouldShow = getKeyFromLocalStore(getBroadcastShouldShowLocalStoreName(messageBroadcastLocalStoreName, broadcast.queueId)) || true;
-    var numberOfTimesShown = getKeyFromLocalStore(getNumberOfTimesShownLocalStoreName(messageBroadcastLocalStoreName, broadcast.queueId)) || 1;
-    if (shouldShow && broadcastDetails.frequency.count >= numberOfTimesShown) {
+    const broadcastDetails = broadcast.properties.gist.broadcast;
+    const shouldShow = getKeyFromLocalStore(getBroadcastShouldShowLocalStoreName(messageBroadcastLocalStoreName, broadcast.queueId)) ?? true;
+    const numberOfTimesShown = getKeyFromLocalStore(getNumberOfTimesShownLocalStoreName(messageBroadcastLocalStoreName, broadcast.queueId)) || 0;
+    if (shouldShow && numberOfTimesShown < broadcastDetails.frequency.count) {
       eligibleBroadcasts.push(broadcast);
     }
   });
@@ -40,7 +40,11 @@ export async function markBroadcastAsSeen(broadcastId) {
   log(`Marking broadcast ${broadcastId} as seen.`);
   const messageBroadcastLocalStoreName = await getMessageBroadcastLocalStoreName();
   if (!messageBroadcastLocalStoreName) return;
+  
+  const broadcast = await fetchMessageBroadcast(messageBroadcastLocalStoreName, broadcastId);
+  if (!broadcast) return;
 
+  const broadcastDetails = broadcast.properties.gist.broadcast;
   const numberOfTimesShownLocalStoreName = getNumberOfTimesShownLocalStoreName(messageBroadcastLocalStoreName, broadcastId);
   const broadcastShouldShowLocalStoreName = getBroadcastShouldShowLocalStoreName(messageBroadcastLocalStoreName, broadcastId);
   var numberOfTimesShown = getKeyFromLocalStore(numberOfTimesShownLocalStoreName) || 0;
@@ -57,6 +61,12 @@ export async function markBroadcastAsSeen(broadcastId) {
     log(`Marked broadcast ${broadcastId} as seen, broadcast was seen ${numberOfTimesShown + 1}, next show date is ${showShowDate}.`);
   }
 }
+
+async function fetchMessageBroadcast(messageBroadcastLocalStoreName, broadcastId) {
+  var broadcasts = getKeyFromLocalStore(messageBroadcastLocalStoreName);
+  return broadcasts.find(message => message.queueId === broadcastId);
+}
+
 
 export function isMessageBroadcast(message) {
   return message.properties && message.properties.gist && message.properties.gist.broadcast;
