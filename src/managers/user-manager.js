@@ -44,7 +44,30 @@ export function useGuestSession() {
   }
 }
 
+export async function getHashedUserToken() {
+  var userToken = getUserToken();
+  if (userToken === null) {
+    return null;
+  }
+  return await hashString(userToken);
+}
+
 export function clearUserToken() {
   clearKeyFromLocalStore(userTokenLocalStoreName);
   log(`Cleared user token`);
+}
+
+async function hashString(message) {
+  // Encode the message as a Uint8Array
+  const encoder = new TextEncoder();
+  const data = encoder.encode(message);
+
+  // Hash the message using the SHA-256 algorithm
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+
+  // Convert the hash to a hexadecimal string
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('');
+
+  return hashHex;
 }

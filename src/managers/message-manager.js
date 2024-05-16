@@ -18,9 +18,9 @@ import {
 } from "./message-component-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
 import { positions, addPageElement } from "./page-component-manager";
-import { checkMessageQueue, updateQueueLocalStore, getMessagesFromLocalStore } from "./queue-manager";
-
-var shownMessages = [];
+import { checkMessageQueue } from "./queue-manager";
+import { isMessageBroadcast, markBroadcastAsSeen } from './message-broadcast-manager';
+import { markUserQueueMessageAsSeen } from './message-user-queue-manager';
 
 export async function showMessage(message) {
   if (Gist.isDocumentVisible) {
@@ -83,6 +83,7 @@ export async function removePersistentMessage(message) {
   if (message) {
     if (messageProperties.persistent) {
       log(`Persistent message dismissed, logging view`);
+      await logUserMessageViewLocally(message);
       await reportMessageView(message);
     }
   } else {
@@ -152,7 +153,7 @@ async function reportMessageView(message) {
   log(`Message shown, logging view for: ${message.messageId}`);
   var response = {};
   if (message.queueId != null) {
-    logUserMessageViewLocally(message);
+    await logUserMessageViewLocally(message);
     response = await logUserMessageView(message.queueId);
   } else {
     response = await logMessageView(message.messageId);
@@ -294,14 +295,11 @@ async function handleGistEvents(e) {
   }
 }
 
-function logUserMessageViewLocally(message) {
-  shownMessages.push(message);
-  var messagesInLocalStore = getMessagesFromLocalStore();
-  if (messagesInLocalStore != null && messagesInLocalStore.length > 0) {
-    updateQueueLocalStore(messagesInLocalStore.filter(item => item.queueId !== message.queueId));
+async function logUserMessageViewLocally(message) {
+  log(`Logging user message view locally for: ${message.queueId}`);
+  if (isMessageBroadcast(message)) {
+    await markBroadcastAsSeen(message.queueId);
+  } else {
+    await markUserQueueMessageAsSeen(message.queueId);
   }
-}
-
-export function hasMessageBeenShownBefore(message) {
-  return shownMessages.find(msg => msg.queueId === message.queueId) !== undefined;
 }
