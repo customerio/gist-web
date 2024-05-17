@@ -19,7 +19,7 @@ export async function updateBroadcastsLocalStore(messages) {
 
 export async function getEligibleBroadcasts() {
   const messageBroadcastLocalStoreName = await getMessageBroadcastLocalStoreName();
-  if (!messageBroadcastLocalStoreName) return;
+  if (!messageBroadcastLocalStoreName) return [];
 
   const broadcasts = getKeyFromLocalStore(messageBroadcastLocalStoreName) ?? [];
   var eligibleBroadcasts = [];
@@ -58,7 +58,7 @@ export async function markBroadcastAsSeen(broadcastId) {
     let delayInSeconds = broadcastDetails.frequency.delay;
     showShowDate.setSeconds(showShowDate.getSeconds() + delayInSeconds);
     setKeyWithExpiryToLocalStore(broadcastShouldShowLocalStoreName, false, showShowDate);
-    log(`Marked broadcast ${broadcastId} as seen, broadcast was seen ${numberOfTimesShown + 1}, next show date is ${showShowDate}.`);
+    log(`Marked broadcast ${broadcastId} as seen, broadcast was seen ${numberOfTimesShown + 1} times, next show date is ${showShowDate}.`);
   }
 }
 
