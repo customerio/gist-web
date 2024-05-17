@@ -3,6 +3,7 @@ import { log } from "./utilities/log";
 import { startQueueListener, checkMessageQueue } from "./managers/queue-manager";
 import { setUserToken, clearUserToken, useGuestSession } from "./managers/user-manager";
 import { showMessage, embedMessage, hideMessage, removePersistentMessage, fetchMessageByInstanceId } from "./managers/message-manager";
+import { setUserLocale } from "./managers/locale-manager";
 
 export default class {
   static async setup(config) {
@@ -46,6 +47,10 @@ export default class {
   static async setUserToken(userToken, expiryDate) {
     setUserToken(userToken, expiryDate);
     await startQueueListener();
+  }
+
+  static setUserLocale(userLocale) {
+    setUserLocale(userLocale);
   }
 
   static async clearUserToken() {

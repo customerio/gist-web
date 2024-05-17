@@ -12,5 +12,5 @@ export function getUserLocale() {
 
 export function setUserLocale(locale) {
   setKeyToLocalStore(userLocaleLocalStoreName, locale);
-  log(`Set user locate to "${locale}"}`);
+  log(`Set user locate to "${locale}"`);
 }
