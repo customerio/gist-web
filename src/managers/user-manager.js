@@ -1,7 +1,6 @@
 import { log } from '../utilities/log';
 import { setKeyWithExpiryToLocalStore, setKeyToLocalStore, getKeyFromLocalStore, clearKeyFromLocalStore } from '../utilities/local-storage';
 const userTokenLocalStoreName = "gist.web.userToken";
-const guestUserTokenLocalStoreName = "gist.web.guestUserToken";
 const usingGuestUserTokenLocalStoreName = "gist.web.usingGuestUserToken";
 import { userQueueNextPullCheckLocalStoreName } from '../services/queue-service';
 
@@ -28,17 +27,12 @@ export function setUserToken(userToken, expiryDate) {
   log(`Set user token "${userToken}" with expiry date set to ${expiryDate}`);
 }
 
-export function useGuestSession(anonymousId) {
+export function useGuestSession() {
   // Guest sessions should never override existing sessions
   if (getUserToken() === null) {
-    var guestUserToken = getKeyFromLocalStore(guestUserTokenLocalStoreName);
-    if (guestUserToken == null) {
-      guestUserToken = anonymousId;
-      setKeyToLocalStore(guestUserTokenLocalStoreName, guestUserToken);
-      log(`Set guest user token "${guestUserToken}"`);
-    }
-
-    setKeyToLocalStore(userTokenLocalStoreName, guestUserToken);
+    const anonymousId = Gist.config.useAnonymousId;
+    log(`Set guest user token "${anonymousId}"`);
+    setKeyToLocalStore(userTokenLocalStoreName, anonymousId);
     setKeyToLocalStore(usingGuestUserTokenLocalStoreName, true);
   }
 }
