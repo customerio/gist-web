@@ -28,8 +28,9 @@ export function setUserToken(userToken, expiryDate) {
 }
 
 export function useGuestSession() {
-  // Guest sessions should never override existing sessions
-  if (getUserToken() === null) {
+  // Guest sessions should never override authenticated sessions. 
+  // However, if it's already a guest session, it is okay to update the anonymousId.
+  if (getUserToken() === null || isUsingGuestUserToken()) {
     const anonymousId = Gist.config.useAnonymousId;
     log(`Set guest user token "${anonymousId}"`);
     setKeyToLocalStore(userTokenLocalStoreName, anonymousId);
