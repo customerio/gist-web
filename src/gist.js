@@ -24,7 +24,7 @@ export default class {
     log(`Setup complete on ${this.config.env} environment.`);
 
     if (this.config.useAnonymousId) {
-      useGuestSession();
+      useGuestSession(this.config.useAnonymousId);
     }
     await startQueueListener();
 
@@ -56,7 +56,7 @@ export default class {
   static async clearUserToken() {
     clearUserToken();
     if (this.config.useAnonymousId) {
-      useGuestSession();
+      useGuestSession(this.config.useAnonymousId);
     }
     await startQueueListener();
   }
