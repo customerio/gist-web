@@ -38,6 +38,16 @@ export function embedHTMLTemplate(elementId, messageProperties, url) {
                 width: 100%;
                 border: none;
             }
+            #x-gist-top.${elementId},
+            #x-gist-bottom.${elementId},
+            #x-gist-floating-top.${elementId},
+            #x-gist-floating-bottom.${elementId},
+            #x-gist-floating-top-left.${elementId},
+            #x-gist-floating-top-right.${elementId},
+            #x-gist-floating-bottom-left.${elementId},
+            #x-gist-floating-bottom-right.${elementId} {
+                transition: height 0.1s ease-in-out;
+            }
             @media (max-width: ${maxWidthBreakpoint}px) {
                 #x-gist-top.${elementId},
                 #x-gist-bottom.${elementId},
