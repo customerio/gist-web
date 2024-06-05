@@ -2,7 +2,8 @@ import { setKeyWithExpiryToLocalStore, getKeyFromLocalStore, setKeyToLocalStore 
 import { getHashedUserToken } from './user-manager';
 
 const messageQueueLocalStoreName = "gist.web.message.user";
-const MESSAGES_LOCAL_STORE_CACHE_IN_MINUTES = 60000 * 60;
+const messagesLocalStoreCacheInMinutes = 60000 * 60;
+
 
 export async function updateQueueLocalStore(messages) {
   const userQueueLocalStoreName = await getUserQueueLocalStoreName();
@@ -11,7 +12,7 @@ export async function updateQueueLocalStore(messages) {
   const nonBroadcasts = messages.filter(message => 
     !(message.properties && message.properties.gist && message.properties.gist.broadcast)
   );
-  const expiryDate = new Date(Date.now() + MESSAGES_LOCAL_STORE_CACHE_IN_MINUTES);
+  const expiryDate = new Date(Date.now() + messagesLocalStoreCacheInMinutes);
   setKeyWithExpiryToLocalStore(userQueueLocalStoreName, nonBroadcasts, expiryDate);
 }
 

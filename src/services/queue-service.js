@@ -4,9 +4,8 @@ import { log } from "../utilities/log";
 import { isUsingGuestUserToken } from '../managers/user-manager';
 import { getUserLocale } from '../managers/locale-manager';
 
-
-const DEFAULT_POLLING_DELAY_IN_SECONDS = 600;
-var currentPollingDelayInSeconds = DEFAULT_POLLING_DELAY_IN_SECONDS;
+const defaultPollingDelayInSeconds = 600;
+var currentPollingDelayInSeconds = defaultPollingDelayInSeconds;
 var checkInProgress = false;
 
 export const userQueueNextPullCheckLocalStoreName = "gist.web.userQueueNextPullCheck";

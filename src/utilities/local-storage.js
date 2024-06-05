@@ -1,6 +1,8 @@
+const maxExpiryDays = 365;
+
 export function setKeyToLocalStore(key, value) {
     let maxExpiryDate = new Date();
-    maxExpiryDate.setDate(maxExpiryDate.getDate() + 365);
+    maxExpiryDate.setDate(maxExpiryDate.getDate() + maxExpiryDays);
     const item = {
         value: value,
         expiry: maxExpiryDate,
