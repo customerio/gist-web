@@ -27,7 +27,7 @@ export function messageHTMLTemplate(elementId, messageProperties, url) {
                 position: absolute;
                 border: none;
                 opacity: 0;
-                transition: opacity 0.3s ease-in-out;
+                transition: opacity 0.3s ease-in-out, height 0.1s ease-in-out;
                 z-index: 9999999999;
                 left: 50%;
                 transform: translateX(-50%);
