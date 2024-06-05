@@ -1,8 +1,10 @@
 import { log } from '../utilities/log';
 import { setKeyWithExpiryToLocalStore, setKeyToLocalStore, getKeyFromLocalStore, clearKeyFromLocalStore } from '../utilities/local-storage';
+import { userQueueNextPullCheckLocalStoreName } from '../services/queue-service';
+
 const userTokenLocalStoreName = "gist.web.userToken";
 const usingGuestUserTokenLocalStoreName = "gist.web.usingGuestUserToken";
-import { userQueueNextPullCheckLocalStoreName } from '../services/queue-service';
+const defaultExpiryInDays = 30;
 
 export function isUsingGuestUserToken() {
   return (getKeyFromLocalStore(usingGuestUserTokenLocalStoreName) !== null);
@@ -15,7 +17,7 @@ export function getUserToken() {
 export function setUserToken(userToken, expiryDate) {
   if (expiryDate === undefined) {
     expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + 30);
+    expiryDate.setDate(expiryDate.getDate() + defaultExpiryInDays);
   }
   setKeyWithExpiryToLocalStore(userTokenLocalStoreName, userToken, expiryDate);
 
