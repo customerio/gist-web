@@ -1,9 +1,11 @@
+import { v4 as uuidv4 } from 'uuid';
 import { log } from '../utilities/log';
 import { setKeyWithExpiryToLocalStore, setKeyToLocalStore, getKeyFromLocalStore, clearKeyFromLocalStore } from '../utilities/local-storage';
 import { userQueueNextPullCheckLocalStoreName } from '../services/queue-service';
 
 const userTokenLocalStoreName = "gist.web.userToken";
 const usingGuestUserTokenLocalStoreName = "gist.web.usingGuestUserToken";
+const guestUserTokenLocalStoreName = "gist.web.guestUserToken";
 const defaultExpiryInDays = 30;
 
 export function isUsingGuestUserToken() {
@@ -29,13 +31,19 @@ export function setUserToken(userToken, expiryDate) {
   log(`Set user token "${userToken}" with expiry date set to ${expiryDate}`);
 }
 
-export function useGuestSession(anonymousId) {
-  // Guest sessions should never override authenticated sessions. 
-  // However, if it's already a guest session, it is okay to update the anonymousId.
-  if (getUserToken() === null || isUsingGuestUserToken()) {
-    log(`Set guest user token "${anonymousId}"`);
-    setKeyToLocalStore(userTokenLocalStoreName, anonymousId);
+export function useGuestSession() {
+  // Guest sessions should never override existing sessions
+  if (getUserToken() === null) {
+    var guestUserToken = getKeyFromLocalStore(guestUserTokenLocalStoreName);
+    if (guestUserToken == null) {
+      guestUserToken = uuidv4();
+      setKeyToLocalStore(guestUserTokenLocalStoreName, guestUserToken);
+      log(`Set guest user token "${guestUserToken}" with expiry date set to 1 year from today`);
+    }
+
+    setKeyToLocalStore(userTokenLocalStoreName, guestUserToken);
     setKeyToLocalStore(usingGuestUserTokenLocalStoreName, true);
+    log(`Using anonymous session with token: "${guestUserToken}"`);
   }
 }
 

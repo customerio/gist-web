@@ -9,7 +9,7 @@ export default class {
   static async setup(config) {
     this.events = new EventEmitter();
     this.config = {
-      useAnonymousId: config.useAnonymousId === undefined ? null : config.useAnonymousId,
+      useAnonymousSession: config.useAnonymousSession === undefined ? false : config.useAnonymousSession,
       siteId: config.siteId,
       dataCenter: config.dataCenter,
       env: config.env === undefined ? "prod" : config.env,
@@ -23,8 +23,8 @@ export default class {
 
     log(`Setup complete on ${this.config.env} environment.`);
 
-    if (this.config.useAnonymousId) {
-      useGuestSession(this.config.useAnonymousId);
+    if (this.config.useAnonymousSession) {
+      useGuestSession();
     }
     await startQueueListener();
 
@@ -55,8 +55,8 @@ export default class {
 
   static async clearUserToken() {
     clearUserToken();
-    if (this.config.useAnonymousId) {
-      useGuestSession(this.config.useAnonymousId);
+    if (this.config.useAnonymousSession) {
+      useGuestSession();
     }
     await startQueueListener();
   }
