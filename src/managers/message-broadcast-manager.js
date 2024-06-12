@@ -1,5 +1,5 @@
 import { log } from '../utilities/log';
-import { setKeyToLocalStore, setKeyWithExpiryToLocalStore, getKeyFromLocalStore } from '../utilities/local-storage';
+import { setKeyToLocalStore, getKeyFromLocalStore } from '../utilities/local-storage';
 import { getHashedUserToken } from './user-manager';
 
 const broadcastsLocalStoreName = "gist.web.message.broadcasts";
@@ -13,7 +13,7 @@ export async function updateBroadcastsLocalStore(messages) {
   expiryDate.setDate(expiryDate.getDate() + broadcastsExpiryInDays);
 
   const messagesWithBroadcast = messages.filter(isMessageBroadcast);
-  setKeyWithExpiryToLocalStore(messageBroadcastLocalStoreName, messagesWithBroadcast, expiryDate);
+  setKeyToLocalStore(messageBroadcastLocalStoreName, messagesWithBroadcast, expiryDate);
 }
 
 export async function getEligibleBroadcasts() {
@@ -49,7 +49,7 @@ export async function markBroadcastAsSeen(broadcastId) {
   } else {
     let showShowDate = new Date();
     showShowDate.setSeconds(showShowDate.getSeconds() + broadcastDetails.frequency.delay);
-    setKeyWithExpiryToLocalStore(broadcastShouldShowLocalStoreName, false, showShowDate);
+    setKeyToLocalStore(broadcastShouldShowLocalStoreName, false, showShowDate);
     log(`Marked broadcast ${broadcastId} as seen, broadcast was seen ${numberOfTimesShown + 1} times, next show date is ${showShowDate}.`);
   }
 }
