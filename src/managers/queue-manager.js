@@ -2,18 +2,16 @@ import Gist from '../gist';
 import { log } from "../utilities/log";
 import { getUserToken } from "./user-manager";
 import { getUserQueue, userQueueNextPullCheckLocalStoreName } from "../services/queue-service";
-import { showMessage, embedMessage, hasMessageBeenShownBefore } from "./message-manager";
+import { showMessage, embedMessage } from "./message-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
 import { preloadRenderer } from "./message-component-manager";
-import { setKeyWithExpiryToLocalStore, getKeyFromLocalStore } from '../utilities/local-storage';
-
-const userQueueLocalStoreName = "gist.web.userQueue";
-const MESSAGES_LOCAL_STORE_CACHE_IN_MINUTES = 60000 * 60;
+import { getKeyFromLocalStore } from '../utilities/local-storage';
+import { updateBroadcastsLocalStore, getEligibleBroadcasts } from './message-broadcast-manager';
+import { updateQueueLocalStore, getMessagesFromLocalStore } from './message-user-queue-manager';
 
 var sleep = time => new Promise(resolve => setTimeout(resolve, time))
 var poll = (promiseFn, time) => promiseFn().then(sleep(time).then(() => poll(promiseFn, time)));
 var pollingSetup = false;
-var messages = [];
 
 export async function startQueueListener() {
   if (!pollingSetup) {
@@ -23,38 +21,27 @@ export async function startQueueListener() {
       pollingSetup = true;
       poll(() => new Promise(() => pullMessagesFromQueue()), 1000);
     } else {
-      log(`User token not setup, queue not started.`);
+      log("User token not setup, queue not started.");
     }
   } else {
-    await checkMessageQueue();
+    checkMessageQueue();
   }
 }
 
 export async function checkMessageQueue() {
-  log(`Messages in local queue: ${messages.length}`);
-  var keptMessages = [];
-  var orderedMessages = messages.sort((a, b) => a.priority - b.priority);
+  var broadcastMessages = await getEligibleBroadcasts();
+  var userMessages = await getMessagesFromLocalStore();
+  var allMessages = broadcastMessages.concat(userMessages);
+
+  log(`Messages in local queue: ${allMessages.length}`);
+  var orderedMessages = allMessages.sort((a, b) => a.priority - b.priority);
   for (const message of orderedMessages) {
-    var handledMessage = await handleMessage(message);
-    if (!handledMessage) {
-      var duplicateMessage = keptMessages.find(queueMessages => queueMessages.queueId === message.queueId);
-      var showingMessage = Gist.currentMessages.find(currentMessage => currentMessage.queueId === message.queueId);
-      if (duplicateMessage || showingMessage) {
-        log(`Message with queueId: ${message.queueId} already in queue, discarding.`);
-      } else {
-        keptMessages.push(message);
-      }
-    }
+    await handleMessage(message);
   }
-  messages = keptMessages;
 }
 
+//TODO: Move this to a utility and only return valid messages (from: getEligibleBroadcasts getMessagesFromLocalStore) & to handleMessage
 async function handleMessage(message) {
-  if (hasMessageBeenShownBefore(message)) {
-    log(`Message with ${message.queueId} has been shown before, skipping.`);
-    return;
-  }
-
   var messageProperties = resolveMessageProperties(message);
   if (messageProperties.hasRouteRule) {
     var currentUrl = Gist.currentRoute
@@ -91,24 +78,17 @@ export async function pullMessagesFromQueue() {
             log("200 response, updating local store.");
             responseData = response.data;
             updateQueueLocalStore(responseData);
+            updateBroadcastsLocalStore(responseData);
           }
           else if (response.status === 304) {
             log("304 response, using local store.");
-            responseData = getMessagesFromLocalStore();
           }
-          if (responseData && responseData.length > 0) {
-            log(`Message queue checked for user ${getUserToken()}, ${responseData.length} messages found.`);
-            messages = responseData;
-            await checkMessageQueue();
-          } else {
-            messages = [];
-            log(`No messages for user token.`);
-          }
+          await checkMessageQueue();
         } else {
           log(`There was an error while checking message queue.`);
         }
       } else {
-        log(`Next queue pull scheduled for later`);
+        log(`Next queue pull scheduled for later.`);
       }
     } else {
       log(`Document not visible, skipping queue check.`);  
@@ -116,13 +96,4 @@ export async function pullMessagesFromQueue() {
   } else {
     log(`User token reset, skipping queue check.`);
   }
-}
-
-export function updateQueueLocalStore(messages) {
-  var expiryDate = new Date(new Date().getTime() + MESSAGES_LOCAL_STORE_CACHE_IN_MINUTES);
-  setKeyWithExpiryToLocalStore(userQueueLocalStoreName, messages, expiryDate);
-}
-
-export function getMessagesFromLocalStore() {
-  return getKeyFromLocalStore(userQueueLocalStoreName);
 }

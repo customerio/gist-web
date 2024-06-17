@@ -3,12 +3,16 @@ import { log } from "./utilities/log";
 import { startQueueListener, checkMessageQueue } from "./managers/queue-manager";
 import { setUserToken, clearUserToken, useGuestSession } from "./managers/user-manager";
 import { showMessage, embedMessage, hideMessage, removePersistentMessage, fetchMessageByInstanceId } from "./managers/message-manager";
+import { setUserLocale } from "./managers/locale-manager";
+import { setupPreview, fetchPreviewId } from "./utilities/preview-mode";
 
 export default class {
   static async setup(config) {
+    const isPreviewSession = setupPreview();
     this.events = new EventEmitter();
     this.config = {
-      useGuestSession: config.useGuestSession === undefined ? false : config.useGuestSession,
+      isPreviewSession: isPreviewSession,
+      useAnonymousSession: config.useAnonymousSession === undefined ? false : config.useAnonymousSession,
       siteId: config.siteId,
       dataCenter: config.dataCenter,
       env: config.env === undefined ? "prod" : config.env,
@@ -22,9 +26,16 @@ export default class {
 
     log(`Setup complete on ${this.config.env} environment.`);
 
-    if (this.config.useGuestSession) {
-      useGuestSession();
+    if (this.config.isPreviewSession) {
+      var previewId = fetchPreviewId();
+      log(`Preview mode enabled with id: ${previewId}`);
+      setUserToken(previewId);
+    } else {
+      if (this.config.useAnonymousSession) {
+        useGuestSession();
+      }
     }
+
     await startQueueListener();
 
     document.addEventListener("visibilitychange", async () => {
@@ -44,13 +55,19 @@ export default class {
   }
 
   static async setUserToken(userToken, expiryDate) {
+    if (this.config.isPreviewSession) return;
     setUserToken(userToken, expiryDate);
     await startQueueListener();
   }
 
+  static setUserLocale(userLocale) {
+    setUserLocale(userLocale);
+  }
+
   static async clearUserToken() {
+    if (this.config.isPreviewSession) return;
     clearUserToken();
-    if (this.config.useGuestSession) {
+    if (this.config.useAnonymousSession) {
       useGuestSession();
     }
     await startQueueListener();

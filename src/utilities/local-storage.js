@@ -1,26 +1,42 @@
-export function setKeyWithExpiryToLocalStore(key, value, ttl) {
+const maxExpiryDays = 365;
+var persistSession = true;
+
+// Switches between local and session storage
+export function shouldPersistSession(session) {
+    persistSession = session;
+}
+
+export function setKeyToLocalStore(key, value, ttl = null) {
+    var expiryDate = ttl;
+    if (!expiryDate) {
+        expiryDate = new Date();
+        expiryDate.setDate(expiryDate.getDate() + maxExpiryDays);
+    }
     const item = {
         value: value,
-        expiry: ttl,
+        expiry: expiryDate,
     };
-    localStorage.setItem(key, JSON.stringify(item));
+    getStorage().setItem(key, JSON.stringify(item));
 }
-  
+
 export function getKeyFromLocalStore(key) {
-    const itemStr = localStorage.getItem(key);
-    if (!itemStr) {
-        return null;
-    }
+    const itemStr = getStorage().getItem(key);
+    if (!itemStr) return null;
+
     const item = JSON.parse(itemStr);
     const now = new Date();
-    const itemExpiry = new Date(item.expiry);
-    if (now.getTime() > itemExpiry.getTime()) {
-        localStorage.removeItem(key);
+    if (now.getTime() > new Date(item.expiry).getTime()) {
+        clearKeyFromLocalStore(key);
         return null;
     }
     return item.value;
 }
-  
+
 export function clearKeyFromLocalStore(key) {
-    localStorage.removeItem(key);
+    getStorage().removeItem(key);
+}
+
+// Helper function to select the correct storage based on the session flag
+function getStorage() {
+    return persistSession ? localStorage : sessionStorage;
 }

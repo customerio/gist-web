@@ -1,9 +1,11 @@
-import { UserNetworkInstance } from './network';
-import { setKeyWithExpiryToLocalStore } from '../utilities/local-storage';
+import { UserNetworkInstance, DefaultHeaders } from './network';
+import { setKeyToLocalStore } from '../utilities/local-storage';
 import { log } from "../utilities/log";
+import { isUsingGuestUserToken } from '../managers/user-manager';
+import { getUserLocale } from '../managers/locale-manager';
 
-const DEFAULT_POLLING_DELAY_IN_SECONDS = 600;
-var currentPollingDelayInSeconds = DEFAULT_POLLING_DELAY_IN_SECONDS;
+const defaultPollingDelayInSeconds = 600;
+var currentPollingDelayInSeconds = defaultPollingDelayInSeconds;
 var checkInProgress = false;
 
 export const userQueueNextPullCheckLocalStoreName = "gist.web.userQueueNextPullCheck";
@@ -13,7 +15,11 @@ export async function getUserQueue() {
     if (!checkInProgress) {
       var timestamp = new Date().getTime();
       checkInProgress = true;
-      response = await UserNetworkInstance().post(`/api/v1/users?timestamp=${timestamp}`, {});
+      var headers = {
+        "X-Gist-User-Anonymous": isUsingGuestUserToken(),
+        "Content-Language": getUserLocale()
+      }
+      response = await UserNetworkInstance().post(`/api/v2/users?timestamp=${timestamp}`, {}, { headers: headers });
     }
   } catch (error) {
     if (error.response) {
@@ -36,5 +42,5 @@ function scheduleNextQueuePull(response) {
     }
   }
   var expiryDate = new Date(new Date().getTime() + currentPollingDelayInSeconds * 1000);
-  setKeyWithExpiryToLocalStore(userQueueNextPullCheckLocalStoreName, currentPollingDelayInSeconds, expiryDate);
+  setKeyToLocalStore(userQueueNextPullCheckLocalStoreName, currentPollingDelayInSeconds, expiryDate);
 }
