@@ -1,5 +1,5 @@
 import { UserNetworkInstance, DefaultHeaders } from './network';
-import { setKeyWithExpiryToLocalStore } from '../utilities/local-storage';
+import { setKeyToLocalStore } from '../utilities/local-storage';
 import { log } from "../utilities/log";
 import { isUsingGuestUserToken } from '../managers/user-manager';
 import { getUserLocale } from '../managers/locale-manager';
@@ -42,5 +42,5 @@ function scheduleNextQueuePull(response) {
     }
   }
   var expiryDate = new Date(new Date().getTime() + currentPollingDelayInSeconds * 1000);
-  setKeyWithExpiryToLocalStore(userQueueNextPullCheckLocalStoreName, currentPollingDelayInSeconds, expiryDate);
+  setKeyToLocalStore(userQueueNextPullCheckLocalStoreName, currentPollingDelayInSeconds, expiryDate);
 }

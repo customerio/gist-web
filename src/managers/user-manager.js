@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { log } from '../utilities/log';
-import { setKeyWithExpiryToLocalStore, setKeyToLocalStore, getKeyFromLocalStore, clearKeyFromLocalStore } from '../utilities/local-storage';
+import { setKeyToLocalStore, getKeyFromLocalStore, clearKeyFromLocalStore } from '../utilities/local-storage';
 import { userQueueNextPullCheckLocalStoreName } from '../services/queue-service';
 
 const userTokenLocalStoreName = "gist.web.userToken";
@@ -21,7 +21,7 @@ export function setUserToken(userToken, expiryDate) {
     expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + defaultExpiryInDays);
   }
-  setKeyWithExpiryToLocalStore(userTokenLocalStoreName, userToken, expiryDate);
+  setKeyToLocalStore(userTokenLocalStoreName, userToken, expiryDate);
 
   if (isUsingGuestUserToken()) {
     // Removing pull check time key so that we check the queue immediately after the userToken is set.
