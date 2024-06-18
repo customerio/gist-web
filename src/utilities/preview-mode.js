@@ -1,17 +1,20 @@
-import { shouldPersistSession } from "./local-storage";
+import Gist from '../gist';
+import { log } from './log';
+import { shouldPersistSession, isSessionBeingPersisted } from './local-storage';
 
-const params = new URLSearchParams(window.location.search);
 const previewParamId = "cioPreviewId";
 
 export function setupPreview() {
     const cioPreviewId = fetchPreviewId();
     if (cioPreviewId) {
         shouldPersistSession(false);
-        return true;
+        Gist.setUserToken(cioPreviewId);
+        log(`Preview mode enabled with user token: ${cioPreviewId}`);
     }
-    return false;
+    return !isSessionBeingPersisted();
 }
 
-export function fetchPreviewId() {
+function fetchPreviewId() {
+    const params = new URLSearchParams(window.location.search);
     return params.get(previewParamId);
 }

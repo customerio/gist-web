@@ -1,9 +1,10 @@
 const maxExpiryDays = 365;
-var persistSession = true;
+
+const isPersistingSessionLocalStoreName = "gist.web.isPersistingSession";
 
 // Switches between local and session storage
-export function shouldPersistSession(session) {
-    persistSession = session;
+export function shouldPersistSession(presisted) {
+    sessionStorage.setItem(isPersistingSessionLocalStoreName, presisted);
 }
 
 export function setKeyToLocalStore(key, value, ttl = null) {
@@ -36,7 +37,16 @@ export function clearKeyFromLocalStore(key) {
     getStorage().removeItem(key);
 }
 
+export function isSessionBeingPersisted() {
+    const currentValue = sessionStorage.getItem(isPersistingSessionLocalStoreName);
+    if (currentValue === null) {
+        sessionStorage.setItem(isPersistingSessionLocalStoreName, "true");
+        return true;
+    }
+    return currentValue === "true";
+}
+
 // Helper function to select the correct storage based on the session flag
 function getStorage() {
-    return persistSession ? localStorage : sessionStorage;
+    return isSessionBeingPersisted() ? localStorage : sessionStorage;
 }
