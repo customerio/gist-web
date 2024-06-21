@@ -8,10 +8,8 @@ import { setupPreview, fetchPreviewId } from "./utilities/preview-mode";
 
 export default class {
   static async setup(config) {
-    const isPreviewSession = setupPreview();
     this.events = new EventEmitter();
     this.config = {
-      isPreviewSession: isPreviewSession,
       useAnonymousSession: config.useAnonymousSession === undefined ? false : config.useAnonymousSession,
       siteId: config.siteId,
       dataCenter: config.dataCenter,
@@ -23,17 +21,12 @@ export default class {
     this.overlayInstanceId = null;
     this.currentRoute = null;
     this.isDocumentVisible = true;
+    this.config.isPreviewSession = setupPreview();
 
     log(`Setup complete on ${this.config.env} environment.`);
 
-    if (this.config.isPreviewSession) {
-      var previewId = fetchPreviewId();
-      log(`Preview mode enabled with id: ${previewId}`);
-      setUserToken(previewId);
-    } else {
-      if (this.config.useAnonymousSession) {
-        useGuestSession();
-      }
+    if (!this.config.isPreviewSession && this.config.useAnonymousSession) {
+      useGuestSession();
     }
 
     await startQueueListener();
