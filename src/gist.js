@@ -4,7 +4,7 @@ import { startQueueListener, checkMessageQueue } from "./managers/queue-manager"
 import { setUserToken, clearUserToken, useGuestSession } from "./managers/user-manager";
 import { showMessage, embedMessage, hideMessage, removePersistentMessage, fetchMessageByInstanceId } from "./managers/message-manager";
 import { setUserLocale } from "./managers/locale-manager";
-import { setupPreview, fetchPreviewId } from "./utilities/preview-mode";
+import { setupPreview } from "./utilities/preview-mode";
 
 export default class {
   static async setup(config) {
