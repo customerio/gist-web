@@ -1,4 +1,4 @@
-import { UserNetworkInstance, DefaultHeaders } from './network';
+import { UserNetworkInstance } from './network';
 import { setKeyToLocalStore } from '../utilities/local-storage';
 import { log } from "../utilities/log";
 import { isUsingGuestUserToken } from '../managers/user-manager';
