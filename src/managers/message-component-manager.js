@@ -28,10 +28,11 @@ export async function preloadRenderer() {
   embedMessage({messageId: ""}, preloadFrameId);
 }
 
-export function loadEmbedComponent(elementId, url, message) {
+export function loadEmbedComponent(elementId, url, message, options) {
   var element = safelyFetchElement(elementId);
   if (element) {
-    element.classList.add(getMessageElementId(message.instanceId));
+    var messageElementId = getMessageElementId(message.instanceId);
+    element.classList.add(messageElementId);
     var messageProperties = resolveMessageProperties(message);
     var messageWidth = messageProperties.messageWidth + "px";
     if (wideOverlayPositions.includes(elementId) && !messageProperties.hasCustomWidth) {
@@ -45,6 +46,7 @@ export function loadEmbedComponent(elementId, url, message) {
       element.style.height = "0px";
     }
     element.innerHTML = embed(url, message, messageProperties);
+    attachIframeLoadEvent(messageElementId, options);
   } else {
     log(`Message could not be embedded, elementId ${elementId} not found.`);
   }
@@ -94,8 +96,25 @@ export function resizeComponent(message, size) {
   }
 }
 
-export function loadOverlayComponent(url, message) {
+export function loadOverlayComponent(url, message, options) {
   document.body.insertAdjacentHTML('afterbegin', component(url, message));
+  attachIframeLoadEvent(getMessageElementId(message.instanceId), options);
+}
+
+function attachIframeLoadEvent(elementId, options) {
+  const iframe = document.getElementById(elementId);
+  if (iframe) {
+      iframe.onload = function() {
+          sendOptionsToIframe(elementId, options); // Send the options when iframe loads
+      };
+  }
+}
+
+function sendOptionsToIframe(iframeId, options) {
+  const iframe = document.getElementById(iframeId);
+  if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage({ options: options }, '*');
+  }
 }
 
 export function showOverlayComponent(message) {
