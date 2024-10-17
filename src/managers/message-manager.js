@@ -230,6 +230,7 @@ async function handleGistEvents(e) {
               case "close":
                 await hideMessage(currentMessage);
                 await removePersistentMessage(currentMessage);
+                await logBroadcastDismissedLocally(currentMessage);
                 await checkMessageQueue();
                 break;
               case "showMessage":
@@ -301,5 +302,12 @@ async function logUserMessageViewLocally(message) {
     await markBroadcastAsSeen(message.queueId);
   } else {
     await markUserQueueMessageAsSeen(message.queueId);
+  }
+}
+
+async function logBroadcastDismissedLocally(message) {
+  if (isMessageBroadcast(message)) {
+    log(`Logging broadcast dismissed locally for: ${message.queueId}`);
+    await markBroadcastAsDismissed(message.queueId);
   }
 }
