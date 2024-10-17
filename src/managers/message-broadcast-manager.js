@@ -25,8 +25,8 @@ export async function getEligibleBroadcasts() {
     const { broadcast: broadcastDetails } = broadcast.properties.gist;
     const shouldShow = getKeyFromLocalStore(getBroadcastShouldShowLocalStoreName(messageBroadcastLocalStoreName, broadcast.queueId)) ?? true;
     const numberOfTimesShown = getKeyFromLocalStore(getNumberOfTimesShownLocalStoreName(messageBroadcastLocalStoreName, broadcast.queueId)) || 0;
-    const shouldAlwaysShow = broadcastDetails.frequency.count === 0;
-    return shouldShow && (shouldAlwaysShow || numberOfTimesShown < broadcastDetails.frequency.count);
+    const isFrequencyUnlimited = broadcastDetails.frequency.count === 0;
+    return shouldShow && (isFrequencyUnlimited || numberOfTimesShown < broadcastDetails.frequency.count);
   });
 }
 
