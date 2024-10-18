@@ -55,6 +55,19 @@ export async function markBroadcastAsSeen(broadcastId) {
   }
 }
 
+export async function markBroadcastAsDismissed(broadcastId) {
+  log(`Marking broadcast ${broadcastId} as dismissed.`);
+  const messageBroadcastLocalStoreName = await getMessageBroadcastLocalStoreName();
+  if (!messageBroadcastLocalStoreName) return;
+  
+  const broadcast = await fetchMessageBroadcast(messageBroadcastLocalStoreName, broadcastId);
+  if (!broadcast) return;
+
+  const broadcastShouldShowLocalStoreName = getBroadcastShouldShowLocalStoreName(messageBroadcastLocalStoreName, broadcastId);
+  setKeyToLocalStore(broadcastShouldShowLocalStoreName, false);
+  log(`Marked broadcast ${broadcastId} as dismissed and will not show again.`);
+}
+
 async function fetchMessageBroadcast(messageBroadcastLocalStoreName, broadcastId) {
   const broadcasts = getKeyFromLocalStore(messageBroadcastLocalStoreName);
   return broadcasts.find(message => message.queueId === broadcastId);
