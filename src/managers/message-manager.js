@@ -19,7 +19,7 @@ import {
 import { resolveMessageProperties } from "./gist-properties-manager";
 import { positions, addPageElement } from "./page-component-manager";
 import { checkMessageQueue } from "./queue-manager";
-import { isMessageBroadcast, markBroadcastAsSeen } from './message-broadcast-manager';
+import { isMessageBroadcast, markBroadcastAsSeen, markBroadcastAsDismissed } from './message-broadcast-manager';
 import { markUserQueueMessageAsSeen } from './message-user-queue-manager';
 
 export async function showMessage(message) {
