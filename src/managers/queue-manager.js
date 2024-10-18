@@ -4,7 +4,6 @@ import { getUserToken } from "./user-manager";
 import { getUserQueue, userQueueNextPullCheckLocalStoreName } from "../services/queue-service";
 import { showMessage, embedMessage } from "./message-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
-import { preloadRenderer } from "./message-component-manager";
 import { getKeyFromLocalStore } from '../utilities/local-storage';
 import { updateBroadcastsLocalStore, getEligibleBroadcasts } from './message-broadcast-manager';
 import { updateQueueLocalStore, getMessagesFromLocalStore } from './message-user-queue-manager';
@@ -15,7 +14,6 @@ var pollingSetup = false;
 
 export async function startQueueListener() {
   if (!pollingSetup) {
-    preloadRenderer();
     if (getUserToken()) {
       log("Queue watcher started");
       pollingSetup = true;

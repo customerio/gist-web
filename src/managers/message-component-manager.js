@@ -17,17 +17,6 @@ export function isElementLoaded(elementId) {
   }
 }
 
-export async function preloadRenderer() {
-  var preloadFrameId = `G${uuidv4().substring(0,8)}`;
-  var preloadFrameElement = document.createElement("div");
-  preloadFrameElement.setAttribute("id", preloadFrameId);
-  preloadFrameElement.style.display = "none";
-  document.body.appendChild(preloadFrameElement);
-  
-  await delay(5000);
-  embedMessage({messageId: ""}, preloadFrameId);
-}
-
 export function loadEmbedComponent(elementId, url, message) {
   var element = safelyFetchElement(elementId);
   if (element) {
