@@ -60,9 +60,6 @@ export async function markBroadcastAsDismissed(broadcastId) {
   const messageBroadcastLocalStoreName = await getMessageBroadcastLocalStoreName();
   if (!messageBroadcastLocalStoreName) return;
   
-  const broadcast = await fetchMessageBroadcast(messageBroadcastLocalStoreName, broadcastId);
-  if (!broadcast) return;
-
   const broadcastShouldShowLocalStoreName = getBroadcastShouldShowLocalStoreName(messageBroadcastLocalStoreName, broadcastId);
   setKeyToLocalStore(broadcastShouldShowLocalStoreName, false);
   log(`Marked broadcast ${broadcastId} as dismissed and will not show again.`);
