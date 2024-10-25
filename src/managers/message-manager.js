@@ -126,28 +126,20 @@ function loadMessageComponent(message, elementId = null) {
     livePreview: false,
     properties: message.properties
   }
-  var url = `${settings.GIST_VIEW_ENDPOINT[Gist.config.env]}/index.html?options=${encodeUnicode(JSON.stringify(options))}`
+  var url = `${settings.GIST_VIEW_ENDPOINT[Gist.config.env]}/index.html`
   window.addEventListener('message', handleGistEvents);
   window.addEventListener('touchstart', handleTouchStartEvents);
 
   if (elementId) {
     if (positions.includes(elementId)) { addPageElement(elementId); }
-    loadEmbedComponent(elementId, url, message);
+    loadEmbedComponent(elementId, url, message, options);
   } else {
-    loadOverlayComponent(url, message);
+    loadOverlayComponent(url, message, options);
   }
 
   return message;
 }
 
-function encodeUnicode(str) {
-  var base64Unicode = btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
-      function toSolidBytes(match, p1) {
-          return String.fromCharCode('0x' + p1);
-  }));
-
-  return encodeURIComponent(base64Unicode);
-}
 
 async function reportMessageView(message) {
   log(`Message shown, logging view for: ${message.messageId}`);
