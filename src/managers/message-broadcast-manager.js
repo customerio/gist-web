@@ -2,7 +2,7 @@ import { log } from '../utilities/log';
 import { setKeyToLocalStore, getKeyFromLocalStore } from '../utilities/local-storage';
 import { getHashedUserToken } from './user-manager';
 
-const broadcastsLocalStoreName = "gist.web.message.broadcasts";
+const broadcastsLocalStoreName = "gist.web.message.inAppContents";
 const broadcastsExpiryInDays = 30;
 
 export async function updateBroadcastsLocalStore(messages) {
@@ -31,7 +31,7 @@ export async function getEligibleBroadcasts() {
 }
 
 export async function markBroadcastAsSeen(broadcastId) {
-  log(`Marking broadcast ${broadcastId} as seen.`);
+  log(`Marking in_app_content ${broadcastId} as seen.`);
   const messageBroadcastLocalStoreName = await getMessageBroadcastLocalStoreName();
   if (!messageBroadcastLocalStoreName) return;
   
@@ -46,23 +46,23 @@ export async function markBroadcastAsSeen(broadcastId) {
 
   if (broadcastDetails.frequency.count === 1) {
     setKeyToLocalStore(broadcastShouldShowLocalStoreName, false);
-    log(`Marked broadcast ${broadcastId} as seen.`);
+    log(`Marked in_app_content ${broadcastId} as seen.`);
   } else {
     let showShowDate = new Date();
     showShowDate.setSeconds(showShowDate.getSeconds() + broadcastDetails.frequency.delay);
     setKeyToLocalStore(broadcastShouldShowLocalStoreName, false, showShowDate);
-    log(`Marked broadcast ${broadcastId} as seen, broadcast was seen ${numberOfTimesShown + 1} times, next show date is ${showShowDate}.`);
+    log(`Marked in_app_content ${broadcastId} as seen, it was seen ${numberOfTimesShown + 1} times, next show date is ${showShowDate}.`);
   }
 }
 
 export async function markBroadcastAsDismissed(broadcastId) {
-  log(`Marking broadcast ${broadcastId} as dismissed.`);
+  log(`Marking in_app_content ${broadcastId} as dismissed.`);
   const messageBroadcastLocalStoreName = await getMessageBroadcastLocalStoreName();
   if (!messageBroadcastLocalStoreName) return;
   
   const broadcastShouldShowLocalStoreName = getBroadcastShouldShowLocalStoreName(messageBroadcastLocalStoreName, broadcastId);
   setKeyToLocalStore(broadcastShouldShowLocalStoreName, false);
-  log(`Marked broadcast ${broadcastId} as dismissed and will not show again.`);
+  log(`Marked in_app_content ${broadcastId} as dismissed and will not show again.`);
 }
 
 async function fetchMessageBroadcast(messageBroadcastLocalStoreName, broadcastId) {
