@@ -87,7 +87,7 @@ export async function removePersistentMessage(message) {
       await reportMessageView(message);
     }
   } else {
-    log(`Message with instance id: ${instanceId} not found`);
+    log(`Message with instance id: ${message.instanceId} not found`);
   }
 }
 
