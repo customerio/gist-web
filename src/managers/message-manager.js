@@ -74,7 +74,7 @@ export async function hideMessage(message) {
       resetEmbedState(message);
     }
   } else {
-    log(`Message with instance id: ${instanceId} not found`);
+    log(`Message with instance id: ${message.instanceId} not found`);
   }
 }
 
@@ -179,8 +179,10 @@ function updateMessageByInstanceId(instanceId, message) {
   Gist.currentMessages.push(message);
 }
 
-// Added this to avoid errors in the console
-function handleTouchStartEvents(e) {}
+
+function handleTouchStartEvents() {
+  // Added this to avoid errors in the console
+}
 
 async function handleGistEvents(e) {
   if (e.data.gist) {
@@ -244,7 +246,7 @@ async function handleGistEvents(e) {
                 }
                 break;
               case "loadPage":
-                var url = url.href.substring(url.href.indexOf('?url=') + 5);
+                url = url.href.substring(url.href.indexOf('?url=') + 5);
                 if (url) {
                   if (url.startsWith("https://") || url.startsWith("http://") || url.startsWith("/")) {
                     window.location.href = url;
@@ -255,7 +257,9 @@ async function handleGistEvents(e) {
                 break;
             }
           }
-        } catch (_) {}
+        } catch (error) {
+          log(`Error processing action: ${error}`);
+        }
         
         break;
       }

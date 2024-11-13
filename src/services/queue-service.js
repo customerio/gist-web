@@ -30,8 +30,9 @@ export async function getUserQueue() {
   } finally {
     checkInProgress = false;
     scheduleNextQueuePull(response);
-    return response;
   }
+
+  return response;
 }
 
 function scheduleNextQueuePull(response) {
