@@ -59,7 +59,19 @@ export async function markBroadcastAsDismissed(broadcastId) {
   log(`Marking broadcast ${broadcastId} as dismissed.`);
   const messageBroadcastLocalStoreName = await getMessageBroadcastLocalStoreName();
   if (!messageBroadcastLocalStoreName) return;
+
+  const broadcast = await fetchMessageBroadcast(messageBroadcastLocalStoreName, broadcastId);
+  if (!broadcast) return;
+
+  const { broadcast: broadcastDetails } = broadcast.properties.gist;
+  const ignoreDismiss = broadcastDetails.frequency.ignoreDismiss;
   
+  if (ignoreDismiss === true) {
+    log(`Broadcast ${broadcastId} is set to ignore dismiss.`);
+    return;
+  }
+
+  // default to not showing the broadcast again
   const broadcastShouldShowLocalStoreName = getBroadcastShouldShowLocalStoreName(messageBroadcastLocalStoreName, broadcastId);
   setKeyToLocalStore(broadcastShouldShowLocalStoreName, false);
   log(`Marked broadcast ${broadcastId} as dismissed and will not show again.`);
