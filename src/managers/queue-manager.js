@@ -7,7 +7,7 @@ import { resolveMessageProperties } from "./gist-properties-manager";
 import { preloadRenderer } from "./message-component-manager";
 import { getKeyFromLocalStore } from '../utilities/local-storage';
 import { updateBroadcastsLocalStore, getEligibleBroadcasts, isShowAlwaysBroadcast } from './message-broadcast-manager';
-import { updateQueueLocalStore, getMessagesFromLocalStore, isMessageLoading, setMessageLoading, setMessageLoaded } from './message-user-queue-manager';
+import { updateQueueLocalStore, getMessagesFromLocalStore, isMessageLoading, setMessageLoading } from './message-user-queue-manager';
 
 var sleep = time => new Promise(resolve => setTimeout(resolve, time))
 var poll = (promiseFn, time) => promiseFn().then(sleep(time).then(() => poll(promiseFn, time)));
