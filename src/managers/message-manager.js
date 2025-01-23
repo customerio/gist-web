@@ -21,6 +21,7 @@ import { positions, addPageElement } from "./page-component-manager";
 import { checkMessageQueue } from "./queue-manager";
 import { isMessageBroadcast, markBroadcastAsSeen, markBroadcastAsDismissed } from './message-broadcast-manager';
 import { markUserQueueMessageAsSeen } from './message-user-queue-manager';
+import { setMessageLoaded } from './message-user-queue-manager';
 
 export async function showMessage(message) {
   if (Gist.isDocumentVisible) {
@@ -186,6 +187,7 @@ async function handleGistEvents(e) {
       case "routeLoaded": {
         var timeElapsed = (new Date().getTime() - currentMessage.renderStartTime) * 0.001;
         log(`Engine render for message: ${currentMessage.messageId} timer elapsed in ${timeElapsed.toFixed(3)} seconds`);
+        setMessageLoaded(currentMessage.queueId);
         currentMessage.currentRoute = e.data.gist.parameters.route;
         if (currentMessage.firstLoad) {
           if (currentMessage.overlay) {

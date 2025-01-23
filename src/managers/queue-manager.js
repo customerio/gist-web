@@ -6,8 +6,8 @@ import { showMessage, embedMessage } from "./message-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
 import { preloadRenderer } from "./message-component-manager";
 import { getKeyFromLocalStore } from '../utilities/local-storage';
-import { updateBroadcastsLocalStore, getEligibleBroadcasts } from './message-broadcast-manager';
-import { updateQueueLocalStore, getMessagesFromLocalStore } from './message-user-queue-manager';
+import { updateBroadcastsLocalStore, getEligibleBroadcasts, isShowAlwaysBroadcast } from './message-broadcast-manager';
+import { updateQueueLocalStore, getMessagesFromLocalStore, isMessageLoading, setMessageLoading, setMessageLoaded } from './message-user-queue-manager';
 
 var sleep = time => new Promise(resolve => setTimeout(resolve, time))
 var poll = (promiseFn, time) => promiseFn().then(sleep(time).then(() => poll(promiseFn, time)));
@@ -59,10 +59,20 @@ async function handleMessage(message) {
   if (messageProperties.hasPosition) {
     message.position = messageProperties.position;
   }
-  if (messageProperties.isEmbedded) {
-    return await embedMessage(message, messageProperties.elementId);
+
+  // If the message is not persistant, is not a show always broadcast, and is already loading, we skip it.
+  if (!messageProperties.persistent && !isShowAlwaysBroadcast(message) && await isMessageLoading(message.queueId)) {
+    log(`Not showing message with queueId ${message.queueId} because its already loading.`);
+    return false;
   } else {
-    return await showMessage(message);
+    var loading = false;
+    if (messageProperties.isEmbedded) {
+      loading = await embedMessage(message, messageProperties.elementId);
+    } else {
+      loading = await showMessage(message);
+    }
+    if (loading) setMessageLoading(message.queueId);
+    return loading;
   }
 }
 
