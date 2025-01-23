@@ -44,6 +44,7 @@ export async function isMessageLoading(queueId) {
 export async function setMessageLoading(queueId) {
   const messageLoadingLocalStoreName = await getMessageLoadingStateLocalStoreName(queueId);
   if (!messageLoadingLocalStoreName) return false;
+  // We add a TTL of 5sec, just in case the message gets stuck loading.
   setKeyToLocalStore(messageLoadingLocalStoreName, true, new Date(Date.now() + 5000));
 }
 
