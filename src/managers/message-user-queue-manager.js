@@ -50,7 +50,6 @@ export async function setMessageLoading(queueId) {
 
 export async function setMessageLoaded(queueId) {
   const messageLoadingLocalStoreName = await getMessageLoadingStateLocalStoreName(queueId);
-  log(messageLoadingLocalStoreName);
   if (!messageLoadingLocalStoreName) return false;
   clearKeyFromLocalStore(messageLoadingLocalStoreName);
 }
