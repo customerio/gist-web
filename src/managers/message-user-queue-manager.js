@@ -1,6 +1,5 @@
 import { getKeyFromLocalStore, setKeyToLocalStore, clearKeyFromLocalStore } from '../utilities/local-storage';
 import { getHashedUserToken } from './user-manager';
-import { log } from '../utilities/log';
 
 const messageQueueLocalStoreName = "gist.web.message.user";
 const messagesLocalStoreCacheInMinutes = 60000 * 60;
