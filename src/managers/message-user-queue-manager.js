@@ -1,4 +1,4 @@
-import { getKeyFromLocalStore, setKeyToLocalStore } from '../utilities/local-storage';
+import { getKeyFromLocalStore, setKeyToLocalStore, clearKeyFromLocalStore } from '../utilities/local-storage';
 import { getHashedUserToken } from './user-manager';
 
 const messageQueueLocalStoreName = "gist.web.message.user";
@@ -34,6 +34,25 @@ export async function markUserQueueMessageAsSeen(queueId) {
   setKeyToLocalStore(userSeenQueueLocalStoreName, seenMessages);
 }
 
+export async function isMessageLoading(queueId) {
+  const messageLoadingLocalStoreName = await getMessageLoadingStateLocalStoreName(queueId);
+  if (!messageLoadingLocalStoreName) return false;
+  return getKeyFromLocalStore(messageLoadingLocalStoreName) !== null ? true : false;
+}
+
+export async function setMessageLoading(queueId) {
+  const messageLoadingLocalStoreName = await getMessageLoadingStateLocalStoreName(queueId);
+  if (!messageLoadingLocalStoreName) return false;
+  // We add a TTL of 5sec, just in case the message gets stuck loading.
+  setKeyToLocalStore(messageLoadingLocalStoreName, true, new Date(Date.now() + 5000));
+}
+
+export async function setMessageLoaded(queueId) {
+  const messageLoadingLocalStoreName = await getMessageLoadingStateLocalStoreName(queueId);
+  if (!messageLoadingLocalStoreName) return false;
+  clearKeyFromLocalStore(messageLoadingLocalStoreName);
+}
+
 async function getSeenMessagesFromLocalStore() {
   const userSeenQueueLocalStoreName = await getUserSeenQueueLocalStoreName();
   if (!userSeenQueueLocalStoreName) return [];
@@ -51,4 +70,10 @@ async function getUserSeenQueueLocalStoreName() {
   const userToken = await getHashedUserToken();
   if (!userToken) return null;
   return `${messageQueueLocalStoreName}.${userToken}.seen`;
+}
+
+async function getMessageLoadingStateLocalStoreName(queueId) {
+  const userToken = await getHashedUserToken();
+  if (!userToken) return null;
+  return `${messageQueueLocalStoreName}.${userToken}.message.${queueId}.loading`
 }

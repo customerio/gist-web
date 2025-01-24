@@ -86,6 +86,12 @@ export function isMessageBroadcast(message) {
   return message.properties && message.properties.gist && message.properties.gist.broadcast;
 }
 
+export function isShowAlwaysBroadcast(message) {
+  if (!isMessageBroadcast(message)) return false;
+  const { broadcast: broadcastDetails } = message.properties.gist;
+  return broadcastDetails.frequency.delay === 0 && broadcastDetails.frequency.count === 0;
+}
+
 async function getMessageBroadcastLocalStoreName() {
   const userToken = await getHashedUserToken();
   if (!userToken) return null;
