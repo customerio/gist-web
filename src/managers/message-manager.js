@@ -303,7 +303,7 @@ async function logUserMessageViewLocally(message) {
   }
 }
 
-async function logBroadcastDismissedLocally(message) {
+export async function logBroadcastDismissedLocally(message) {
   if (isMessageBroadcast(message)) {
     log(`Logging broadcast dismissed locally for: ${message.queueId}`);
     await markBroadcastAsDismissed(message.queueId);

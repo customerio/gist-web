@@ -2,7 +2,7 @@ import EventEmitter from "./utilities/event-emitter";
 import { log } from "./utilities/log";
 import { startQueueListener, checkMessageQueue } from "./managers/queue-manager";
 import { setUserToken, clearUserToken, useGuestSession } from "./managers/user-manager";
-import { showMessage, embedMessage, hideMessage, removePersistentMessage, fetchMessageByInstanceId } from "./managers/message-manager";
+import { showMessage, embedMessage, hideMessage, removePersistentMessage, fetchMessageByInstanceId, logBroadcastDismissedLocally } from "./managers/message-manager";
 import { setUserLocale } from "./managers/locale-manager";
 import { setupPreview } from "./utilities/preview-mode";
 
@@ -70,6 +70,7 @@ export default class {
     var message = fetchMessageByInstanceId(instanceId);
     await hideMessage(message);
     await removePersistentMessage(message);
+    await logBroadcastDismissedLocally(message);
     await checkMessageQueue();
   }
 
