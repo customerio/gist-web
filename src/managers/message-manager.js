@@ -251,8 +251,8 @@ async function handleGistEvents(e) {
                 break;
             }
           }
-        } catch (error) {
-          log(`Error processing action: ${error}`);
+        } catch {
+          // If the action is not a URL, we don't need to do anything.
         }
         
         break;
@@ -303,7 +303,7 @@ async function logUserMessageViewLocally(message) {
   }
 }
 
-async function logBroadcastDismissedLocally(message) {
+export async function logBroadcastDismissedLocally(message) {
   if (isMessageBroadcast(message)) {
     log(`Logging broadcast dismissed locally for: ${message.queueId}`);
     await markBroadcastAsDismissed(message.queueId);
