@@ -1,4 +1,4 @@
-import { getKeyFromLocalStore } from '../utilities/local-storage';
+import { getKeyFromLocalStore, setKeyToLocalStore } from '../utilities/local-storage';
 import { log } from '../utilities/log';
 const userQueueVersionLocalStoreName = "gist.web.userQueueVersion";
 
