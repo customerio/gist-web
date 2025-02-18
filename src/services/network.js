@@ -6,8 +6,11 @@ import { getUserToken } from "../managers/user-manager";
 export function UserNetworkInstance() {
   var instance = axios.create({
     baseURL: settings.GIST_QUEUE_API_ENDPOINT[Gist.config.env],
-    timeout: 20000 // 20 seconds, TODO: should we reconsider?
-  })
+    timeout: 5000
+  });
+  if (settings.getQueueAPIVersion() === "3") {
+    instance.defaults.baseURL = settings.GIST_QUEUE_V3_API_ENDPOINT[Gist.config.env];
+  }
   instance.defaults.headers.common['X-CIO-Site-Id'] = Gist.config.siteId;
   instance.defaults.headers.common['X-CIO-Client-Platform'] = 'web';
   var userToken = getUserToken();

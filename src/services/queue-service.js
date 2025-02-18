@@ -1,25 +1,35 @@
 import { UserNetworkInstance } from './network';
-import { setKeyToLocalStore } from '../utilities/local-storage';
+import { getKeyFromLocalStore, setKeyToLocalStore } from '../utilities/local-storage';
 import { log } from "../utilities/log";
 import { isUsingGuestUserToken } from '../managers/user-manager';
 import { getUserLocale } from '../managers/locale-manager';
+import { settings } from './settings';
 
+const CIOInstanceIdHeader = "X-CIO-Instance-Id";
 const defaultPollingDelayInSeconds = 600;
 var currentPollingDelayInSeconds = defaultPollingDelayInSeconds;
 var checkInProgress = false;
 
 export const userQueueNextPullCheckLocalStoreName = "gist.web.userQueueNextPullCheck";
+export const stickyInstanceIdLocalStoreName = "gist.web.stickyInstanceId";
 export async function getUserQueue() {
   var response;
   try {
     if (!checkInProgress) {
-      var timestamp = new Date().getTime();
       checkInProgress = true;
       var headers = {
         "X-Gist-User-Anonymous": isUsingGuestUserToken(),
         "Content-Language": getUserLocale()
       }
-      response = await UserNetworkInstance().post(`/api/v2/users?timestamp=${timestamp}`, {}, { headers: headers });
+      if (settings.getQueueAPIVersion() === "3") {
+        if (getKeyFromLocalStore(stickyInstanceIdLocalStoreName) !== null) {
+          headers[CIOInstanceIdHeader] = getKeyFromLocalStore(stickyInstanceIdLocalStoreName);
+        }
+        response = await UserNetworkInstance().post(`/api/v3/users`, {}, { headers: headers });
+      } else {
+        var timestamp = new Date().getTime();
+        response = await UserNetworkInstance().post(`/api/v2/users?timestamp=${timestamp}`, {}, { headers: headers });
+      }
     }
   } catch (error) {
     if (error.response) {
@@ -30,9 +40,29 @@ export async function getUserQueue() {
   } finally {
     checkInProgress = false;
     scheduleNextQueuePull(response);
+    setQueueAPIVersion(response);
+    setStickySessionHeader(response)
   }
 
   return response;
+}
+
+function setQueueAPIVersion(response) {
+  if (response && response.headers) {
+    var queueVersion = response.headers["x-cio-queue-version"];
+    if (queueVersion) {
+      settings.setQueueAPIVersion(queueVersion);
+    }
+  }
+}
+
+function setStickySessionHeader(response) {
+  if (response && response.headers) {
+    var cioInstanceId = response.headers[CIOInstanceIdHeader.toLowerCase()];
+    if (cioInstanceId) {
+      setKeyToLocalStore(stickyInstanceIdLocalStoreName, cioInstanceId);
+    }
+  }
 }
 
 function scheduleNextQueuePull(response) {
