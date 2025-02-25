@@ -8,6 +8,7 @@ export function resolveMessageProperties(message) {
     var shouldScale = false;
     var campaignId = null;
     var persistent = false;
+    var exitClick = false;
     var overlayColor = "#00000033";
     var messageWidth = 414;
     var hasCustomWidth = false;
@@ -42,6 +43,10 @@ export function resolveMessageProperties(message) {
         {
             persistent = true
         }
+        if (message.properties.gist.exitClick)
+        {
+            exitClick = true
+        }
     }
     return {
         isEmbedded: isEmbedded,
@@ -55,6 +60,7 @@ export function resolveMessageProperties(message) {
         messageWidth: messageWidth,
         overlayColor: overlayColor,
         persistent: persistent,
+        exitClick: exitClick,
         hasCustomWidth: hasCustomWidth
     }
 }
