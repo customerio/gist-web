@@ -1,66 +1,36 @@
 export function resolveMessageProperties(message) {
-    var elementId = "";
-    var routeRule = "";
-    var position = "";
-    var isEmbedded = false;
-    var hasRouteRule = false;
-    var hasPosition = false;
-    var shouldScale = false;
-    var campaignId = null;
-    var persistent = false;
-    var exitClick = false;
-    var overlayColor = "#00000033";
-    var messageWidth = 414;
-    var hasCustomWidth = false;
+    const defaults = {
+        isEmbedded: false,
+        elementId: "",
+        hasRouteRule: false,
+        routeRule: "",
+        position: "",
+        hasPosition: false,
+        shouldScale: false,
+        campaignId: null,
+        messageWidth: 414,
+        overlayColor: "#00000033",
+        persistent: false,
+        exitClick: false,
+        hasCustomWidth: false
+    };
 
-    if (message.properties && message.properties.gist) {
-        if (message.properties.gist.campaignId) {
-            campaignId = message.properties.gist.campaignId;
-        }
-        if (message.properties.gist.elementId) {
-            elementId = message.properties.gist.elementId;
-            isEmbedded = true;
-        }
-        if (message.properties.gist.routeRuleWeb) {
-            routeRule = message.properties.gist.routeRuleWeb;
-            hasRouteRule = true;
-        }
-        if (message.properties.gist.position) {
-            position = message.properties.gist.position;
-            hasPosition = true;
-        }
-        if (message.properties.gist.scale) {
-            shouldScale = message.properties.gist.scale;
-        }
-        if (message.properties.gist.overlayColor) {
-            overlayColor = message.properties.gist.overlayColor;
-        }
-        if (message.properties.gist.messageWidth && message.properties.gist.messageWidth > 0) {
-            messageWidth = message.properties.gist.messageWidth;
-            hasCustomWidth = true;
-        }
-        if (message.properties.gist.persistent)
-        {
-            persistent = true
-        }
-        if (message.properties.gist.exitClick)
-        {
-            exitClick = true
-        }
-    }
+    const gist = message?.properties?.gist;
+    if (!gist) return defaults;
+
     return {
-        isEmbedded: isEmbedded,
-        elementId: elementId,
-        hasRouteRule: hasRouteRule,
-        routeRule: routeRule,
-        position: position,
-        hasPosition: hasPosition,
-        shouldScale: shouldScale,
-        campaignId: campaignId,
-        messageWidth: messageWidth,
-        overlayColor: overlayColor,
-        persistent: persistent,
-        exitClick: exitClick,
-        hasCustomWidth: hasCustomWidth
-    }
+        isEmbedded: !!gist.elementId,
+        elementId: gist.elementId || "",
+        hasRouteRule: !!gist.routeRuleWeb,
+        routeRule: gist.routeRuleWeb || "",
+        position: gist.position || "",
+        hasPosition: !!gist.position,
+        shouldScale: !!gist.scale,
+        campaignId: gist.campaignId ?? null,
+        messageWidth: gist.messageWidth > 0 ? gist.messageWidth : defaults.messageWidth,
+        hasCustomWidth: gist.messageWidth > 0,
+        overlayColor: gist.overlayColor || defaults.overlayColor,
+        persistent: !!gist.persistent,
+        exitClick: !!gist.exitClick
+    };
 }
