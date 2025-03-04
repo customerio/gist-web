@@ -1,3 +1,4 @@
+import Gist from '../gist';
 import { log } from "../utilities/log";
 import { v4 as uuidv4 } from 'uuid';
 import { embedMessage } from "./message-manager";
@@ -5,6 +6,7 @@ import { resolveMessageProperties } from "./gist-properties-manager";
 import { embedHTMLTemplate } from "../templates/embed";
 import { messageHTMLTemplate } from "../templates/message";
 import { positions } from "./page-component-manager";
+
 const delay = ms => new Promise(res => setTimeout(res, ms));
 const wideOverlayPositions = ["x-gist-top", "x-gist-bottom", "x-gist-floating-top", "x-gist-floating-bottom"];
 
@@ -118,6 +120,7 @@ function sendOptionsToIframe(iframeId, options) {
 }
 
 export function showOverlayComponent(message) {
+  var messageProperties = resolveMessageProperties(message);
   var mainMessageElement = document.querySelector("#gist-overlay");
   if (mainMessageElement) {
     mainMessageElement.classList.add("visible");
@@ -128,8 +131,20 @@ export function showOverlayComponent(message) {
       messageElement.classList.add("center");
     }
     setTimeout(showMessage, 100);
+    // If exitClick is set to true, we add a dismiss listener after a 1-second delay to prevent accidental dismissals.
+    if (messageProperties.exitClick) { setTimeout(() => addDismissListener(message.instanceId), 1000); }
   } else {
     removeOverlayComponent();
+  }
+}
+
+function addDismissListener(instanceId) {
+  // We check if the overlay is still active before adding the dismiss listener
+  var mainMessageElement = document.querySelector("#gist-overlay");
+  if (mainMessageElement) {
+    mainMessageElement.addEventListener("click", function() {
+      Gist.dismissMessage(instanceId);
+    });
   }
 }
 
