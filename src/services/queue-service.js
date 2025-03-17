@@ -58,6 +58,7 @@ function getSessionId() {
   if (!sessionId) {
     sessionId = uuidv4();
   }
+  // The session ID TTL is renewed with every poll request and extended by 10 minutes.
   setKeyToLocalStore(sessionIdLocalStoreName, sessionId, new Date(new Date().getTime() + 600000));
   return sessionId;
 }
