@@ -23,9 +23,8 @@ export const settings = {
     "dev": "https://renderer.gist.build/3.0",
     "local": "http://app.local.gist.build:8080/web"
   },
-  getQueueAPIVersion: function(version) {
-    getKeyFromLocalStore(userQueueVersionLocalStoreName, version);
-    return version ?? "2";
+  getQueueAPIVersion: function() {
+    return getKeyFromLocalStore(userQueueVersionLocalStoreName) ?? "2";
   },
   setQueueAPIVersion: function(version) {
     setKeyToLocalStore(userQueueVersionLocalStoreName, version);

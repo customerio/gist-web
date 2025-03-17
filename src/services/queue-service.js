@@ -4,14 +4,14 @@ import { log } from "../utilities/log";
 import { isUsingGuestUserToken } from '../managers/user-manager';
 import { getUserLocale } from '../managers/locale-manager';
 import { settings } from './settings';
+import { v4 as uuidv4 } from 'uuid';
 
-const CIOInstanceIdHeader = "X-CIO-Instance-Id";
 const defaultPollingDelayInSeconds = 600;
 var currentPollingDelayInSeconds = defaultPollingDelayInSeconds;
 var checkInProgress = false;
 
 export const userQueueNextPullCheckLocalStoreName = "gist.web.userQueueNextPullCheck";
-export const stickyInstanceIdLocalStoreName = "gist.web.stickyInstanceId";
+export const sessionIdLocalStoreName = "gist.web.sessionId";
 export async function getUserQueue() {
   var response;
   try {
@@ -21,11 +21,9 @@ export async function getUserQueue() {
         "X-Gist-User-Anonymous": isUsingGuestUserToken(),
         "Content-Language": getUserLocale()
       }
+
       if (settings.getQueueAPIVersion() === "3") {
-        if (getKeyFromLocalStore(stickyInstanceIdLocalStoreName) !== null) {
-          headers[CIOInstanceIdHeader] = getKeyFromLocalStore(stickyInstanceIdLocalStoreName);
-        }
-        response = await UserNetworkInstance().post(`/api/v3/users`, {}, { headers: headers });
+        response = await UserNetworkInstance().post(`/api/v3/users?sessionId=${getSessionId()}`, {}, { headers: headers });
       } else {
         var timestamp = new Date().getTime();
         response = await UserNetworkInstance().post(`/api/v2/users?timestamp=${timestamp}`, {}, { headers: headers });
@@ -41,7 +39,6 @@ export async function getUserQueue() {
     checkInProgress = false;
     scheduleNextQueuePull(response);
     setQueueAPIVersion(response);
-    setStickySessionHeader(response)
   }
 
   return response;
@@ -56,13 +53,13 @@ function setQueueAPIVersion(response) {
   }
 }
 
-function setStickySessionHeader(response) {
-  if (response && response.headers) {
-    var cioInstanceId = response.headers[CIOInstanceIdHeader.toLowerCase()];
-    if (cioInstanceId) {
-      setKeyToLocalStore(stickyInstanceIdLocalStoreName, cioInstanceId);
-    }
+function getSessionId() {
+  var sessionId = getKeyFromLocalStore(sessionIdLocalStoreName);
+  if (!sessionId) {
+    sessionId = uuidv4();
   }
+  setKeyToLocalStore(sessionIdLocalStoreName, sessionId, new Date(new Date().getTime() + 600000));
+  return sessionId;
 }
 
 function scheduleNextQueuePull(response) {
