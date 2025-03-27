@@ -27,7 +27,8 @@ export const settings = {
     return getKeyFromLocalStore(userQueueVersionLocalStoreName) ?? "2";
   },
   setQueueAPIVersion: function(version) {
-    setKeyToLocalStore(userQueueVersionLocalStoreName, version);
+    // The Queue API version TTL is renewed with every poll request and extended by 30 minutes.
+    setKeyToLocalStore(userQueueVersionLocalStoreName, version, new Date(new Date().getTime() + 1800000));
     log(`Set user queue version to "${version}"`);
   }
 }
