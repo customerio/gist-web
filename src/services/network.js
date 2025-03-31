@@ -36,14 +36,10 @@ export function UserNetworkInstance() {
 
       clearTimeout(timeout);
 
-      const contentType = response.headers.get("content-type");
-      const isJSON = contentType && contentType.includes("application/json");
+      const isJSON = response.headers.get("content-type")?.includes("application/json");
       const data = isJSON ? await response.json() : await response.text();
 
-      const headersObj = {};
-      response.headers.forEach((value, key) => {
-        headersObj[key] = value;
-      });
+      const headersObj = Object.fromEntries(response.headers.entries());
 
       if (response.status < 200 || response.status >= 400) {
         throw {
