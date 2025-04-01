@@ -12,9 +12,9 @@ jobs:
         fetch-depth: 0
         ref: master
         token: ${{ secrets.SRE_GHACTIONS_TOKEN }}
-    - uses: actions-ecosystem/action-get-latest-tag@v1
+    - uses: actions-ecosystem/action-get-latest-tag@b7c32daec3395a9616f88548363a42652b22d435 # v1.6.0
       id: get-latest-tag
-    - uses: actions-ecosystem/action-bump-semver@v1
+    - uses: actions-ecosystem/action-bump-semver@8f82919001e67c7561b5f240af5df8234d2ac3fc # v1.0.0
       id: bump-semver
       with:
         current_version: ${{ steps.get-latest-tag.outputs.tag }}
