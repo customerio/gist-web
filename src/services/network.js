@@ -30,7 +30,7 @@ export function UserNetworkInstance() {
           ...defaultHeaders,
           ...(options.headers || {}),
         },
-        body: options.body,
+        body: options.method && options.method.toUpperCase() !== 'GET' ? options.body : undefined,
         signal: controller.signal,
       });
 
