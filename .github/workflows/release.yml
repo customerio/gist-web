@@ -34,7 +34,7 @@ jobs:
           AWS_DEST="web/$RELEASE_VERSION"
           echo "AWS_DEST=$AWS_DEST" >> $GITHUB_ENV
           echo "AWS_DEST=$AWS_DEST"
-      - uses: shallwefootball/s3-upload-action@master
+      - uses: shallwefootball/s3-upload-action@0d261a6f15b3b2e209dfebdecace4b100c04f95b # master
         with:
           aws_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
@@ -43,6 +43,6 @@ jobs:
           destination_dir: ${{ env.AWS_DEST }}
           endpoint: 'ams3.digitaloceanspaces.com'
       - name: Publish to NPM
-        uses: JS-DevTools/npm-publish@v3
+        uses: JS-DevTools/npm-publish@9ff4ebfbe48473265867fb9608c047e7995edfa3 # v3.1.1
         with:
           token: ${{ secrets.NPM_TOKEN }}          
