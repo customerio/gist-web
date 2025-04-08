@@ -26,7 +26,6 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "axios": "^0.28.1",
     "uuid": "^8.3.2"
   },
   "repository": {
