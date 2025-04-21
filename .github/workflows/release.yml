@@ -52,7 +52,7 @@ jobs:
         shell: bash
         run: |
           # Page rules to update
-          RULE_IDS=("dc150d61da87159be0d27ed58202902d","b32d2e6078f38cb799418a89e48f63ea")
+          RULE_IDS=("dc150d61da87159be0d27ed58202902d" "b32d2e6078f38cb799418a89e48f63ea")
 
           for RULE_ID in "${RULE_IDS[@]}"; do
             echo "Fetching rule $RULE_ID..."
