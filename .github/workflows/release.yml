@@ -13,6 +13,8 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.GIST_WEB_AWS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.GIST_WEB_AWS_SECRET_ACCESS_KEY }}
       AWS_BUCKET: 'gist-code'
+      CLOUDFLARE_ACCESS_TOKEN: ${{ secrets.CLOUDFLARE_ACCESS_TOKEN }}
+      CLOUDFLARE_ZONE_ID: 3310bc68d22035edbc12d5d4a4fd278c
     steps:
       - uses: actions/checkout@v3
       - name: Use Node.js ${{ matrix.node-version }}
@@ -45,4 +47,38 @@ jobs:
       - name: Publish to NPM
         uses: JS-DevTools/npm-publish@9ff4ebfbe48473265867fb9608c047e7995edfa3 # v3.1.1
         with:
-          token: ${{ secrets.NPM_TOKEN }}          
+          token: ${{ secrets.NPM_TOKEN }}
+      - name: Update Cloudflare rules
+        shell: bash
+        run: |
+          # Page rules to update
+          RULE_IDS=("dc150d61da87159be0d27ed58202902d","b32d2e6078f38cb799418a89e48f63ea")
+
+          for RULE_ID in "${RULE_IDS[@]}"; do
+            echo "Fetching rule $RULE_ID..."
+
+            RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/pagerules/$RULE_ID" \
+              -H "Authorization: Bearer $CLOUDFLARE_ACCESS_TOKEN" \
+              -H "Content-Type: application/json")
+
+            SUCCESS=$(echo "$RESPONSE" | jq -r '.success')
+            if [[ "$SUCCESS" != "true" ]]; then
+              echo "❌ Failed to fetch rule $RULE_ID"
+              echo "$RESPONSE" | jq
+              exit 1
+            fi
+
+            RULE_BODY=$(echo "$RESPONSE" | jq '.result')
+
+            echo "Modifying rule for version $RELEASE_VERSION..."
+            UPDATED_RULE=$(echo "$RULE_BODY" | jq \
+              --arg version "$RELEASE_VERSION" \
+              '(.actions[] | select(.id == "forwarding_url") | .value.url) = "https://code.gist.build/web/" + $version + "/gist.min.js"')
+
+
+            echo "Sending updated rule back to Cloudflare..."
+            curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/pagerules/$RULE_ID" \
+              -H "Authorization: Bearer $CLOUDFLARE_ACCESS_TOKEN" \
+              -H "Content-Type: application/json" \
+              --data "$UPDATED_RULE"
+          done
