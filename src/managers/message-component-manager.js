@@ -1,7 +1,5 @@
 import Gist from '../gist';
 import { log } from "../utilities/log";
-import { v4 as uuidv4 } from 'uuid';
-import { embedMessage } from "./message-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
 import { embedHTMLTemplate } from "../templates/embed";
 import { messageHTMLTemplate } from "../templates/message";
@@ -17,17 +15,6 @@ export function isElementLoaded(elementId) {
   } else {
     return false;
   }
-}
-
-export async function preloadRenderer() {
-  var preloadFrameId = `G${uuidv4().substring(0,8)}`;
-  var preloadFrameElement = document.createElement("div");
-  preloadFrameElement.setAttribute("id", preloadFrameId);
-  preloadFrameElement.style.display = "none";
-  document.body.appendChild(preloadFrameElement);
-  
-  await delay(5000);
-  embedMessage({messageId: ""}, preloadFrameId);
 }
 
 export function loadEmbedComponent(elementId, url, message, options) {
