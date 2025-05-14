@@ -1,6 +1,7 @@
 import { getKeyFromLocalStore, setKeyToLocalStore } from '../utilities/local-storage';
 import { log } from '../utilities/log';
 const userQueueVersionLocalStoreName = "gist.web.userQueueVersion";
+const userQueueUseSSELocalStoreName = "gist.web.userQueueUseSSE";
 
 export const settings = {
   ENGINE_API_ENDPOINT: {
@@ -30,5 +31,12 @@ export const settings = {
     // The Queue API version TTL is renewed with every poll request and extended by 30 minutes.
     setKeyToLocalStore(userQueueVersionLocalStoreName, version, new Date(new Date().getTime() + 1800000));
     log(`Set user queue version to "${version}"`);
+  },
+  useSSE: function() {
+    return getKeyFromLocalStore(userQueueUseSSELocalStoreName) ?? false;
+  },
+  setUseSSEFlag: function(useSSE) {
+    setKeyToLocalStore(userQueueUseSSELocalStoreName, useSSE, new Date(new Date().getTime() + 60000));
+    log(`Set user uses SSE to "${useSSE}"`);
   }
 }

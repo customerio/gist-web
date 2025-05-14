@@ -1,7 +1,8 @@
+import Gist from '../gist';
 import { UserNetworkInstance } from './network';
 import { getKeyFromLocalStore, setKeyToLocalStore } from '../utilities/local-storage';
 import { log } from "../utilities/log";
-import { isUsingGuestUserToken } from '../managers/user-manager';
+import { isUsingGuestUserToken, getHashedUserToken } from '../managers/user-manager';
 import { getUserLocale } from '../managers/locale-manager';
 import { settings } from './settings';
 import { v4 as uuidv4 } from 'uuid';
@@ -39,6 +40,7 @@ export async function getUserQueue() {
     checkInProgress = false;
     scheduleNextQueuePull(response);
     setQueueAPIVersion(response);
+    setQueueUseSSE(response);
   }
 
   return response;
@@ -50,6 +52,14 @@ function setQueueAPIVersion(response) {
     if (queueVersion) {
       settings.setQueueAPIVersion(queueVersion);
     }
+  }
+}
+
+function setQueueUseSSE(response) {
+  if (response && response.headers) {
+    //var useSSE = response.headers["x-cio-use-sse"];
+    //useSSE === "true" ? settings.setUseSSEFlag(true) : settings.setUseSSEFlag(false);
+    settings.setUseSSEFlag(true);
   }
 }
 
@@ -72,4 +82,9 @@ function scheduleNextQueuePull(response) {
   }
   var expiryDate = new Date(new Date().getTime() + currentPollingDelayInSeconds * 1000);
   setKeyToLocalStore(userQueueNextPullCheckLocalStoreName, currentPollingDelayInSeconds, expiryDate);
+}
+
+export async function getQueueSSEEndpoint() {
+  //settings.GIST_QUEUE_V3_API_ENDPOINT[Gist.config.env]
+  return "http://localhost:3000/events" + `?userToken=${await getHashedUserToken()}&siteId=${Gist.config.siteId}&sessionId=${getSessionId()}`;
 }
