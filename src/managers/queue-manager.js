@@ -24,7 +24,7 @@ export async function startQueueListener() {
       log("User token not setup, queue not started.");
     }
   } else {
-    checkMessageQueue();
+    await checkMessageQueue();
   }
 }
 
@@ -127,8 +127,8 @@ async function setupSSEQueueListener() {
     try {
       var messages = JSON.parse(event.data);
       log("SSE message received:", messages);
-      updateQueueLocalStore(messages);
-      updateBroadcastsLocalStore(messages);
+      await updateQueueLocalStore(messages);
+      await updateBroadcastsLocalStore(messages);
       await checkMessageQueue();
     } catch (e) {
       log("Failed to parse SSE message", e);
@@ -147,7 +147,7 @@ async function setupSSEQueueListener() {
   });
 }
 
-async function stopSSEListener() {
+function stopSSEListener() {
   if (sseSource) {
     sseSource.close();
     sseSource = null;
