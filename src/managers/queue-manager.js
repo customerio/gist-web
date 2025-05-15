@@ -77,7 +77,9 @@ async function handleMessage(message) {
 }
 
 export async function pullMessagesFromQueue() {
-  if (sseSource == null) {
+  if (settings.hasActiveSSEConnection()) {
+    await checkMessageQueue();
+  } else {
     if (settings.useSSE()) {
       await setupSSEQueueListener();
     } else {
@@ -122,7 +124,8 @@ async function setupSSEQueueListener() {
   const sseURL = await getQueueSSEEndpoint();
   log(`Starting SSE queue listener on ${sseURL}`);
   sseSource = new EventSource(sseURL);
-
+  settings.setActiveSSEConnection();
+  
   sseSource.addEventListener("messages", async (event) => {
     try {
       var messages = JSON.parse(event.data);
@@ -143,6 +146,7 @@ async function setupSSEQueueListener() {
 
   sseSource.addEventListener("heartbeat", async (event) => {
     log("SSE heartbeat received:", event);
+    settings.setActiveSSEConnection();
     settings.setUseSSEFlag(true);
   });
 }

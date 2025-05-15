@@ -2,6 +2,7 @@ import { getKeyFromLocalStore, setKeyToLocalStore } from '../utilities/local-sto
 import { log } from '../utilities/log';
 const userQueueVersionLocalStoreName = "gist.web.userQueueVersion";
 const userQueueUseSSELocalStoreName = "gist.web.userQueueUseSSE";
+const userQueueActiveSSEConnectionLocalStoreName = "gist.web.activeSSEConnection";
 
 export const settings = {
   ENGINE_API_ENDPOINT: {
@@ -38,5 +39,11 @@ export const settings = {
   setUseSSEFlag: function(useSSE) {
     setKeyToLocalStore(userQueueUseSSELocalStoreName, useSSE, new Date(new Date().getTime() + 60000));
     log(`Set user uses SSE to "${useSSE}"`);
+  },
+  setActiveSSEConnection: function() {
+    setKeyToLocalStore(userQueueActiveSSEConnectionLocalStoreName, true, new Date(new Date().getTime() + 10000));
+  },
+  hasActiveSSEConnection: function() {
+    return getKeyFromLocalStore(userQueueActiveSSEConnectionLocalStoreName) ?? false;
   }
 }
