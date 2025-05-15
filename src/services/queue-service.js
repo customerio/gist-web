@@ -57,9 +57,8 @@ function setQueueAPIVersion(response) {
 
 function setQueueUseSSE(response) {
   if (response && response.headers) {
-    //var useSSE = response.headers["x-cio-use-sse"];
-    //useSSE === "true" ? settings.setUseSSEFlag(true) : settings.setUseSSEFlag(false);
-    settings.setUseSSEFlag(true);
+    var useSSE = response.headers["x-cio-use-sse"];
+    useSSE && useSSE.toLowerCase() === "true" ? settings.setUseSSEFlag(true) : settings.setUseSSEFlag(false);
   }
 }
 
