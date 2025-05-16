@@ -1,16 +1,18 @@
 import Gist from '../gist';
 import { log } from "../utilities/log";
 import { getUserToken } from "./user-manager";
-import { getUserQueue, userQueueNextPullCheckLocalStoreName } from "../services/queue-service";
+import { getUserQueue, getQueueSSEEndpoint, userQueueNextPullCheckLocalStoreName } from "../services/queue-service";
 import { showMessage, embedMessage } from "./message-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
 import { getKeyFromLocalStore } from '../utilities/local-storage';
 import { updateBroadcastsLocalStore, getEligibleBroadcasts, isShowAlwaysBroadcast } from './message-broadcast-manager';
 import { updateQueueLocalStore, getMessagesFromLocalStore, isMessageLoading, setMessageLoading } from './message-user-queue-manager';
+import { settings } from '../services/settings';
 
 var sleep = time => new Promise(resolve => setTimeout(resolve, time))
 var poll = (promiseFn, time) => promiseFn().then(sleep(time).then(() => poll(promiseFn, time)));
 var pollingSetup = false;
+let sseSource = null;
 
 export async function startQueueListener() {
   if (!pollingSetup) {
@@ -22,7 +24,7 @@ export async function startQueueListener() {
       log("User token not setup, queue not started.");
     }
   } else {
-    checkMessageQueue();
+    await checkMessageQueue();
   }
 }
 
@@ -75,6 +77,18 @@ async function handleMessage(message) {
 }
 
 export async function pullMessagesFromQueue() {
+  if (settings.hasActiveSSEConnection()) {
+    await checkMessageQueue();
+  } else {
+    if (settings.useSSE()) {
+      await setupSSEQueueListener();
+    } else {
+      await checkQueueThroughPolling();
+    }
+  }
+}
+
+async function checkQueueThroughPolling() {
   if (getUserToken()) {
     if (Gist.isDocumentVisible) {
       // We're using the TTL as a way to determine if we should check the queue, so if the key is not there, we check the queue.
@@ -104,4 +118,50 @@ export async function pullMessagesFromQueue() {
   } else {
     log(`User token reset, skipping queue check.`);
   }
+}
+
+async function setupSSEQueueListener() {
+  const sseURL = await getQueueSSEEndpoint();
+  log(`Starting SSE queue listener on ${sseURL}`);
+  sseSource = new EventSource(sseURL);
+  settings.setActiveSSEConnection();
+  
+  sseSource.addEventListener("connected", async (event) => {
+    log("SSE connection received:", event);
+    settings.setActiveSSEConnection();
+    settings.setUseSSEFlag(true);
+  });
+
+  sseSource.addEventListener("messages", async (event) => {
+    try {
+      var messages = JSON.parse(event.data);
+      log("SSE message received:", messages);
+      await updateQueueLocalStore(messages);
+      await updateBroadcastsLocalStore(messages);
+      await checkMessageQueue();
+    } catch (e) {
+      log("Failed to parse SSE message", e);
+      stopSSEListener();
+    }
+  });
+
+  sseSource.addEventListener("error", async (event) => {
+    log("SSE error received:", event);
+    stopSSEListener();
+  });
+
+  sseSource.addEventListener("heartbeat", async (event) => {
+    log("SSE heartbeat received:", event);
+    settings.setActiveSSEConnection();
+    settings.setUseSSEFlag(true);
+  });
+}
+
+function stopSSEListener() {
+  if (sseSource) {
+    sseSource.close();
+    sseSource = null;
+    settings.setUseSSEFlag(false);
+    log("SSE queue listener stopped");
+  };
 }
