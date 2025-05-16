@@ -126,6 +126,12 @@ async function setupSSEQueueListener() {
   sseSource = new EventSource(sseURL);
   settings.setActiveSSEConnection();
   
+  sseSource.addEventListener("connected", async (event) => {
+    log("SSE connection received:", event);
+    settings.setActiveSSEConnection();
+    settings.setUseSSEFlag(true);
+  });
+
   sseSource.addEventListener("messages", async (event) => {
     try {
       var messages = JSON.parse(event.data);
