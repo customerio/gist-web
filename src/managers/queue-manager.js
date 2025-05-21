@@ -1,6 +1,6 @@
 import Gist from '../gist';
 import { log } from "../utilities/log";
-import { getUserToken } from "./user-manager";
+import { getUserToken, isAnonymousUser } from "./user-manager";
 import { getUserQueue, getQueueSSEEndpoint, userQueueNextPullCheckLocalStoreName } from "../services/queue-service";
 import { showMessage, embedMessage } from "./message-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
@@ -80,7 +80,7 @@ export async function pullMessagesFromQueue() {
   if (settings.hasActiveSSEConnection()) {
     await checkMessageQueue();
   } else {
-    if (settings.useSSE()) {
+    if (settings.useSSE() && !isAnonymousUser()) {
       await setupSSEQueueListener();
     } else {
       await checkQueueThroughPolling();
@@ -157,7 +157,7 @@ async function setupSSEQueueListener() {
   });
 }
 
-function stopSSEListener() {
+export function stopSSEListener() {
   if (sseSource) {
     sseSource.close();
     sseSource = null;
