@@ -178,7 +178,7 @@ function handleTouchStartEvents() {
 }
 
 async function handleGistEvents(e) {
-  if (e.data.gist) {
+  if (e.data.gist && e.origin === settings.RENDERER_HOST) {
     var currentInstanceId = e.data.gist.instanceId;
     var currentMessage = fetchMessageByInstanceId(currentInstanceId);
     if (!currentMessage) { return; }

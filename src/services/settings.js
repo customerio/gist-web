@@ -3,6 +3,7 @@ import { log } from '../utilities/log';
 const userQueueVersionLocalStoreName = "gist.web.userQueueVersion";
 
 export const settings = {
+  RENDERER_HOST: "https://code.gist.build",
   ENGINE_API_ENDPOINT: {
     "prod": "https://engine.api.gist.build",
     "dev": "https://engine.api.dev.gist.build",
