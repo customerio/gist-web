@@ -1,6 +1,6 @@
 import EventEmitter from "./utilities/event-emitter";
 import { log } from "./utilities/log";
-import { startQueueListener, checkMessageQueue } from "./managers/queue-manager";
+import { startQueueListener, checkMessageQueue, stopSSEListener } from "./managers/queue-manager";
 import { setUserToken, clearUserToken, useGuestSession } from "./managers/user-manager";
 import { showMessage, embedMessage, hideMessage, removePersistentMessage, fetchMessageByInstanceId, logBroadcastDismissedLocally } from "./managers/message-manager";
 import { setUserLocale } from "./managers/locale-manager";
@@ -63,6 +63,7 @@ export default class {
     if (this.config.useAnonymousSession) {
       useGuestSession();
     }
+    stopSSEListener();
     await startQueueListener();
   }
 
