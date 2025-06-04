@@ -242,7 +242,7 @@ async function handleGistEvents(e) {
               case "loadPage":
                 url = url.href.substring(url.href.indexOf('?url=') + 5);
                 if (url) {
-                  if (url.startsWith("https://") || url.startsWith("http://") || url.startsWith("/")) {
+                  if (url.startsWith("mailto:") || url.startsWith("https://") || url.startsWith("http://") || url.startsWith("/")) {
                     window.location.href = url;
                   } else {
                     window.location.href = window.location + url;
