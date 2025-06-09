@@ -59,8 +59,7 @@ export async function getHashedUserToken() {
   return await hashString(userToken);
 }
 
-// Temporary? Ideally we use getHashedUserToken() everywhere.
-export function getRealtimeUserToken() {
+export function getEncodedUserToken() {
   var userToken = getUserToken();
   if (userToken === null) {
     return null;

@@ -121,7 +121,12 @@ async function checkQueueThroughPolling() {
 }
 
 async function setupSSEQueueListener() {
-  const sseURL = await getQueueSSEEndpoint();
+  const sseURL = getQueueSSEEndpoint();
+  if (sseURL === null) {
+    log("SSE endpoint not available, falling back to polling.");
+    await checkQueueThroughPolling();
+    return;
+  }
   log(`Starting SSE queue listener on ${sseURL}`);
   sseSource = new EventSource(sseURL);
   settings.setActiveSSEConnection();
