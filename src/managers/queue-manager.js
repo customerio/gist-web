@@ -44,7 +44,7 @@ export async function checkMessageQueue() {
 async function handleMessage(message) {
   var messageProperties = resolveMessageProperties(message);
   if (messageProperties.hasRouteRule) {
-    var currentUrl = Gist.currentRoute
+    var currentUrl = Gist.currentRoute;
     if (currentUrl == null) {
       currentUrl = new URL(window.location.href).pathname;
     }
@@ -77,15 +77,20 @@ async function handleMessage(message) {
 }
 
 export async function pullMessagesFromQueue() {
+  // If SSE connection is already active, just check the local queue
   if (settings.hasActiveSSEConnection()) {
     await checkMessageQueue();
-  } else {
-    if (settings.useSSE() && !isAnonymousUser()) {
-      await setupSSEQueueListener();
-    } else {
-      await checkQueueThroughPolling();
-    }
+    return;
   }
+
+  // If SSE is enabled and user is not anonymous, set up SSE listener
+  if (settings.useSSE() && !isAnonymousUser()) {
+    await setupSSEQueueListener();
+    return;
+  }
+
+  // Fall back to polling
+  await checkQueueThroughPolling();
 }
 
 async function checkQueueThroughPolling() {
@@ -101,8 +106,7 @@ async function checkQueueThroughPolling() {
             responseData = response.data;
             updateQueueLocalStore(responseData);
             updateBroadcastsLocalStore(responseData);
-          }
-          else if (response.status === 304) {
+          } else if (response.status === 304) {
             log("304 response, using local store.");
           }
           await checkMessageQueue();
@@ -113,7 +117,7 @@ async function checkQueueThroughPolling() {
         log(`Next queue pull scheduled for later.`);
       }
     } else {
-      log(`Document not visible, skipping queue check.`);  
+      log(`Document not visible, skipping queue check.`);
     }
   } else {
     log(`User token reset, skipping queue check.`);
@@ -130,7 +134,7 @@ async function setupSSEQueueListener() {
   log(`Starting SSE queue listener on ${sseURL}`);
   sseSource = new EventSource(sseURL);
   settings.setActiveSSEConnection();
-  
+
   sseSource.addEventListener("connected", async (event) => {
     log("SSE connection received:", event);
     settings.setActiveSSEConnection();
@@ -163,10 +167,16 @@ async function setupSSEQueueListener() {
 }
 
 export function stopSSEListener() {
-  if (sseSource) {
-    sseSource.close();
-    sseSource = null;
-    settings.setUseSSEFlag(false);
-    log("SSE queue listener stopped");
-  };
+  // No active SSE connection to stop
+  if (!sseSource) {
+    return;
+  }
+
+  // Close the connection and clean up
+  log("Stopping SSE queue listener...");
+  sseSource.close();
+  sseSource = null;
+  
+  // Update settings to reflect disconnected state
+  settings.setUseSSEFlag(false);
 }
