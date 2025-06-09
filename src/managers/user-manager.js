@@ -59,6 +59,15 @@ export async function getHashedUserToken() {
   return await hashString(userToken);
 }
 
+// Temporary? Ideally we use getHashedUserToken() everywhere.
+export function getRealtimeUserToken() {
+  var userToken = getUserToken();
+  if (userToken === null) {
+    return null;
+  }
+  return btoa(userToken);
+}
+
 export function clearUserToken() {
   clearKeyFromLocalStore(userTokenLocalStoreName);
   log(`Cleared user token`);

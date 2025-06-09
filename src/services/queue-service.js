@@ -2,7 +2,7 @@ import Gist from '../gist';
 import { UserNetworkInstance } from './network';
 import { getKeyFromLocalStore, setKeyToLocalStore } from '../utilities/local-storage';
 import { log } from "../utilities/log";
-import { isUsingGuestUserToken, getHashedUserToken } from '../managers/user-manager';
+import { isUsingGuestUserToken, getRealtimeUserToken } from '../managers/user-manager';
 import { getUserLocale } from '../managers/locale-manager';
 import { settings } from './settings';
 import { v4 as uuidv4 } from 'uuid';
@@ -84,6 +84,5 @@ function scheduleNextQueuePull(response) {
 }
 
 export async function getQueueSSEEndpoint() {
-  //settings.GIST_QUEUE_V3_API_ENDPOINT[Gist.config.env]
-  return "http://localhost:3000/events" + `?userToken=${await getHashedUserToken()}&siteId=${Gist.config.siteId}&sessionId=${getSessionId()}`;
+  return settings.GIST_QUEUE_REALTIME_API_ENDPOINT[Gist.config.env] + `/api/v3/sse?userToken=${getRealtimeUserToken()}&siteId=${Gist.config.siteId}&sessionId=${getSessionId()}`;
 }

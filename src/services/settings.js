@@ -21,6 +21,11 @@ export const settings = {
     "dev": "https://consumer.cloud.dev.gist.build",
     "local": "http://api.local.gist.build:86"
   },
+  GIST_QUEUE_REALTIME_API_ENDPOINT: {
+    "prod": "https://realtime.cloud.gist.build",
+    "dev": "https://realtime.cloud.dev.gist.build",
+    "local": "http://api.local.gist.build:3000"
+  },
   GIST_VIEW_ENDPOINT: {
     "prod": "https://renderer.gist.build/3.0",
     "dev": "https://renderer.gist.build/3.0",
