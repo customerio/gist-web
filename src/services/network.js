@@ -1,6 +1,6 @@
 import Gist from '../gist';
 import { settings } from './settings';
-import { getUserToken } from "../managers/user-manager";
+import { getEncodedUserToken } from "../managers/user-manager";
 
 export function UserNetworkInstance() {
   const baseURL =
@@ -13,9 +13,9 @@ export function UserNetworkInstance() {
     'X-CIO-Client-Platform': 'web',
   };
 
-  const userToken = getUserToken();
+  const userToken = getEncodedUserToken();
   if (userToken != null) {
-    defaultHeaders['X-Gist-Encoded-User-Token'] = btoa(userToken);
+    defaultHeaders['X-Gist-Encoded-User-Token'] = userToken;
   }
 
   async function request(path, options = {}) {

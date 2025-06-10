@@ -1,7 +1,8 @@
+import Gist from '../gist';
 import { UserNetworkInstance } from './network';
 import { getKeyFromLocalStore, setKeyToLocalStore } from '../utilities/local-storage';
 import { log } from "../utilities/log";
-import { isUsingGuestUserToken } from '../managers/user-manager';
+import { isUsingGuestUserToken, getEncodedUserToken } from '../managers/user-manager';
 import { getUserLocale } from '../managers/locale-manager';
 import { settings } from './settings';
 import { v4 as uuidv4 } from 'uuid';
@@ -39,6 +40,7 @@ export async function getUserQueue() {
     checkInProgress = false;
     scheduleNextQueuePull(response);
     setQueueAPIVersion(response);
+    setQueueUseSSE(response);
   }
 
   return response;
@@ -51,6 +53,11 @@ function setQueueAPIVersion(response) {
       settings.setQueueAPIVersion(queueVersion);
     }
   }
+}
+
+function setQueueUseSSE(response) {
+  const useSSE = response?.headers?.["x-cio-use-sse"]?.toLowerCase() === "true";
+  settings.setUseSSEFlag(useSSE);
 }
 
 function getSessionId() {
@@ -72,4 +79,13 @@ function scheduleNextQueuePull(response) {
   }
   var expiryDate = new Date(new Date().getTime() + currentPollingDelayInSeconds * 1000);
   setKeyToLocalStore(userQueueNextPullCheckLocalStoreName, currentPollingDelayInSeconds, expiryDate);
+}
+
+export function getQueueSSEEndpoint() {
+  var encodedUserToken = getEncodedUserToken();
+  if (encodedUserToken === null) {
+    log("No user token available for SSE endpoint.");
+    return null;
+  }
+  return settings.GIST_QUEUE_REALTIME_API_ENDPOINT[Gist.config.env] + `/api/v3/sse?userToken=${encodedUserToken}&siteId=${Gist.config.siteId}&sessionId=${getSessionId()}`;
 }

@@ -1,16 +1,18 @@
 import Gist from '../gist';
 import { log } from "../utilities/log";
-import { getUserToken } from "./user-manager";
-import { getUserQueue, userQueueNextPullCheckLocalStoreName } from "../services/queue-service";
+import { getUserToken, isAnonymousUser } from "./user-manager";
+import { getUserQueue, getQueueSSEEndpoint, userQueueNextPullCheckLocalStoreName } from "../services/queue-service";
 import { showMessage, embedMessage } from "./message-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
 import { getKeyFromLocalStore } from '../utilities/local-storage';
 import { updateBroadcastsLocalStore, getEligibleBroadcasts, isShowAlwaysBroadcast } from './message-broadcast-manager';
 import { updateQueueLocalStore, getMessagesFromLocalStore, isMessageLoading, setMessageLoading } from './message-user-queue-manager';
+import { settings } from '../services/settings';
 
 var sleep = time => new Promise(resolve => setTimeout(resolve, time))
 var poll = (promiseFn, time) => promiseFn().then(sleep(time).then(() => poll(promiseFn, time)));
 var pollingSetup = false;
+let sseSource = null;
 
 export async function startQueueListener() {
   if (!pollingSetup) {
@@ -22,7 +24,7 @@ export async function startQueueListener() {
       log("User token not setup, queue not started.");
     }
   } else {
-    checkMessageQueue();
+    await checkMessageQueue();
   }
 }
 
@@ -42,7 +44,7 @@ export async function checkMessageQueue() {
 async function handleMessage(message) {
   var messageProperties = resolveMessageProperties(message);
   if (messageProperties.hasRouteRule) {
-    var currentUrl = Gist.currentRoute
+    var currentUrl = Gist.currentRoute;
     if (currentUrl == null) {
       currentUrl = new URL(window.location.href).pathname;
     }
@@ -75,6 +77,23 @@ async function handleMessage(message) {
 }
 
 export async function pullMessagesFromQueue() {
+  // If SSE connection is already active, just check the local queue
+  if (settings.hasActiveSSEConnection()) {
+    await checkMessageQueue();
+    return;
+  }
+
+  // If SSE is enabled and user is not anonymous, set up SSE listener
+  if (settings.useSSE() && !isAnonymousUser()) {
+    await setupSSEQueueListener();
+    return;
+  }
+
+  // Fall back to polling
+  await checkQueueThroughPolling();
+}
+
+async function checkQueueThroughPolling() {
   if (getUserToken()) {
     if (Gist.isDocumentVisible) {
       // We're using the TTL as a way to determine if we should check the queue, so if the key is not there, we check the queue.
@@ -87,8 +106,7 @@ export async function pullMessagesFromQueue() {
             responseData = response.data;
             updateQueueLocalStore(responseData);
             updateBroadcastsLocalStore(responseData);
-          }
-          else if (response.status === 304) {
+          } else if (response.status === 304) {
             log("304 response, using local store.");
           }
           await checkMessageQueue();
@@ -99,9 +117,66 @@ export async function pullMessagesFromQueue() {
         log(`Next queue pull scheduled for later.`);
       }
     } else {
-      log(`Document not visible, skipping queue check.`);  
+      log(`Document not visible, skipping queue check.`);
     }
   } else {
     log(`User token reset, skipping queue check.`);
   }
+}
+
+async function setupSSEQueueListener() {
+  const sseURL = getQueueSSEEndpoint();
+  if (sseURL === null) {
+    log("SSE endpoint not available, falling back to polling.");
+    await checkQueueThroughPolling();
+    return;
+  }
+  log(`Starting SSE queue listener on ${sseURL}`);
+  sseSource = new EventSource(sseURL);
+  settings.setActiveSSEConnection();
+
+  sseSource.addEventListener("connected", async (event) => {
+    log("SSE connection received:", event);
+    settings.setActiveSSEConnection();
+    settings.setUseSSEFlag(true);
+  });
+
+  sseSource.addEventListener("messages", async (event) => {
+    try {
+      var messages = JSON.parse(event.data);
+      log("SSE message received:", messages);
+      await updateQueueLocalStore(messages);
+      await updateBroadcastsLocalStore(messages);
+      await checkMessageQueue();
+    } catch (e) {
+      log("Failed to parse SSE message", e);
+      stopSSEListener();
+    }
+  });
+
+  sseSource.addEventListener("error", async (event) => {
+    log("SSE error received:", event);
+    stopSSEListener();
+  });
+
+  sseSource.addEventListener("heartbeat", async (event) => {
+    log("SSE heartbeat received:", event);
+    settings.setActiveSSEConnection();
+    settings.setUseSSEFlag(true);
+  });
+}
+
+export function stopSSEListener() {
+  // No active SSE connection to stop
+  if (!sseSource) {
+    return;
+  }
+
+  // Close the connection and clean up
+  log("Stopping SSE queue listener...");
+  sseSource.close();
+  sseSource = null;
+  
+  // Update settings to reflect disconnected state
+  settings.setUseSSEFlag(false);
 }

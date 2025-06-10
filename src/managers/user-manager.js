@@ -47,12 +47,24 @@ export function useGuestSession() {
   }
 }
 
+export function isAnonymousUser() {
+  return isUsingGuestUserToken();
+}
+
 export async function getHashedUserToken() {
   var userToken = getUserToken();
   if (userToken === null) {
     return null;
   }
   return await hashString(userToken);
+}
+
+export function getEncodedUserToken() {
+  var userToken = getUserToken();
+  if (userToken === null) {
+    return null;
+  }
+  return btoa(userToken);
 }
 
 export function clearUserToken() {

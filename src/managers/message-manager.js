@@ -98,8 +98,6 @@ function resetEmbedState(message) {
 }
 
 async function resetOverlayState(hideFirst, message) {
-  removeMessageByInstanceId(message.instanceId);
-  Gist.overlayInstanceId = null;
   if (hideFirst) {
     await hideOverlayComponent();
   } else {
@@ -110,6 +108,9 @@ async function resetOverlayState(hideFirst, message) {
     window.removeEventListener('message', handleGistEvents);
     window.removeEventListener('touchstart', handleTouchStartEvents);
   }
+
+  removeMessageByInstanceId(message.instanceId);
+  Gist.overlayInstanceId = null;
 }
 
 function loadMessageComponent(message, elementId = null) {
