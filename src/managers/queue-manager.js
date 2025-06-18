@@ -4,7 +4,7 @@ import { getUserToken, isAnonymousUser } from "./user-manager";
 import { getUserQueue, getQueueSSEEndpoint, userQueueNextPullCheckLocalStoreName } from "../services/queue-service";
 import { showMessage, embedMessage } from "./message-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
-import { getKeyFromLocalStore } from '../utilities/local-storage';
+import { clearKeyFromLocalStore, getKeyFromLocalStore } from '../utilities/local-storage';
 import { updateBroadcastsLocalStore, getEligibleBroadcasts, isShowAlwaysBroadcast } from './message-broadcast-manager';
 import { updateQueueLocalStore, getMessagesFromLocalStore, isMessageLoading, setMessageLoading } from './message-user-queue-manager';
 import { settings } from '../services/settings';
@@ -139,6 +139,9 @@ async function setupSSEQueueListener() {
     log("SSE connection received:", event);
     settings.setActiveSSEConnection();
     settings.setUseSSEFlag(true);
+    // On successful SSE connection, pull the queue.
+    clearKeyFromLocalStore(userQueueNextPullCheckLocalStoreName);
+    await checkQueueThroughPolling();
   });
 
   sseSource.addEventListener("messages", async (event) => {
