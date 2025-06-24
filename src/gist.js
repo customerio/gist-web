@@ -1,10 +1,11 @@
 import EventEmitter from "./utilities/event-emitter";
 import { log } from "./utilities/log";
-import { startQueueListener, checkMessageQueue, stopSSEListener } from "./managers/queue-manager";
+import { startQueueListener, checkMessageQueue, stopSSEListener, setupSSEQueueListener } from "./managers/queue-manager";
 import { setUserToken, clearUserToken, useGuestSession } from "./managers/user-manager";
 import { showMessage, embedMessage, hideMessage, removePersistentMessage, fetchMessageByInstanceId, logBroadcastDismissedLocally } from "./managers/message-manager";
 import { setUserLocale } from "./managers/locale-manager";
 import { setupPreview } from "./utilities/preview-mode";
+import { settings } from './services/settings';
 
 export default class {
   static async setup(config) {
@@ -49,7 +50,17 @@ export default class {
 
   static async setUserToken(userToken, expiryDate) {
     if (this.config.isPreviewSession) return;
+
+    const wasUsingSSE = settings.hasActiveSSEConnection()
+    stopSSEListener();
+
     setUserToken(userToken, expiryDate);
+
+    if (wasUsingSSE) {
+      settings.setUseSSEFlag(true);
+      await setupSSEQueueListener();
+    }
+
     await startQueueListener();
   }
 

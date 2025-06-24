@@ -124,7 +124,7 @@ async function checkQueueThroughPolling() {
   }
 }
 
-async function setupSSEQueueListener() {
+export async function setupSSEQueueListener() {
   const sseURL = getQueueSSEEndpoint();
   if (sseURL === null) {
     log("SSE endpoint not available, falling back to polling.");
