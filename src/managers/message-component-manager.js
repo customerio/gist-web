@@ -110,12 +110,12 @@ export function showOverlayComponent(message) {
   var messageProperties = resolveMessageProperties(message);
   var mainMessageElement = document.querySelector("#gist-overlay");
   if (mainMessageElement) {
-    mainMessageElement.classList.add("visible");
+    mainMessageElement.classList.add("gist-visible");
     var messageElement = document.querySelector(".gist-message");
     if (message.position) {
-      messageElement.classList.add(message.position);
+      messageElement.classList.add("gist-" + message.position);
     } else {
-      messageElement.classList.add("center");
+      messageElement.classList.add("gist-center");
     }
     setTimeout(showMessage, 100);
     // If exitClick is set to true, we add a dismiss listener after a 1-second delay to prevent accidental dismissals.
@@ -138,7 +138,7 @@ function addDismissListener(instanceId) {
 export async function hideOverlayComponent() {
   var message = document.querySelector(".gist-message");
   if (message) {
-    message.classList.remove("visible");
+    message.classList.remove("gist-visible");
     await delay(300);
   }
   removeOverlayComponent();
@@ -164,7 +164,7 @@ function getMessageElementId(instanceId) {
 
 function showMessage() {
   var messageElement = document.querySelector(".gist-message");
-  if (messageElement) messageElement.classList.add("visible");
+  if (messageElement) messageElement.classList.add("gist-visible");
 }
 
 function embed(url, message, messageProperties) {

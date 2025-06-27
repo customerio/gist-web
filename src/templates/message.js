@@ -6,7 +6,7 @@ export function messageHTMLTemplate(elementId, messageProperties, url) {
     var template = `
     <div id="gist-embed-message">
         <style>
-            #gist-overlay.background {
+            #gist-overlay.gist-background {
                 position: fixed;
                 z-index: 9999999998;
                 left: 0;
@@ -16,11 +16,8 @@ export function messageHTMLTemplate(elementId, messageProperties, url) {
                 background-color: ${messageProperties.overlayColor};
                 visibility: hidden;
             }
-            #gist-overlay.background.visible {
+            #gist-overlay.gist-background.gist-visible {
                 visibility: visible;
-            }
-            #gist-overlay.background.is-blacked-out {
-                display: block;
             }
             .gist-message {
                 width: ${messageProperties.messageWidth}px;
@@ -32,18 +29,18 @@ export function messageHTMLTemplate(elementId, messageProperties, url) {
                 left: 50%;
                 transform: translateX(-50%);
             }
-            .gist-message.visible {
+            .gist-message.gist-visible {
                 opacity: 1;
                 pointer-events: auto;
             }
-            .gist-message.center {
+            .gist-message.gist-center {
                 transform: translate(-50%, -50%);
                 top: 50%;
             }
-            .gist-message.bottom {
+            .gist-message.gist-bottom {
                 bottom: 0;
             }
-            .gist-message.top {
+            .gist-message.gist-top {
                 top: 0;
             }
             @media (max-width: ${maxWidthBreakpoint}px) {
@@ -52,7 +49,7 @@ export function messageHTMLTemplate(elementId, messageProperties, url) {
                 }
             }
         </style>
-        <div id="gist-overlay" class="background">
+        <div id="gist-overlay" class="gist-background">
             <iframe id="${elementId}" class="gist-message" src="${url}"></iframe>
         </div>
     </div>`;
