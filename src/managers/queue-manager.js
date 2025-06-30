@@ -49,7 +49,7 @@ async function handleMessage(message) {
       currentUrl = new URL(window.location.href).pathname;
     }
     var routeRule = messageProperties.routeRule;
-    log(`Verifying route against rule: ${routeRule}`);
+    log(`Verifying route ${currentUrl} against rule: ${routeRule}`);
     var urlTester = new RegExp(routeRule);
     if (!urlTester.test(currentUrl)) {
       log(`Route ${currentUrl} does not match rule.`);
