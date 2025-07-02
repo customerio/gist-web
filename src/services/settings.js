@@ -45,11 +45,5 @@ export const settings = {
   setUseSSEFlag: function(useSSE) {
     setKeyToLocalStore(userQueueUseSSELocalStoreName, useSSE, new Date(new Date().getTime() + 60000));
     log(`Set user uses SSE to "${useSSE}"`);
-  },
-  setActiveSSEConnection: function() {
-    setKeyToLocalStore(userQueueActiveSSEConnectionLocalStoreName, true, new Date(new Date().getTime() + 31000));
-  },
-  hasActiveSSEConnection: function() {
-    return getKeyFromLocalStore(userQueueActiveSSEConnectionLocalStoreName) ?? false;
   }
 }

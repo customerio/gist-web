@@ -12,7 +12,11 @@ import { settings } from '../services/settings';
 var sleep = time => new Promise(resolve => setTimeout(resolve, time))
 var poll = (promiseFn, time) => promiseFn().then(sleep(time).then(() => poll(promiseFn, time)));
 var pollingSetup = false;
+
 let sseSource = null;
+let sseHeartbeatTimer = null;
+let sseHeartbeatTimeout = 30000;
+let sseHeartbeatSlop = 5000;
 
 export async function startQueueListener() {
   if (!pollingSetup) {
@@ -78,7 +82,7 @@ async function handleMessage(message) {
 
 export async function pullMessagesFromQueue() {
   // If SSE connection is already active, just check the local queue
-  if (settings.hasActiveSSEConnection()) {
+  if (hasActiveSSEConnection()) {
     await checkMessageQueue();
     return;
   }
@@ -124,7 +128,14 @@ async function checkQueueThroughPolling() {
   }
 }
 
+export function hasActiveSSEConnection() {
+  return sseSource !== null;
+}
+
 export async function setupSSEQueueListener() {
+  // Make sure we don't already have one.
+  stopSSEListener();
+
   const sseURL = getQueueSSEEndpoint();
   if (sseURL === null) {
     log("SSE endpoint not available, falling back to polling.");
@@ -133,39 +144,56 @@ export async function setupSSEQueueListener() {
   }
   log(`Starting SSE queue listener on ${sseURL}`);
   sseSource = new EventSource(sseURL);
-  settings.setActiveSSEConnection();
+
+  function alive() {
+    settings.setUseSSEFlag(true);
+    if(sseHeartbeatTimer != null) {
+      clearTimeout(sseHeartbeatTimer);
+    }
+    sseHeartbeatTimer = setTimeout(() => {
+      log("SSE no activity timeout, stopping listener.");
+      clearTimeout(sseHeartbeatTimer);
+      stopSSEListener();
+    }, sseHeartbeatTimeout + sseHeartbeatSlop); 
+  }
 
   sseSource.addEventListener("connected", async (event) => {
-    log("SSE connection received:", event);
-    settings.setActiveSSEConnection();
-    settings.setUseSSEFlag(true);
-    // On successful SSE connection, pull the queue.
+    try {
+      var settings = JSON.parse(event.data);
+      if(settings.heartbeat) {
+        sseHeartbeat = settings.heartbeat;
+      }
+      log(`SSE connection received: ${settings}`);
+    } catch (e) {
+      log(`Failed to parse SSE settings: ${e}`);
+    }
+    alive();
     clearKeyFromLocalStore(userQueueNextPullCheckLocalStoreName);
     await checkQueueThroughPolling();
   });
 
   sseSource.addEventListener("messages", async (event) => {
+    alive();
     try {
       var messages = JSON.parse(event.data);
-      log("SSE message received:", messages);
+      log(`SSE message received: ${messages}`);
       await updateQueueLocalStore(messages);
       await updateBroadcastsLocalStore(messages);
       await checkMessageQueue();
     } catch (e) {
-      log("Failed to parse SSE message", e);
+      log(`Failed to parse SSE messages: ${event.data}`);
       stopSSEListener();
     }
   });
 
-  sseSource.addEventListener("error", async (event) => {
-    log("SSE error received:", event);
+  sseSource.addEventListener("error", async () => {
+    log("SSE error received");
     stopSSEListener();
   });
 
   sseSource.addEventListener("heartbeat", async (event) => {
-    log("SSE heartbeat received:", event);
-    settings.setActiveSSEConnection();
-    settings.setUseSSEFlag(true);
+    log(`SSE heartbeat received: ${event.data}`);
+    alive();
   });
 }
 
@@ -173,6 +201,11 @@ export function stopSSEListener() {
   // No active SSE connection to stop
   if (!sseSource) {
     return;
+  }
+
+  if (sseHeartbeatTimer) {
+    clearTimeout(sseHeartbeatTimer);
+    sseHeartbeatTimer = null;
   }
 
   // Close the connection and clean up
