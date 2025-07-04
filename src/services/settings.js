@@ -3,6 +3,8 @@ import { log } from '../utilities/log';
 const userQueueVersionLocalStoreName = "gist.web.userQueueVersion";
 const userQueueUseSSELocalStoreName = "gist.web.userQueueUseSSE";
 const userQueueActiveSSEConnectionLocalStoreName = "gist.web.activeSSEConnection";
+const heartbeatSlop = 5;
+var sseHeartbeat = 30;
 
 export const settings = {
   RENDERER_HOST: "https://code.gist.build",
@@ -47,9 +49,17 @@ export const settings = {
     log(`Set user uses SSE to "${useSSE}"`);
   },
   setActiveSSEConnection: function() {
-    setKeyToLocalStore(userQueueActiveSSEConnectionLocalStoreName, true, new Date(new Date().getTime() + 31000));
+    setKeyToLocalStore(userQueueActiveSSEConnectionLocalStoreName, true, new Date(new Date().getTime() + settings.getSSEHeartbeat()));
   },
   hasActiveSSEConnection: function() {
     return getKeyFromLocalStore(userQueueActiveSSEConnectionLocalStoreName) ?? false;
+  },
+  getSSEHeartbeat: function() {
+    return (sseHeartbeat + heartbeatSlop) * 1000;
+  },
+  setSSEHeartbeat: function(heartbeat) {
+    if (heartbeat && heartbeat > 0) {
+      sseHeartbeat = heartbeat;
+    }
   }
 }
