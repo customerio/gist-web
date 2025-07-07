@@ -143,8 +143,8 @@ async function setupSSEQueueListener() {
       if(config.heartbeat) {
         settings.setSSEHeartbeat(config.heartbeat);
         log(`SSE heartbeat set to ${config.heartbeat} seconds`);
-        settings.setActiveSSEConnection();
       }
+      settings.setActiveSSEConnection();
     } catch (e) {
       log(`Failed to parse SSE settings: ${e}`);
     }
