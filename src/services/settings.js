@@ -6,7 +6,7 @@ const userQueueUseSSELocalStoreName = "gist.web.userQueueUseSSE";
 const userQueueActiveSSEConnectionLocalStoreName = "gist.web.activeSSEConnection";
 const heartbeatSlop = 5;
 let sseHeartbeat = 30;
-var sdkId = uuidv4();
+const sdkId = uuidv4();
 
 export const settings = {
   RENDERER_HOST: "https://code.gist.build",
