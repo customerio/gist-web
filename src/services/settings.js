@@ -5,7 +5,7 @@ const userQueueVersionLocalStoreName = "gist.web.userQueueVersion";
 const userQueueUseSSELocalStoreName = "gist.web.userQueueUseSSE";
 const userQueueActiveSSEConnectionLocalStoreName = "gist.web.activeSSEConnection";
 const heartbeatSlop = 5;
-var sseHeartbeat = 30;
+let sseHeartbeat = 30;
 var sdkId = uuidv4();
 
 export const settings = {
