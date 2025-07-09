@@ -50,6 +50,7 @@ export default class {
   static async setUserToken(userToken, expiryDate) {
     if (this.config.isPreviewSession) return;
     setUserToken(userToken, expiryDate);
+    stopSSEListener(true);
     await startQueueListener();
   }
 
@@ -63,7 +64,7 @@ export default class {
     if (this.config.useAnonymousSession) {
       useGuestSession();
     }
-    stopSSEListener();
+    stopSSEListener(true);
     await startQueueListener();
   }
 

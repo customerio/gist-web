@@ -1,10 +1,12 @@
-import { getKeyFromLocalStore, setKeyToLocalStore } from '../utilities/local-storage';
+import { getKeyFromLocalStore, setKeyToLocalStore, clearKeyFromLocalStore } from '../utilities/local-storage';
 import { log } from '../utilities/log';
+import { v4 as uuidv4 } from 'uuid';
 const userQueueVersionLocalStoreName = "gist.web.userQueueVersion";
 const userQueueUseSSELocalStoreName = "gist.web.userQueueUseSSE";
 const userQueueActiveSSEConnectionLocalStoreName = "gist.web.activeSSEConnection";
 const heartbeatSlop = 5;
 var sseHeartbeat = 30;
+var sdkId = uuidv4();
 
 export const settings = {
   RENDERER_HOST: "https://code.gist.build",
@@ -48,11 +50,17 @@ export const settings = {
     setKeyToLocalStore(userQueueUseSSELocalStoreName, useSSE, new Date(new Date().getTime() + 60000));
     log(`Set user uses SSE to "${useSSE}"`);
   },
+  removeActiveSSEConnection: function() {
+    clearKeyFromLocalStore(userQueueActiveSSEConnectionLocalStoreName);
+  },
   setActiveSSEConnection: function() {
-    setKeyToLocalStore(userQueueActiveSSEConnectionLocalStoreName, true, new Date(new Date().getTime() + settings.getSSEHeartbeat()));
+    setKeyToLocalStore(userQueueActiveSSEConnectionLocalStoreName, sdkId, new Date(new Date().getTime() + settings.getSSEHeartbeat()));
   },
   hasActiveSSEConnection: function() {
     return getKeyFromLocalStore(userQueueActiveSSEConnectionLocalStoreName) ?? false;
+  },
+  isSSEConnectionManagedBySDK: function() {
+    return getKeyFromLocalStore(userQueueActiveSSEConnectionLocalStoreName) === sdkId;
   },
   getSSEHeartbeat: function() {
     return (sseHeartbeat + heartbeatSlop) * 1000;
