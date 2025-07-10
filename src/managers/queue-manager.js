@@ -79,8 +79,18 @@ async function handleMessage(message) {
 export async function pullMessagesFromQueue() {
   // If SSE connection is already active, just check the local queue
   if (settings.hasActiveSSEConnection()) {
+    // Close our SSE connection if we're not the main instance.
+    if (!settings.isSSEConnectionManagedBySDK() && sseSource) {
+      log("Not the main instance, closing our SSE connection.");
+      stopSSEListener();
+    }
     await checkMessageQueue();
     return;
+  } else {
+    if (sseSource) {
+      log("SSE connection not active, closing it.");
+      stopSSEListener();
+    }
   }
 
   // If SSE is enabled and user is not anonymous, set up SSE listener
@@ -124,7 +134,11 @@ async function checkQueueThroughPolling() {
   }
 }
 
-export async function setupSSEQueueListener() {
+async function setupSSEQueueListener() {
+  // Close any existing SSE connection.
+  stopSSEListener();
+
+  // Get the SSE endpoint.
   const sseURL = getQueueSSEEndpoint();
   if (sseURL === null) {
     log("SSE endpoint not available, falling back to polling.");
@@ -136,9 +150,19 @@ export async function setupSSEQueueListener() {
   settings.setActiveSSEConnection();
 
   sseSource.addEventListener("connected", async (event) => {
-    log("SSE connection received:", event);
-    settings.setActiveSSEConnection();
-    settings.setUseSSEFlag(true);
+    try {
+      log("SSE connection received:", event);
+      settings.setUseSSEFlag(true);
+      var config = JSON.parse(event.data);
+      if(config.heartbeat) {
+        settings.setSSEHeartbeat(config.heartbeat);
+        log(`SSE heartbeat set to ${config.heartbeat} seconds`);
+      }
+      settings.setActiveSSEConnection();
+    } catch (e) {
+      log(`Failed to parse SSE settings: ${e}`);
+    }
+
     // On successful SSE connection, pull the queue.
     clearKeyFromLocalStore(userQueueNextPullCheckLocalStoreName);
     await checkQueueThroughPolling();
@@ -169,7 +193,17 @@ export async function setupSSEQueueListener() {
   });
 }
 
-export function stopSSEListener() {
+export function stopSSEListener(disconnectGlobally = false) {
+  // When logging out, we need every instance to disconnect.
+  if (disconnectGlobally) {
+    settings.removeActiveSSEConnection();
+  }
+
+  // Update settings to reflect disconnected state
+  if (disconnectGlobally || settings.isSSEConnectionManagedBySDK()) {
+    settings.setUseSSEFlag(false);
+  }
+
   // No active SSE connection to stop
   if (!sseSource) {
     return;
@@ -179,7 +213,4 @@ export function stopSSEListener() {
   log("Stopping SSE queue listener...");
   sseSource.close();
   sseSource = null;
-  
-  // Update settings to reflect disconnected state
-  settings.setUseSSEFlag(false);
 }

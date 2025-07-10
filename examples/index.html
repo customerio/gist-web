@@ -19,6 +19,8 @@
       <a href="#" class="button" onClick="embedBanner()">Embed Banner</a>
       <a href="#" class="button" onClick="embedFloatingMessage()">Embed Floating Message</a>
       <a href="#" class="button" onClick="embedHTMLFloatingMessage()">Embed HTML Floating Message</a>
+      <a href="#" class="button" onClick="logIn()">Log In</a>
+      <a href="#" class="button" onClick="logOut()">Log Out</a>
     </div>
     <div class="row docs">
       <p>More information can be found on our <a target="_blank" href="https://docs.gist.build">docs</a>, if you have any question you can email us at <a target="_blank" href="mailto:support@gist.build">support@gist.build</a></p>
@@ -62,6 +64,14 @@
             }
           }
         );
+      }
+
+      function logIn() {
+        Gist.setUserToken("ABC456");
+      }
+
+      function logOut() {
+        Gist.clearUserToken();
       }
 
       function showComplexMessage() {
