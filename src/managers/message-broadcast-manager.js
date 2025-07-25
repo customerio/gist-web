@@ -3,7 +3,7 @@ import { setKeyToLocalStore, getKeyFromLocalStore } from '../utilities/local-sto
 import { getHashedUserToken } from './user-manager';
 
 const broadcastsLocalStoreName = "gist.web.message.broadcasts";
-const broadcastsExpiryInMinutes = 10;
+const broadcastsExpiryInMinutes = 60;
 
 export async function updateBroadcastsLocalStore(messages) {
   const messageBroadcastLocalStoreName = await getMessageBroadcastLocalStoreName();
