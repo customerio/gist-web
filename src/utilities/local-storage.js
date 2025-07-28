@@ -26,7 +26,17 @@ export function getKeyFromLocalStore(key) {
 
     const item = JSON.parse(itemStr);
     const now = new Date();
-    if (now.getTime() > new Date(item.expiry).getTime()) {
+    const expiryTime = new Date(item.expiry);
+    
+    // Retroactive bugfix: remove old cache entries with long expiry times
+    const isBroadcastOrUserKey = (key.startsWith("gist.web.message.broadcasts") && !key.endsWith("shouldShow") && !key.endsWith("numberOfTimesShown")) || (key.startsWith("gist.web.message.user") && !key.endsWith("seen"));
+    const sixtyMinutesFromNow = new Date(now.getTime() + 61 * 60 * 1000);
+    if (isBroadcastOrUserKey && expiryTime.getTime() > sixtyMinutesFromNow.getTime()) {
+        clearKeyFromLocalStore(key);
+        return null;
+    }
+    
+    if (now.getTime() > expiryTime.getTime()) {
         clearKeyFromLocalStore(key);
         return null;
     }
