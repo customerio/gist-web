@@ -3,11 +3,7 @@ import { settings } from './settings';
 import { getEncodedUserToken } from "../managers/user-manager";
 
 export function UserNetworkInstance() {
-  const baseURL =
-    settings.getQueueAPIVersion() === "3"
-      ? settings.GIST_QUEUE_V3_API_ENDPOINT[Gist.config.env]
-      : settings.GIST_QUEUE_API_ENDPOINT[Gist.config.env];
-
+  const baseURL = settings.GIST_QUEUE_API_ENDPOINT[Gist.config.env]
   const defaultHeaders = {
     'X-CIO-Site-Id': Gist.config.siteId,
     'X-CIO-Client-Platform': 'web',
