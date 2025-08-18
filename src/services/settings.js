@@ -1,7 +1,6 @@
 import { getKeyFromLocalStore, setKeyToLocalStore, clearKeyFromLocalStore } from '../utilities/local-storage';
 import { log } from '../utilities/log';
 import { v4 as uuidv4 } from 'uuid';
-const userQueueVersionLocalStoreName = "gist.web.userQueueVersion";
 const userQueueUseSSELocalStoreName = "gist.web.userQueueUseSSE";
 const userQueueActiveSSEConnectionLocalStoreName = "gist.web.activeSSEConnection";
 const heartbeatSlop = 5;
@@ -16,11 +15,6 @@ export const settings = {
     "local": "http://engine.api.local.gist.build:82"
   },
   GIST_QUEUE_API_ENDPOINT: {
-    "prod": "https://gist-queue-consumer-api.cloud.gist.build",
-    "dev": "https://gist-queue-consumer-api.cloud.dev.gist.build",
-    "local": "http://api.local.gist.build:86"
-  },
-  GIST_QUEUE_V3_API_ENDPOINT: {
     "prod": "https://consumer.cloud.gist.build",
     "dev": "https://consumer.cloud.dev.gist.build",
     "local": "http://api.local.gist.build:86"
@@ -40,14 +34,6 @@ export const settings = {
       sdkId = uuidv4();
     }
     return sdkId;
-  },
-  getQueueAPIVersion: function() {
-    return getKeyFromLocalStore(userQueueVersionLocalStoreName) ?? "2";
-  },
-  setQueueAPIVersion: function(version) {
-    // The Queue API version TTL is renewed with every poll request and extended by 30 minutes.
-    setKeyToLocalStore(userQueueVersionLocalStoreName, version, new Date(new Date().getTime() + 1800000));
-    log(`Set user queue version to "${version}"`);
   },
   useSSE: function() {
     return getKeyFromLocalStore(userQueueUseSSELocalStoreName) ?? false;

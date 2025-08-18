@@ -22,13 +22,7 @@ export async function getUserQueue() {
         "X-Gist-User-Anonymous": isUsingGuestUserToken(),
         "Content-Language": getUserLocale()
       }
-
-      if (settings.getQueueAPIVersion() === "3") {
-        response = await UserNetworkInstance().post(`/api/v3/users?sessionId=${getSessionId()}`, {}, { headers: headers });
-      } else {
-        var timestamp = new Date().getTime();
-        response = await UserNetworkInstance().post(`/api/v2/users?timestamp=${timestamp}`, {}, { headers: headers });
-      }
+      response = await UserNetworkInstance().post(`/api/v3/users?sessionId=${getSessionId()}`, {}, { headers: headers });
     }
   } catch (error) {
     if (error.response) {
@@ -39,20 +33,10 @@ export async function getUserQueue() {
   } finally {
     checkInProgress = false;
     scheduleNextQueuePull(response);
-    setQueueAPIVersion(response);
     setQueueUseSSE(response);
   }
 
   return response;
-}
-
-function setQueueAPIVersion(response) {
-  if (response && response.headers) {
-    var queueVersion = response.headers["x-cio-queue-version"];
-    if (queueVersion) {
-      settings.setQueueAPIVersion(queueVersion);
-    }
-  }
 }
 
 function setQueueUseSSE(response) {
