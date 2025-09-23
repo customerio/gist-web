@@ -19,6 +19,7 @@
       <a href="#" class="button" onClick="embedBanner()">Embed Banner</a>
       <a href="#" class="button" onClick="embedFloatingMessage()">Embed Floating Message</a>
       <a href="#" class="button" onClick="embedHTMLFloatingMessage()">Embed HTML Floating Message</a>
+      <a href="#" class="button" onClick="addAnonymousCustomAttribute()">Set Anonymous Custom Attribute</a>
       <a href="#" class="button" onClick="logIn()">Log In</a>
       <a href="#" class="button" onClick="logOut()">Log Out</a>
     </div>
@@ -32,7 +33,7 @@
         Dev Setup Options
         { siteId: "siteid", dataCenter: "us", env: "dev", logging: true }
       */
-      Gist.setup({ siteId: "a5ec106751ef4b34a0b9", dataCenter: "eu", logging: true, env: "prod" });
+      Gist.setup({ siteId: "a5ec106751ef4b34a0b9", dataCenter: "eu", logging: true, env: "prod", useAnonymousSession: true });
       Gist.setUserToken("ABC123");
       Gist.setCurrentRoute("home");
 
@@ -115,6 +116,10 @@
               }
             }
           }, "x-gist-floating-bottom-right");
+      }
+
+      function addAnonymousCustomAttribute() {
+        Gist.setCustomAttribute("cio_anonymous_id", "123456");
       }
     </script>
   </body>

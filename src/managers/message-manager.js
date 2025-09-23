@@ -18,6 +18,7 @@ import {
 } from "./message-component-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
 import { positions, addPageElement } from "./page-component-manager";
+import { getAllCustomAttributes } from "./custom-attribute-manager";
 import { checkMessageQueue } from "./queue-manager";
 import { isMessageBroadcast, markBroadcastAsSeen, markBroadcastAsDismissed } from './message-broadcast-manager';
 import { markUserQueueMessageAsSeen } from './message-user-queue-manager';
@@ -126,7 +127,8 @@ function loadMessageComponent(message, elementId = null) {
     messageId: message.messageId,
     instanceId: message.instanceId,
     livePreview: false,
-    properties: message.properties
+    properties: message.properties,
+    customAttributes: Object.fromEntries(getAllCustomAttributes())
   }
   var url = `${settings.GIST_VIEW_ENDPOINT[Gist.config.env]}/index.html`
   window.addEventListener('message', handleGistEvents);

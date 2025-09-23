@@ -4,6 +4,7 @@ import { startQueueListener, checkMessageQueue, stopSSEListener } from "./manage
 import { setUserToken, clearUserToken, useGuestSession } from "./managers/user-manager";
 import { showMessage, embedMessage, hideMessage, removePersistentMessage, fetchMessageByInstanceId, logBroadcastDismissedLocally } from "./managers/message-manager";
 import { setUserLocale } from "./managers/locale-manager";
+import { setCustomAttribute, clearCustomAttributes, removeCustomAttribute } from "./managers/custom-attribute-manager";
 import { setupPreview } from "./utilities/preview-mode";
 
 export default class {
@@ -56,6 +57,18 @@ export default class {
 
   static setUserLocale(userLocale) {
     setUserLocale(userLocale);
+  }
+
+  static setCustomAttribute(key, value) {
+    return setCustomAttribute(key, value);
+  }
+
+  static clearCustomAttributes() {
+    clearCustomAttributes();
+  }
+
+  static removeCustomAttribute(key) {
+    return removeCustomAttribute(key);
   }
 
   static async clearUserToken() {
