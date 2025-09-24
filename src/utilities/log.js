@@ -1,7 +1,7 @@
 import Gist from '../gist';
 
 export function log(message) {
-  if (Gist.config.logging) {
+  if (Gist.config && Gist.config.logging) {
     console.log(`Gist: ${message}`);
   }
 }
