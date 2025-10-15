@@ -30,7 +30,7 @@ export function clearKeyFromLocalStore(key) {
 
 export function clearExpiredFromLocalStore() {
     const storage = getStorage();
-    for (let i = 0; i < storage.length; i++) {
+    for (let i = storage.length - 1; i >= 0; i--) {
         checkKeyForExpiry(storage.key(i));
     }
 }
