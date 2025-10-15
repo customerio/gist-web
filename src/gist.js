@@ -1,5 +1,6 @@
 import EventEmitter from "./utilities/event-emitter";
 import { log } from "./utilities/log";
+import { clearExpiredFromLocalStore } from "./utilities/local-storage";
 import { startQueueListener, checkMessageQueue, stopSSEListener } from "./managers/queue-manager";
 import { setUserToken, clearUserToken, useGuestSession } from "./managers/user-manager";
 import { showMessage, embedMessage, hideMessage, removePersistentMessage, fetchMessageByInstanceId, logBroadcastDismissedLocally } from "./managers/message-manager";
@@ -23,6 +24,7 @@ export default class {
     this.currentRoute = null;
     this.isDocumentVisible = true;
     this.config.isPreviewSession = setupPreview();
+    clearExpiredFromLocalStore();
 
     log(`Setup complete on ${this.config.env} environment.`);
 

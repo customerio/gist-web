@@ -21,6 +21,37 @@ export function setKeyToLocalStore(key, value, ttl = null) {
 }
 
 export function getKeyFromLocalStore(key) {
+    return checkKeyForExpiry(key);
+}
+
+export function clearKeyFromLocalStore(key) {
+    getStorage().removeItem(key);
+}
+
+export function clearExpiredFromLocalStore() {
+    const storage = getStorage();
+    for (let i = 0; i < storage.length; i++) {
+        checkKeyForExpiry(storage.key(i));
+    }
+}
+
+export function isSessionBeingPersisted() {
+    const currentValue = sessionStorage.getItem(isPersistingSessionLocalStoreName);
+    if (currentValue === null) {
+        sessionStorage.setItem(isPersistingSessionLocalStoreName, "true");
+        return true;
+    }
+    return currentValue === "true";
+}
+
+// Helper function to select the correct storage based on the session flag
+function getStorage() {
+    return isSessionBeingPersisted() ? localStorage : sessionStorage;
+}
+
+function checkKeyForExpiry(key) {
+    if (!key) return null;
+
     const itemStr = getStorage().getItem(key);
     if (!itemStr) return null;
 
@@ -40,23 +71,6 @@ export function getKeyFromLocalStore(key) {
         clearKeyFromLocalStore(key);
         return null;
     }
+
     return item.value;
-}
-
-export function clearKeyFromLocalStore(key) {
-    getStorage().removeItem(key);
-}
-
-export function isSessionBeingPersisted() {
-    const currentValue = sessionStorage.getItem(isPersistingSessionLocalStoreName);
-    if (currentValue === null) {
-        sessionStorage.setItem(isPersistingSessionLocalStoreName, "true");
-        return true;
-    }
-    return currentValue === "true";
-}
-
-// Helper function to select the correct storage based on the session flag
-function getStorage() {
-    return isSessionBeingPersisted() ? localStorage : sessionStorage;
 }
