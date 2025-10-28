@@ -229,55 +229,7 @@ function updateMessageStyles(settings) {
         }
     }
     
-    // Update elementId for overlay position or inline/tooltip target changes
-    if (message.properties && message.properties.gist) {
-        const oldElementId = message.properties.gist.elementId;
-        const newElementId = settings.elementId;
-        
-        if (oldElementId !== newElementId) {
-            message.properties.gist.elementId = newElementId;
-            
-            // For overlay positions, the element container changes, so we need to move the iframe
-            if (settings.displayType === 'overlay' && newElementId) {
-                moveMessageToNewContainer(messageElement, oldElementId, newElementId);
-            }
-            
-            log(`ElementId updated from "${oldElementId}" to "${newElementId}"`);
-        }
-    }
-    
     log('Styles updated without reload');
-}
-
-function moveMessageToNewContainer(messageElement, oldElementId, newElementId) {
-    // Get or create the new container
-    const newContainer = document.getElementById(newElementId);
-    if (!newContainer) {
-        // Create the container if it doesn't exist (for SDK positions)
-        const positions = ["x-gist-top", "x-gist-floating-top", "x-gist-bottom", "x-gist-floating-bottom", "x-gist-floating-bottom-left", "x-gist-floating-bottom-right", "x-gist-floating-top-left", "x-gist-floating-top-right"];
-        if (positions.includes(newElementId)) {
-            const element = document.createElement("div");
-            element.id = newElementId;
-            document.body.insertAdjacentElement("beforeend", element);
-        }
-    }
-    
-    // Move the iframe to the new container
-    const targetContainer = document.getElementById(newElementId);
-    if (targetContainer && messageElement.parentElement) {
-        const oldContainer = messageElement.parentElement;
-        targetContainer.appendChild(messageElement);
-        
-        // Clean up old container if it was an SDK position and is now empty
-        if (oldElementId && oldContainer && oldContainer.children.length === 0) {
-            const sdkPositions = ["x-gist-top", "x-gist-floating-top", "x-gist-bottom", "x-gist-floating-bottom", "x-gist-floating-bottom-left", "x-gist-floating-bottom-right", "x-gist-floating-top-left", "x-gist-floating-top-right"];
-            if (sdkPositions.includes(oldElementId)) {
-                oldContainer.remove();
-            }
-        }
-        
-        log(`Message moved from "${oldElementId}" to "${newElementId}"`);
-    }
 }
 
 async function handleSaveChanges(settings) {

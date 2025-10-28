@@ -175,7 +175,7 @@ function handleOverlayPositionChange() {
     currentSettings = settings;
     
     if (onSettingsChange) {
-        onSettingsChange(settings, false); // false = just update elementId, no reload
+        onSettingsChange(settings, true); // true = requires reload (different container)
     }
 }
 
@@ -184,7 +184,7 @@ function handleElementIdChange() {
     currentSettings = settings;
     
     if (onSettingsChange) {
-        onSettingsChange(settings, false); // false = just update elementId, no reload
+        onSettingsChange(settings, true); // true = requires reload (different container)
     }
 }
 
