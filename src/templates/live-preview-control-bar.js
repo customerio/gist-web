@@ -15,6 +15,9 @@ export function livePreviewControlBarTemplate() {
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
                 font-size: 14px;
                 transition: all 0.3s ease;
+                display: flex;
+                align-items: center;
+                gap: 20px;
             }
             #gist-live-preview-bar.minimized {
                 bottom: 20px;
@@ -29,6 +32,12 @@ export function livePreviewControlBarTemplate() {
             #gist-live-preview-bar.minimized .gist-preview-controls-wrapper {
                 display: none;
             }
+            #gist-live-preview-bar.minimized .gist-preview-minimize-icon {
+                display: none;
+            }
+            #gist-live-preview-bar.minimized .gist-preview-actions {
+                display: none;
+            }
             #gist-live-preview-bar.minimized .gist-preview-logo-btn {
                 display: flex;
                 border-radius: 50%;
@@ -39,14 +48,12 @@ export function livePreviewControlBarTemplate() {
                 width: 64px;
                 height: 64px;
             }
-            #gist-live-preview-bar.minimized .gist-preview-minimize-icon {
-                display: none;
-            }
             .gist-preview-controls-wrapper {
                 display: flex;
                 gap: 15px;
                 align-items: center;
                 flex-wrap: nowrap;
+                flex: 1;
             }
             .gist-preview-logo-btn {
                 background: #0C373D;
@@ -70,25 +77,27 @@ export function livePreviewControlBarTemplate() {
                 color: #FFFFFF;
             }
             .gist-preview-minimize-icon {
-                position: absolute;
-                top: -4px;
-                right: -14px;
-                background: transparent;
+                background: #E5E7EB;
                 border: none;
+                border-radius: 4px;
                 cursor: pointer;
-                padding: 8px;
+                padding: 6px 12px;
                 line-height: 1;
                 transition: all 0.2s;
                 display: flex;
                 align-items: center;
-                justify-content: center;
+                gap: 6px;
+                font-size: 13px;
+                color: #6B7280;
+                font-weight: 500;
             }
             .gist-preview-minimize-icon:hover {
-                opacity: 0.7;
+                background: #D1D5DB;
+                color: #4B5563;
             }
             .gist-preview-minimize-icon svg {
-                width: 15px;
-                height: 9px;
+                width: 10px;
+                height: 6px;
             }
             #gist-live-preview-bar label {
                 display: inline-block;
@@ -189,12 +198,6 @@ export function livePreviewControlBarTemplate() {
             <svg width="auto" height="auto" viewBox="0 0 27 27" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2.74288 17.3002L-0.52832 20.5584V27.05H6.03928L9.33562 23.7918L12.6068 20.5584L6.03928 14.042L2.74288 17.3002Z" fill="currentColor"></path><path d="M9.33562 4.29241L6.03928 1.05908H-0.52832V7.55064L2.74288 10.8087L6.03928 14.0421L12.6068 7.55064L9.33562 4.29241Z" fill="currentColor"></path><path d="M19.1996 1.05908H12.6069V7.55064L19.1996 14.0421L12.6069 20.5585V27.0501H19.1996L25.7672 20.5585V7.55064L19.1996 1.05908Z" fill="currentColor"></path></svg>
         </button>
         
-        <button class="gist-preview-minimize-icon" id="gist-preview-minimize-icon">
-            <svg width="15" height="9" viewBox="0 0 15 9" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path fill-rule="evenodd" clip-rule="evenodd" d="M1.10485 0L7.35485 6L13.6049 0L14.7097 1.06066L7.35485 8.12132L0 1.06066L1.10485 0Z" fill="#3F4E50"/>
-            </svg>
-        </button>
-        
         <div class="gist-preview-controls-wrapper">
             <div class="gist-preview-control-group">
                 <label for="gist-preview-display-type">Display Type</label>
@@ -264,9 +267,17 @@ export function livePreviewControlBarTemplate() {
                 </select>
             </div>
             
-            <div class="gist-preview-actions">
-                <button class="gist-preview-save-btn" id="gist-preview-save-changes">Save Changes</button>
-            </div>
+        </div>
+        
+        <button class="gist-preview-minimize-icon" id="gist-preview-minimize-icon">
+            <span>Collapse</span>
+            <svg width="15" height="9" viewBox="0 0 15 9" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M1.10485 0L7.35485 6L13.6049 0L14.7097 1.06066L7.35485 8.12132L0 1.06066L1.10485 0Z" fill="currentColor"/>
+            </svg>
+        </button>
+        
+        <div class="gist-preview-actions">
+            <button class="gist-preview-save-btn" id="gist-preview-save-changes">Save Changes</button>
         </div>
     </div>
     `;
