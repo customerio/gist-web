@@ -120,6 +120,8 @@ function loadMessageComponent(message, elementId = null) {
     return null;
   }
 
+  var messageProperties = resolveMessageProperties(message);
+
   var options = {
     endpoint: settings.ENGINE_API_ENDPOINT[Gist.config.env],
     siteId: Gist.config.siteId,
@@ -130,6 +132,12 @@ function loadMessageComponent(message, elementId = null) {
     properties: message.properties,
     customAttributes: Object.fromEntries(getAllCustomAttributes())
   }
+  
+  // Pass encodedMessageHtml if present (for live preview mode)
+  if (messageProperties.encodedMessageHtml) {
+    options.encodedMessageHtml = messageProperties.encodedMessageHtml;
+  }
+  
   var url = `${settings.GIST_VIEW_ENDPOINT[Gist.config.env]}/index.html`
   window.addEventListener('message', handleGistEvents);
   window.addEventListener('touchstart', handleTouchStartEvents);

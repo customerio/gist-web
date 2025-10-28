@@ -1,8 +1,4 @@
 export function messageHTMLTemplate(elementId, messageProperties, url) {
-    var maxWidthBreakpoint = 600;
-    if (messageProperties.messageWidth > maxWidthBreakpoint) {
-      maxWidthBreakpoint = messageProperties.messageWidth;    
-    }
     var template = `
     <div id="gist-embed-message">
         <style>
@@ -20,7 +16,8 @@ export function messageHTMLTemplate(elementId, messageProperties, url) {
                 visibility: visible;
             }
             .gist-message {
-                width: ${messageProperties.messageWidth}px;
+                max-width: ${messageProperties.messageWidth}px;
+                width: 100%;
                 position: absolute;
                 border: none;
                 opacity: 0;
@@ -42,11 +39,6 @@ export function messageHTMLTemplate(elementId, messageProperties, url) {
             }
             .gist-message.gist-top {
                 top: 0;
-            }
-            @media (max-width: ${maxWidthBreakpoint}px) {
-                .gist-message {
-                    width: 100%;
-                }
             }
         </style>
         <div id="gist-overlay" class="gist-background">

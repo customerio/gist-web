@@ -7,6 +7,8 @@ import { showMessage, embedMessage, hideMessage, removePersistentMessage, fetchM
 import { setUserLocale } from "./managers/locale-manager";
 import { setCustomAttribute, clearCustomAttributes, removeCustomAttribute } from "./managers/custom-attribute-manager";
 import { setupPreview } from "./utilities/preview-mode";
+import { setupLivePreview } from "./utilities/live-preview-mode";
+import { initLivePreview } from "./managers/live-preview-manager";
 
 export default class {
   static async setup(config) {
@@ -24,15 +26,23 @@ export default class {
     this.currentRoute = null;
     this.isDocumentVisible = true;
     this.config.isPreviewSession = setupPreview();
+    this.config.livePreviewSessionId = setupLivePreview();
+    this.config.isLivePreviewSession = !!this.config.livePreviewSessionId;
     clearExpiredFromLocalStore();
 
     log(`Setup complete on ${this.config.env} environment.`);
 
-    if (!this.config.isPreviewSession && this.config.useAnonymousSession) {
-      useGuestSession();
-    }
+    if (this.config.isLivePreviewSession) {
+      // Initialize live preview mode
+      await initLivePreview(this.config.livePreviewSessionId);
+    } else {
+      // Normal mode or preview mode
+      if (!this.config.isPreviewSession && this.config.useAnonymousSession) {
+        useGuestSession();
+      }
 
-    await startQueueListener();
+      await startQueueListener();
+    }
 
     document.addEventListener("visibilitychange", async () => {
       if (document.visibilityState === "hidden") {
@@ -51,7 +61,7 @@ export default class {
   }
 
   static async setUserToken(userToken, expiryDate) {
-    if (this.config.isPreviewSession) return;
+    if (this.config.isPreviewSession || this.config.isLivePreviewSession) return;
     setUserToken(userToken, expiryDate);
     stopSSEListener(true);
     await startQueueListener();
@@ -74,7 +84,7 @@ export default class {
   }
 
   static async clearUserToken() {
-    if (this.config.isPreviewSession) return;
+    if (this.config.isPreviewSession || this.config.isLivePreviewSession) return;
     clearUserToken();
     if (this.config.useAnonymousSession) {
       useGuestSession();

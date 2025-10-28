@@ -12,7 +12,8 @@ export function resolveMessageProperties(message) {
         overlayColor: "#00000033",
         persistent: false,
         exitClick: false,
-        hasCustomWidth: false
+        hasCustomWidth: false,
+        encodedMessageHtml: ""
     };
 
     const gist = message?.properties?.gist;
@@ -31,6 +32,7 @@ export function resolveMessageProperties(message) {
         hasCustomWidth: gist.messageWidth > 0,
         overlayColor: gist.overlayColor || defaults.overlayColor,
         persistent: !!gist.persistent,
-        exitClick: !!gist.exitClick
+        exitClick: !!gist.exitClick,
+        encodedMessageHtml: gist.encodedMessageHtml || ""
     };
 }
