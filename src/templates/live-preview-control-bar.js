@@ -7,7 +7,7 @@ export function livePreviewControlBarTemplate() {
                 bottom: 0;
                 left: 0;
                 right: 0;
-                background: #F8F9F9;
+                background: #FFFFFF;
                 color: #3F4E50;
                 padding: 20px 30px;
                 box-shadow: 0 -2px 10px rgba(0,0,0,0.15);
@@ -76,25 +76,31 @@ export function livePreviewControlBarTemplate() {
                 height: 72px;
                 color: #FFFFFF;
             }
+            #gist-preview-minimize-icon {
+                top: -5px;
+            }
             .gist-preview-minimize-icon {
-                background: #E5E7EB;
-                border: none;
-                border-radius: 4px;
+                background: #FFFFFF;
+                border: 1px solid #E5E7EB;
+                border-radius: 20px;
                 cursor: pointer;
-                padding: 6px 12px;
+                padding: 8px 16px;
                 line-height: 1;
                 transition: all 0.2s;
                 display: flex;
                 align-items: center;
-                gap: 6px;
+                gap: 8px;
                 font-size: 13px;
                 color: #6B7280;
                 font-weight: 500;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                position: absolute;
+                left: 50%;
+                top: 0;
+                transform: translate(-50%, -60%);
+                z-index: 2;
             }
-            .gist-preview-minimize-icon:hover {
-                background: #D1D5DB;
-                color: #4B5563;
-            }
+            /* No hover color change for minimize button */
             .gist-preview-minimize-icon svg {
                 width: 10px;
                 height: 6px;
@@ -147,6 +153,7 @@ export function livePreviewControlBarTemplate() {
                 font-weight: 600;
                 transition: all 0.2s;
                 white-space: nowrap;
+                box-shadow: none;
             }
             #gist-live-preview-bar .gist-preview-control-group {
                 display: flex;
