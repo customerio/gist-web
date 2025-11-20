@@ -2,9 +2,11 @@ name: Release Gist Web
 run-name: Release gist-web
 
 on:
-  push:
-    tags:
-      - '*'
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 permissions:
   id-token: write
@@ -21,12 +23,13 @@ jobs:
       CLOUDFLARE_ACCESS_TOKEN: ${{ secrets.CLOUDFLARE_ACCESS_TOKEN }}
       CLOUDFLARE_ZONE_ID: 3310bc68d22035edbc12d5d4a4fd278c
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: 20
           registry-url: 'https://registry.npmjs.org'
+
       - name: Install npm 11.5.1+ for OIDC support
         run: npm install -g npm@latest
 
@@ -35,57 +38,9 @@ jobs:
         run: |
           npm install
           npm run build:prod
-      - name: Version name
-        shell: bash
-        run: |
-          RELEASE_VERSION="${GITHUB_REF#refs/*/}"
-          echo "RELEASE_VERSION=$RELEASE_VERSION" >> $GITHUB_ENV
-          echo "RELEASE_VERSION=$RELEASE_VERSION"
 
-          AWS_DEST="web/$RELEASE_VERSION"
-          echo "AWS_DEST=$AWS_DEST" >> $GITHUB_ENV
-          echo "AWS_DEST=$AWS_DEST"
-      - uses: shallwefootball/s3-upload-action@0d261a6f15b3b2e209dfebdecace4b100c04f95b # master
-        with:
-          aws_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          aws_bucket: ${{ env.AWS_BUCKET }}
-          source_dir: 'dist'          
-          destination_dir: ${{ env.AWS_DEST }}
-          endpoint: 'ams3.digitaloceanspaces.com'
+      - name: Set test version
+        run: npm version 0.0.0-test-oidc --no-git-tag-version
+
       - name: Publish to NPM
-        run: npm publish
-      - name: Update Cloudflare rules
-        shell: bash
-        run: |
-          # Page rules to update
-          RULE_IDS=("dc150d61da87159be0d27ed58202902d" "b32d2e6078f38cb799418a89e48f63ea")
-
-          for RULE_ID in "${RULE_IDS[@]}"; do
-            echo "Fetching rule $RULE_ID..."
-
-            RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/pagerules/$RULE_ID" \
-              -H "Authorization: Bearer $CLOUDFLARE_ACCESS_TOKEN" \
-              -H "Content-Type: application/json")
-
-            SUCCESS=$(echo "$RESPONSE" | jq -r '.success')
-            if [[ "$SUCCESS" != "true" ]]; then
-              echo "❌ Failed to fetch rule $RULE_ID"
-              echo "$RESPONSE" | jq
-              exit 1
-            fi
-
-            RULE_BODY=$(echo "$RESPONSE" | jq '.result')
-
-            echo "Modifying rule for version $RELEASE_VERSION..."
-            UPDATED_RULE=$(echo "$RULE_BODY" | jq \
-              --arg version "$RELEASE_VERSION" \
-              '(.actions[] | select(.id == "forwarding_url") | .value.url) = "https://code.gist.build/web/" + $version + "/gist.min.js"')
-
-
-            echo "Sending updated rule back to Cloudflare..."
-            curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/pagerules/$RULE_ID" \
-              -H "Authorization: Bearer $CLOUDFLARE_ACCESS_TOKEN" \
-              -H "Content-Type: application/json" \
-              --data "$UPDATED_RULE"
-          done
+        run: npm publish --dry-run --tag test-oidc
