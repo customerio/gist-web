@@ -2,11 +2,9 @@ name: Release Gist Web
 run-name: Release gist-web
 
 on:
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
+  push:
+    tags:
+      - '*'
 
 permissions:
   id-token: write
@@ -38,9 +36,69 @@ jobs:
         run: |
           npm install
           npm run build:prod
-
-      - name: Set test version
-        run: npm version 0.0.0-test-oidc --no-git-tag-version
-
+          - name: Version name
+          shell: bash
+          run: |
+            RELEASE_VERSION="${GITHUB_REF#refs/*/}"
+            echo "RELEASE_VERSION=$RELEASE_VERSION" >> $GITHUB_ENV
+            echo "RELEASE_VERSION=$RELEASE_VERSION"
+        
+            AWS_DEST="web/$RELEASE_VERSION"
+            echo "AWS_DEST=$AWS_DEST" >> $GITHUB_ENV
+            echo "AWS_DEST=$AWS_DEST"
+      - uses: shallwefootball/s3-upload-action@0d261a6f15b3b2e209dfebdecace4b100c04f95b # master
+        with:
+          aws_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws_bucket: ${{ env.AWS_BUCKET }}
+          source_dir: 'dist'
+          destination_dir: ${{ env.AWS_DEST }}
+          endpoint: 'ams3.digitaloceanspaces.com'
       - name: Publish to NPM
-        run: npm publish --tag test-oidc
+        uses: JS-DevTools/npm-publish@9ff4ebfbe48473265867fb9608c047e7995edfa3 # v3.1.1
+        with:
+          token: ${{ secrets.NPM_TOKEN }}
+      - name: Version name
+        shell: bash
+        run: |
+          RELEASE_VERSION="${GITHUB_REF#refs/*/}"
+          echo "RELEASE_VERSION=$RELEASE_VERSION" >> $GITHUB_ENV
+          echo "RELEASE_VERSION=$RELEASE_VERSION"
+      
+          AWS_DEST="web/$RELEASE_VERSION"
+          echo "AWS_DEST=$AWS_DEST" >> $GITHUB_ENV
+          echo "AWS_DEST=$AWS_DEST"
+                
+      - name: Update Cloudflare rules
+        shell: bash
+        run: |
+          # Page rules to update
+          RULE_IDS=("dc150d61da87159be0d27ed58202902d" "b32d2e6078f38cb799418a89e48f63ea")
+      
+          for RULE_ID in "${RULE_IDS[@]}"; do
+            echo "Fetching rule $RULE_ID..."
+
+            RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/pagerules/$RULE_ID" \
+              -H "Authorization: Bearer $CLOUDFLARE_ACCESS_TOKEN" \
+              -H "Content-Type: application/json")
+
+            SUCCESS=$(echo "$RESPONSE" | jq -r '.success')
+            if [[ "$SUCCESS" != "true" ]]; then
+              echo "❌ Failed to fetch rule $RULE_ID"
+              echo "$RESPONSE" | jq
+              exit 1
+            fi
+
+            RULE_BODY=$(echo "$RESPONSE" | jq '.result')
+
+            echo "Modifying rule for version $RELEASE_VERSION..."
+            UPDATED_RULE=$(echo "$RULE_BODY" | jq \
+              --arg version "$RELEASE_VERSION" \
+              '(.actions[] | select(.id == "forwarding_url") | .value.url) = "https://code.gist.build/web/" + $version + "/gist.min.js"')
+
+            echo "Sending updated rule back to Cloudflare..."
+            curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/pagerules/$RULE_ID" \
+              -H "Authorization: Bearer $CLOUDFLARE_ACCESS_TOKEN" \
+              -H "Content-Type: application/json" \
+              --data "$UPDATED_RULE"
+          done
