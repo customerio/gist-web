@@ -36,16 +36,16 @@ jobs:
         run: |
           npm install
           npm run build:prod
-          - name: Version name
-          shell: bash
-          run: |
-            RELEASE_VERSION="${GITHUB_REF#refs/*/}"
-            echo "RELEASE_VERSION=$RELEASE_VERSION" >> $GITHUB_ENV
-            echo "RELEASE_VERSION=$RELEASE_VERSION"
-        
-            AWS_DEST="web/$RELEASE_VERSION"
-            echo "AWS_DEST=$AWS_DEST" >> $GITHUB_ENV
-            echo "AWS_DEST=$AWS_DEST"
+      - name: Version name
+        shell: bash
+        run: |
+          RELEASE_VERSION="${GITHUB_REF#refs/*/}"
+          echo "RELEASE_VERSION=$RELEASE_VERSION" >> $GITHUB_ENV
+          echo "RELEASE_VERSION=$RELEASE_VERSION"
+
+          AWS_DEST="web/$RELEASE_VERSION"
+          echo "AWS_DEST=$AWS_DEST" >> $GITHUB_ENV
+          echo "AWS_DEST=$AWS_DEST"
       - uses: shallwefootball/s3-upload-action@0d261a6f15b3b2e209dfebdecace4b100c04f95b # master
         with:
           aws_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
@@ -55,26 +55,14 @@ jobs:
           destination_dir: ${{ env.AWS_DEST }}
           endpoint: 'ams3.digitaloceanspaces.com'
       - name: Publish to NPM
-        uses: JS-DevTools/npm-publish@9ff4ebfbe48473265867fb9608c047e7995edfa3 # v3.1.1
-        with:
-          token: ${{ secrets.NPM_TOKEN }}
-      - name: Version name
-        shell: bash
-        run: |
-          RELEASE_VERSION="${GITHUB_REF#refs/*/}"
-          echo "RELEASE_VERSION=$RELEASE_VERSION" >> $GITHUB_ENV
-          echo "RELEASE_VERSION=$RELEASE_VERSION"
-      
-          AWS_DEST="web/$RELEASE_VERSION"
-          echo "AWS_DEST=$AWS_DEST" >> $GITHUB_ENV
-          echo "AWS_DEST=$AWS_DEST"
-                
+        run: npm publish
+
       - name: Update Cloudflare rules
         shell: bash
         run: |
           # Page rules to update
           RULE_IDS=("dc150d61da87159be0d27ed58202902d" "b32d2e6078f38cb799418a89e48f63ea")
-      
+
           for RULE_ID in "${RULE_IDS[@]}"; do
             echo "Fetching rule $RULE_ID..."
 
