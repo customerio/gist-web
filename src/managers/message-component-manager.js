@@ -17,7 +17,7 @@ export function isElementLoaded(elementId) {
   }
 }
 
-export function loadEmbedComponent(elementId, url, message, options) {
+export function loadEmbedComponent(elementId, url, message, options, stepName = null) {
   var element = safelyFetchElement(elementId);
   if (element) {
     var messageElementId = getMessageElementId(message.instanceId);
@@ -35,7 +35,7 @@ export function loadEmbedComponent(elementId, url, message, options) {
       element.style.height = "0px";
     }
     element.innerHTML = embed(url, message, messageProperties);
-    attachIframeLoadEvent(messageElementId, options);
+    attachIframeLoadEvent(messageElementId, options, stepName);
   } else {
     log(`Message could not be embedded, elementId ${elementId} not found.`);
   }
@@ -85,24 +85,28 @@ export function resizeComponent(message, size) {
   }
 }
 
-export function loadOverlayComponent(url, message, options) {
+export function loadOverlayComponent(url, message, options, stepName = null) {
   document.body.insertAdjacentHTML('afterbegin', component(url, message));
-  attachIframeLoadEvent(getMessageElementId(message.instanceId), options);
+  attachIframeLoadEvent(getMessageElementId(message.instanceId), options, stepName);
 }
 
-function attachIframeLoadEvent(elementId, options) {
+function attachIframeLoadEvent(elementId, options, stepName = null) {
   const iframe = document.getElementById(elementId);
   if (iframe) {
       iframe.onload = function() {
-          sendOptionsToIframe(elementId, options); // Send the options when iframe loads
+          sendOptionsToIframe(elementId, options, stepName); // Send the options when iframe loads
       };
   }
 }
 
-function sendOptionsToIframe(iframeId, options) {
+export function sendOptionsToIframe(iframeId, options, stepName = null) {
   const iframe = document.getElementById(iframeId);
   if (iframe && iframe.contentWindow) {
-      iframe.contentWindow.postMessage({ options: options }, '*');
+      const message = { options: options };
+      if (stepName) {
+        options.stepId = stepName;
+      }
+      iframe.contentWindow.postMessage(message, '*');
   }
 }
 

@@ -14,7 +14,8 @@ import {
   resizeComponent,
   elementHasHeight,
   isElementLoaded,
-  changeOverlayTitle
+  changeOverlayTitle,
+  sendOptionsToIframe
 } from "./message-component-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
 import { positions, addPageElement } from "./page-component-manager";
@@ -114,7 +115,7 @@ async function resetOverlayState(hideFirst, message) {
   Gist.overlayInstanceId = null;
 }
 
-function loadMessageComponent(message, elementId = null) {
+function loadMessageComponent(message, elementId = null, stepName = null) {
   if (elementId && isElementLoaded(elementId)) {
     log(`Message ${message.messageId} already showing in element ${elementId}.`);
     return null;
@@ -130,18 +131,23 @@ function loadMessageComponent(message, elementId = null) {
     properties: message.properties,
     customAttributes: Object.fromEntries(getAllCustomAttributes())
   }
+  
   var url = `${settings.GIST_VIEW_ENDPOINT[Gist.config.env]}/index.html`
   window.addEventListener('message', handleGistEvents);
   window.addEventListener('touchstart', handleTouchStartEvents);
 
   if (elementId) {
     if (positions.includes(elementId)) { addPageElement(elementId); }
-    loadEmbedComponent(elementId, url, message, options);
+    loadEmbedComponent(elementId, url, message, options, stepName);
   } else {
-    loadOverlayComponent(url, message, options);
+    loadOverlayComponent(url, message, options, stepName);
   }
 
   return message;
+}
+
+function getMessageElementId(instanceId) {
+  return `gist-${instanceId}`;
 }
 
 
@@ -174,7 +180,6 @@ function updateMessageByInstanceId(instanceId, message) {
   removeMessageByInstanceId(instanceId);
   Gist.currentMessages.push(message);
 }
-
 
 function handleTouchStartEvents() {
   // Added this to avoid errors in the console
@@ -253,6 +258,32 @@ async function handleGistEvents(e) {
                 }
                 break;
             }
+          } else if (url && url.protocol === "inapp:") {
+            var inappAction = url.href.replace("inapp://", "").split('?')[0];
+            switch (inappAction) {
+              case "changeMessage":
+                var displaySettings = e.data.gist.parameters.options?.displaySettings;
+                var messageStepName = e.data.gist.parameters.options?.messageStepName;
+                
+                if (displaySettings && hasDisplayChanged(currentMessage, displaySettings)) {
+                  log(`Display settings changed, reloading message`);
+                  // Hide visually without side effects
+                  await hideMessageVisually(currentMessage);
+                  
+                  // Apply new display settings
+                  applyDisplaySettings(currentMessage, displaySettings);
+                  
+                  // Re-show message with new settings
+                  await reloadMessageWithNewDisplay(currentMessage, messageStepName);
+                } else {
+                  // Just send stepName to iframe for navigation
+                  if (messageStepName) {
+                    log(`Navigating to step: ${messageStepName}`);
+                    sendOptionsToIframe(getMessageElementId(currentMessage.instanceId), {}, messageStepName);
+                  }
+                }
+                break;
+            }
           }
         } catch {
           // If the action is not a URL, we don't need to do anything.
@@ -294,6 +325,142 @@ async function handleGistEvents(e) {
         break;
       }
     }
+  }
+}
+
+// Reload message with new display settings
+async function reloadMessageWithNewDisplay(message, stepName) {
+  // Set firstLoad to false to prevent duplicate logging and event triggering
+  message.firstLoad = false;
+  
+  // Update Gist.overlayInstanceId based on new display type
+  if (message.overlay) {
+    Gist.overlayInstanceId = message.instanceId;
+  } else {
+    Gist.overlayInstanceId = null;
+  }
+  
+  // Determine elementId based on display type
+  var elementId = message.elementId || null;
+  
+  // Add page element if it's an overlay position
+  if (elementId && positions.includes(elementId)) {
+    addPageElement(elementId);
+  }
+  
+  // Reload the message component with new settings
+  loadMessageComponent(message, elementId, stepName);
+  
+  // Show the component immediately since firstLoad is false
+  if (message.overlay) {
+    showOverlayComponent(message);
+  } else if (elementId) {
+    showEmbedComponent(elementId);
+  }
+}
+
+// Helper function to map overlay positions to element IDs
+function mapOverlayPositionToElementId(overlayPosition) {
+  const positionMap = {
+    "topLeft": "x-gist-floating-top-left",
+    "topCenter": "x-gist-floating-top",
+    "topRight": "x-gist-floating-top-right",
+    "bottomLeft": "x-gist-floating-bottom-left",
+    "bottomCenter": "x-gist-floating-bottom",
+    "bottomRight": "x-gist-floating-bottom-right"
+  };
+  return positionMap[overlayPosition] || "x-gist-floating-bottom";
+}
+
+// Helper function to determine current display type
+function getCurrentDisplayType(message) {
+  if (message.overlay) {
+    return "modal";
+  } else if (message.elementId && positions.includes(message.elementId)) {
+    return "overlay";
+  } else if (message.elementId) {
+    return "inline";
+  }
+  return "modal"; // default
+}
+
+// Helper function to check if display settings have changed
+function hasDisplayChanged(currentMessage, displaySettings) {
+  const currentDisplayType = getCurrentDisplayType(currentMessage);
+  const newDisplayType = displaySettings.displayType;
+  
+  // Check if display type changed
+  if (currentDisplayType !== newDisplayType) {
+    return true;
+  }
+  
+  // Check if position changed within the same display type
+  if (newDisplayType === "modal") {
+    const currentPosition = currentMessage.position || "center";
+    const newPosition = displaySettings.modalPosition || "center";
+    if (currentPosition !== newPosition) {
+      return true;
+    }
+  } else if (newDisplayType === "overlay") {
+    const newElementId = mapOverlayPositionToElementId(displaySettings.overlayPosition);
+    if (currentMessage.elementId !== newElementId) {
+      return true;
+    }
+  } else if (newDisplayType === "inline") {
+    if (currentMessage.elementId !== displaySettings.elementSelector) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+// Visual-only hide without side effects
+async function hideMessageVisually(message) {
+  if (message.overlay) {
+    await hideOverlayComponent();
+    removeOverlayComponent();
+  } else {
+    hideEmbedComponent(message.elementId);
+  }
+  // Note: We don't call removeMessageByInstanceId or clear Gist.overlayInstanceId
+  // to keep the message in memory for re-rendering
+}
+
+// Apply display settings to message
+function applyDisplaySettings(message, displaySettings) {
+  // Ensure message.properties.gist exists
+  if (!message.properties) {
+    message.properties = {};
+  }
+  if (!message.properties.gist) {
+    message.properties.gist = {};
+  }
+  
+  // Apply display type specific settings
+  if (displaySettings.displayType === "modal") {
+    message.overlay = true; // Note: overlay property = true for modals
+    message.elementId = null;
+    message.position = displaySettings.modalPosition || "center";
+  } else if (displaySettings.displayType === "overlay") {
+    message.overlay = false;
+    message.elementId = mapOverlayPositionToElementId(displaySettings.overlayPosition);
+    message.position = null;
+  } else if (displaySettings.displayType === "inline") {
+    message.overlay = false;
+    message.elementId = displaySettings.elementSelector;
+    message.position = null;
+  }
+  
+  // Apply other settings
+  if (displaySettings.maxWidth !== undefined) {
+    message.properties.gist.messageWidth = displaySettings.maxWidth;
+  }
+  if (displaySettings.overlayColor !== undefined) {
+    message.properties.gist.overlayColor = displaySettings.overlayColor;
+  }
+  if (displaySettings.dismissOutsideClick !== undefined) {
+    message.properties.gist.exitClick = displaySettings.dismissOutsideClick;
   }
 }
 
