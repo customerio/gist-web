@@ -191,21 +191,27 @@ async function handleGistEvents(e) {
         log(`Engine render for message: ${currentMessage.messageId} timer elapsed in ${timeElapsed.toFixed(3)} seconds`);
         setMessageLoaded(currentMessage.queueId);
         currentMessage.currentRoute = e.data.gist.parameters.route;
-        if (currentMessage.firstLoad) {
+        
+        // Show component for first load or display change reload
+        if (currentMessage.firstLoad || currentMessage.isDisplayChange) {
           if (currentMessage.overlay) {
             showOverlayComponent(currentMessage);
           } else {
             showEmbedComponent(currentMessage.elementId);
           }
 
-          Gist.messageShown(currentMessage);
-          if (messageProperties.persistent) {
-            log(`Persistent message shown, skipping logging view`);
-          } else {
-            await reportMessageView(currentMessage);
+          // Only trigger events for actual first load, not display changes
+          if (currentMessage.firstLoad && !currentMessage.isDisplayChange) {
+            Gist.messageShown(currentMessage);
+            if (messageProperties.persistent) {
+              log(`Persistent message shown, skipping logging view`);
+            } else {
+              await reportMessageView(currentMessage);
+            }
           }
 
           currentMessage.firstLoad = false;
+          currentMessage.isDisplayChange = false;
         }
         updateMessageByInstanceId(currentInstanceId, currentMessage);
         break;
@@ -318,8 +324,10 @@ async function handleGistEvents(e) {
 
 // Reload message with new display settings
 async function reloadMessageWithNewDisplay(message, stepName) {
-  // Set firstLoad to false to prevent duplicate logging and event triggering
-  message.firstLoad = false;
+  // Mark as display change reload to show component when routeLoaded is received
+  // but without triggering messageShown event or logging view
+  message.isDisplayChange = true;
+  message.renderStartTime = new Date().getTime();
   
   // Update Gist.overlayInstanceId based on new display type
   if (message.overlay) {
@@ -337,14 +345,8 @@ async function reloadMessageWithNewDisplay(message, stepName) {
   }
   
   // Reload the message component with new settings
+  // Component will be shown when routeLoaded event is received
   loadMessageComponent(message, elementId, stepName);
-  
-  // Show the component immediately since firstLoad is false
-  if (message.overlay) {
-    showOverlayComponent(message);
-  } else if (elementId) {
-    showEmbedComponent(elementId);
-  }
 }
 
 // Helper function to map overlay positions to element IDs
@@ -377,6 +379,11 @@ function hasDisplayChanged(currentMessage, displaySettings) {
   const currentDisplayType = getCurrentDisplayType(currentMessage);
   const newDisplayType = displaySettings.displayType;
   
+  // If the new display type is undefined, we don't need to check if it has changed.
+  if (newDisplayType === undefined) {
+    return false;
+  }
+
   // Check if display type changed
   if (currentDisplayType !== newDisplayType) {
     return true;
