@@ -14,8 +14,7 @@ import {
   resizeComponent,
   elementHasHeight,
   isElementLoaded,
-  changeOverlayTitle,
-  sendOptionsToIframe
+  changeOverlayTitle
 } from "./message-component-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
 import { positions, addPageElement } from "./page-component-manager";
@@ -146,11 +145,6 @@ function loadMessageComponent(message, elementId = null, stepName = null) {
   return message;
 }
 
-function getMessageElementId(instanceId) {
-  return `gist-${instanceId}`;
-}
-
-
 async function reportMessageView(message) {
   log(`Message shown, logging view for: ${message.messageId}`);
   var response = {};
@@ -275,12 +269,6 @@ async function handleGistEvents(e) {
                   
                   // Re-show message with new settings
                   await reloadMessageWithNewDisplay(currentMessage, messageStepName);
-                } else {
-                  // Just send stepName to iframe for navigation
-                  if (messageStepName) {
-                    log(`Navigating to step: ${messageStepName}`);
-                    sendOptionsToIframe(getMessageElementId(currentMessage.instanceId), {}, messageStepName);
-                  }
                 }
                 break;
             }

@@ -99,10 +99,18 @@ function attachIframeLoadEvent(elementId, options, stepName = null) {
   }
 }
 
+// SDK capabilities that can be communicated to the renderer
+const SDK_CAPABILITIES = [
+  'MultiStepDisplayTypes'
+];
+
 export function sendOptionsToIframe(iframeId, options, stepName = null) {
   const iframe = document.getElementById(iframeId);
   if (iframe && iframe.contentWindow) {
-      const message = { options: options };
+      const message = { 
+        options: options,
+        capabilities: SDK_CAPABILITIES
+      };
       if (stepName) {
         options.stepId = stepName;
       }
