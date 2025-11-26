@@ -7,6 +7,24 @@
     <link href="styles.css" rel="stylesheet">
   </head>
   <body>
+    <div class="inbox-header">
+      <div class="inbox-icon-container" onclick="toggleInboxPanel()">
+        <svg class="inbox-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+          <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+        </svg>
+        <span class="inbox-badge" id="inboxBadge" style="display: none;">0</span>
+      </div>
+    </div>
+    <div class="inbox-panel" id="inboxPanel" style="display: none;">
+      <div class="inbox-panel-header">
+        <h3>Inbox Messages</h3>
+        <button class="close-btn" onclick="toggleInboxPanel()">×</button>
+      </div>
+      <div class="inbox-panel-content" id="inboxPanelContent">
+        <p class="no-messages">No messages</p>
+      </div>
+    </div>
     <div id="banner"></div>
     <div class="row header">
       <h1>Gist for Web</h1>
@@ -121,6 +139,101 @@
       function addAnonymousCustomAttribute() {
         Gist.setCustomAttribute("cio_anonymous_id", "123456");
       }
+
+      // Inbox functionality
+      async function updateInboxBadge() {
+        const messages = await Gist.getInboxMessages();
+        const unreadCount = messages.filter(msg => !msg.opened).length;
+        const badge = document.getElementById('inboxBadge');
+        if (unreadCount > 0) {
+          badge.textContent = unreadCount;
+          badge.style.display = 'inline-block';
+        } else {
+          badge.style.display = 'none';
+        }
+      }
+
+      async function toggleInboxPanel() {
+        const panel = document.getElementById('inboxPanel');
+        if (panel.style.display === 'none') {
+          panel.style.display = 'block';
+          await loadInboxMessages();
+        } else {
+          panel.style.display = 'none';
+        }
+      }
+
+      async function loadInboxMessages() {
+        const messages = await Gist.getInboxMessages();
+        const content = document.getElementById('inboxPanelContent');
+
+        if (messages.length === 0) {
+          content.innerHTML = '<p class="no-messages">No messages</p>';
+          return;
+        }
+
+        let html = '';
+        for (const message of messages) {
+          const isUnread = !message.opened;
+          const props = message.properties || {};
+          const queueId = message.queueId;
+          const propertiesJson = JSON.stringify(props, null, 2);
+
+          html += `
+            <div class="inbox-message ${isUnread ? 'unread' : ''}" data-queue-id="${queueId}">
+              <div class="inbox-message-header">
+                <strong>Properties</strong>
+                ${isUnread ? '<span class="unread-dot"></span>' : ''}
+              </div>
+              <div class="inbox-message-body">
+                <pre>${propertiesJson}</pre>
+              </div>
+              <div class="inbox-message-actions">
+                ${isUnread ? `<button onclick="markAsRead('${queueId}')">Mark as read</button>` : ''}
+                <button onclick="deleteMessage('${queueId}')">Delete</button>
+              </div>
+            </div>
+          `;
+        }
+
+        content.innerHTML = html;
+      }
+
+      async function markAsRead(queueId) {
+        try {
+          await Gist.markInboxMessageAsOpened(queueId);
+          await loadInboxMessages();
+          await updateInboxBadge();
+        } catch (error) {
+          console.error('Failed to mark message as read:', error);
+          alert('Failed to mark message as read. Please try again.');
+        }
+      }
+
+      async function deleteMessage(queueId) {
+        // Remove from UI immediately
+        const messageElement = document.querySelector(`[data-queue-id="${queueId}"]`);
+        if (messageElement) {
+          messageElement.remove();
+        }
+
+        // Update badge immediately
+        await updateInboxBadge();
+
+        try {
+          await Gist.removeInboxMessage(queueId);
+        } catch (error) {
+          console.error('Failed to delete message:', error);
+          alert('Failed to delete message. Please try again.');
+          // Reload messages to restore the UI state
+          await loadInboxMessages();
+          await updateInboxBadge();
+        }
+      }
+
+      // Update badge on load and periodically
+      updateInboxBadge();
+      setInterval(updateInboxBadge, 5000);
     </script>
   </body>
 </html>

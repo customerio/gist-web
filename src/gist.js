@@ -7,6 +7,11 @@ import { showMessage, embedMessage, hideMessage, removePersistentMessage, fetchM
 import { setUserLocale } from "./managers/locale-manager";
 import { setCustomAttribute, clearCustomAttributes, removeCustomAttribute } from "./managers/custom-attribute-manager";
 import { setupPreview } from "./utilities/preview-mode";
+import {
+  getInboxMessagesFromLocalStore,
+  markInboxMessageAsOpened,
+  removeInboxMessage
+} from "./managers/inbox-message-manager";
 
 export default class {
   static async setup(config) {
@@ -123,6 +128,20 @@ export default class {
   static messageAction(message, action, name) {
     log(`Message action: ${message.currentRoute}, ${action} with name ${name} on ${message.instanceId}`);
     this.events.dispatch('messageAction', {message: message, action: action, name: name});
+  }
+
+  // Inbox Messages
+
+  static async getInboxMessages() {
+    return await getInboxMessagesFromLocalStore();
+  }
+
+  static async markInboxMessageAsOpened(queueId) {
+    return await markInboxMessageAsOpened(queueId);
+  }
+
+  static async removeInboxMessage(queueId) {
+    return await removeInboxMessage(queueId);
   }
 
 }
