@@ -26,6 +26,10 @@ import { setMessageLoaded } from './message-user-queue-manager';
 
 export async function showMessage(message) {
   if (Gist.isDocumentVisible) {
+    if (isQueueIdAlreadyShowing(message.queueId)) {
+      log(`Message with queueId ${message.queueId} is already showing.`);
+      return null;
+    }
     if (Gist.overlayInstanceId) {
       log(`Message ${Gist.overlayInstanceId} already showing.`);
       return null;
@@ -50,6 +54,10 @@ export async function showMessage(message) {
 
 export async function embedMessage(message, elementId) {
   if (Gist.isDocumentVisible) {
+    if (isQueueIdAlreadyShowing(message.queueId)) {
+      log(`Message with queueId ${message.queueId} is already showing.`);
+      return null;
+    }
     message.instanceId = uuidv4();
     message.overlay = false;
     message.firstLoad = true;
@@ -164,6 +172,13 @@ async function reportMessageView(message) {
 
 export function fetchMessageByInstanceId(instanceId) {
   return Gist.currentMessages.find(message => message.instanceId === instanceId);
+}
+
+function isQueueIdAlreadyShowing(queueId) {
+  if (!queueId) {
+    return false;
+  }
+  return Gist.currentMessages.some(message => message.queueId === queueId);
 }
 
 function removeMessageByInstanceId(instanceId) {
