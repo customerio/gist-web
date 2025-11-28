@@ -20,9 +20,17 @@ import { resolveMessageProperties } from "./gist-properties-manager";
 import { positions, addPageElement } from "./page-component-manager";
 import { getAllCustomAttributes } from "./custom-attribute-manager";
 import { checkMessageQueue } from "./queue-manager";
-import { isMessageBroadcast, markBroadcastAsSeen, markBroadcastAsDismissed } from './message-broadcast-manager';
-import { markUserQueueMessageAsSeen } from './message-user-queue-manager';
+import { isMessageBroadcast, markBroadcastAsSeen, markBroadcastAsDismissed, isShowAlwaysBroadcast } from './message-broadcast-manager';
+import { markUserQueueMessageAsSeen, saveMessageState, clearMessageState } from './message-user-queue-manager';
 import { setMessageLoaded } from './message-user-queue-manager';
+import { 
+  fetchMessageByInstanceId,
+  isQueueIdAlreadyShowing,
+  removeMessageByInstanceId,
+  updateMessageByInstanceId,
+  hasDisplayChanged,
+  applyDisplaySettings
+} from '../utilities/message-utils';
 
 export async function showMessage(message) {
   if (Gist.isDocumentVisible) {
@@ -34,7 +42,8 @@ export async function showMessage(message) {
       log(`Message ${Gist.overlayInstanceId} already showing.`);
       return null;
     } else {
-      var properties = resolveMessageProperties(message)
+      var properties = resolveMessageProperties(message);
+      
       message.instanceId = uuidv4();
       message.overlay = true;
       message.firstLoad = true;
@@ -44,7 +53,9 @@ export async function showMessage(message) {
       Gist.overlayInstanceId = message.instanceId;
       Gist.currentMessages.push(message);
 
-      return loadMessageComponent(message);
+      // Use saved step if available (set by queue manager)
+      const savedStep = message.savedStepName || null;
+      return loadMessageComponent(message, null, savedStep);
     }
   } else {
     log("Document hidden, not showing message now.");
@@ -58,6 +69,7 @@ export async function embedMessage(message, elementId) {
       log(`Message with queueId ${message.queueId} is already showing.`);
       return null;
     }
+    
     message.instanceId = uuidv4();
     message.overlay = false;
     message.firstLoad = true;
@@ -67,7 +79,9 @@ export async function embedMessage(message, elementId) {
     message.renderStartTime = new Date().getTime();
     Gist.currentMessages.push(message);
 
-    return loadMessageComponent(message, elementId);
+    // Use saved step if available (set by queue manager)
+    const savedStep = message.savedStepName || null;
+    return loadMessageComponent(message, elementId, savedStep);
   } else {
     log("Document hidden, not showing message now.");
     return null;
@@ -95,6 +109,8 @@ export async function removePersistentMessage(message) {
       log(`Persistent message dismissed, logging view`);
       await logUserMessageViewLocally(message);
       await reportMessageView(message);
+      // Clear saved message state when persistent message is removed
+      await clearMessageState(message.queueId);
     }
   } else {
     log(`Message with instance id: ${message.instanceId} not found`);
@@ -168,26 +184,6 @@ async function reportMessageView(message) {
   } else {
     log(`Problem logging message: ${response.status}`);
   }
-}
-
-export function fetchMessageByInstanceId(instanceId) {
-  return Gist.currentMessages.find(message => message.instanceId === instanceId);
-}
-
-function isQueueIdAlreadyShowing(queueId) {
-  if (!queueId) {
-    return false;
-  }
-  return Gist.currentMessages.some(message => message.queueId === queueId);
-}
-
-function removeMessageByInstanceId(instanceId) {
-  Gist.currentMessages = Gist.currentMessages.filter(message => message.instanceId !== instanceId)
-}
-
-function updateMessageByInstanceId(instanceId, message) {
-  removeMessageByInstanceId(instanceId);
-  Gist.currentMessages.push(message);
 }
 
 function handleTouchStartEvents() {
@@ -273,31 +269,33 @@ async function handleGistEvents(e) {
                 }
                 break;
             }
-          } else if (url && url.protocol === "inapp:") {
-            var inappAction = url.href.replace("inapp://", "").split('?')[0];
-            switch (inappAction) {
-              case "changeMessage":
-                var displaySettings = e.data.gist.parameters.options?.displaySettings;
-                var messageStepName = e.data.gist.parameters.options?.messageStepName;
-                
-                if (displaySettings && hasDisplayChanged(currentMessage, displaySettings)) {
-                  log(`Display settings changed, reloading message`);
-                  // Hide visually without side effects
-                  await hideMessageVisually(currentMessage);
-                  
-                  // Apply new display settings
-                  applyDisplaySettings(currentMessage, displaySettings);
-                  
-                  // Re-show message with new settings
-                  await reloadMessageWithNewDisplay(currentMessage, messageStepName);
-                }
-                break;
-            }
           }
         } catch {
           // If the action is not a URL, we don't need to do anything.
         }
         
+        break;
+      }
+      case "changeMessageStep": {
+        var displaySettings = e.data.gist.parameters.displaySettings;
+        var messageStepName = e.data.gist.parameters.messageStepName;
+        
+        // Save message state (step + display settings) for persistent messages or show-always broadcasts
+        if (messageProperties.persistent || isShowAlwaysBroadcast(currentMessage)) {
+          await saveMessageState(currentMessage.queueId, messageStepName, displaySettings);
+        }
+        
+        if (displaySettings && hasDisplayChanged(currentMessage, displaySettings)) {
+          log(`Display settings changed, reloading message`);
+          // Hide visually without side effects
+          await hideMessageVisually(currentMessage);
+          
+          // Apply new display settings
+          applyDisplaySettings(currentMessage, displaySettings);
+          
+          // Re-show message with new settings
+          await reloadMessageWithNewDisplay(currentMessage, messageStepName);
+        }
         break;
       }
       case "routeChanged": {
@@ -364,67 +362,6 @@ async function reloadMessageWithNewDisplay(message, stepName) {
   loadMessageComponent(message, elementId, stepName);
 }
 
-// Helper function to map overlay positions to element IDs
-function mapOverlayPositionToElementId(overlayPosition) {
-  const positionMap = {
-    "topLeft": "x-gist-floating-top-left",
-    "topCenter": "x-gist-floating-top",
-    "topRight": "x-gist-floating-top-right",
-    "bottomLeft": "x-gist-floating-bottom-left",
-    "bottomCenter": "x-gist-floating-bottom",
-    "bottomRight": "x-gist-floating-bottom-right"
-  };
-  return positionMap[overlayPosition] || "x-gist-floating-bottom";
-}
-
-// Helper function to determine current display type
-function getCurrentDisplayType(message) {
-  if (message.overlay) {
-    return "modal";
-  } else if (message.elementId && positions.includes(message.elementId)) {
-    return "overlay";
-  } else if (message.elementId) {
-    return "inline";
-  }
-  return "modal"; // default
-}
-
-// Helper function to check if display settings have changed
-function hasDisplayChanged(currentMessage, displaySettings) {
-  const currentDisplayType = getCurrentDisplayType(currentMessage);
-  const newDisplayType = displaySettings.displayType;
-  
-  // If the new display type is undefined, we don't need to check if it has changed.
-  if (newDisplayType === undefined) {
-    return false;
-  }
-
-  // Check if display type changed
-  if (currentDisplayType !== newDisplayType) {
-    return true;
-  }
-  
-  // Check if position changed within the same display type
-  if (newDisplayType === "modal") {
-    const currentPosition = currentMessage.position || "center";
-    const newPosition = displaySettings.modalPosition || "center";
-    if (currentPosition !== newPosition) {
-      return true;
-    }
-  } else if (newDisplayType === "overlay") {
-    const newElementId = mapOverlayPositionToElementId(displaySettings.overlayPosition);
-    if (currentMessage.elementId !== newElementId) {
-      return true;
-    }
-  } else if (newDisplayType === "inline") {
-    if (currentMessage.elementId !== displaySettings.elementSelector) {
-      return true;
-    }
-  }
-  
-  return false;
-}
-
 // Visual-only hide without side effects
 async function hideMessageVisually(message) {
   if (message.overlay) {
@@ -435,43 +372,6 @@ async function hideMessageVisually(message) {
   }
   // Note: We don't call removeMessageByInstanceId or clear Gist.overlayInstanceId
   // to keep the message in memory for re-rendering
-}
-
-// Apply display settings to message
-function applyDisplaySettings(message, displaySettings) {
-  // Ensure message.properties.gist exists
-  if (!message.properties) {
-    message.properties = {};
-  }
-  if (!message.properties.gist) {
-    message.properties.gist = {};
-  }
-  
-  // Apply display type specific settings
-  if (displaySettings.displayType === "modal") {
-    message.overlay = true; // Note: overlay property = true for modals
-    message.elementId = null;
-    message.position = displaySettings.modalPosition || "center";
-  } else if (displaySettings.displayType === "overlay") {
-    message.overlay = false;
-    message.elementId = mapOverlayPositionToElementId(displaySettings.overlayPosition);
-    message.position = null;
-  } else if (displaySettings.displayType === "inline") {
-    message.overlay = false;
-    message.elementId = displaySettings.elementSelector;
-    message.position = null;
-  }
-  
-  // Apply other settings
-  if (displaySettings.maxWidth !== undefined) {
-    message.properties.gist.messageWidth = displaySettings.maxWidth;
-  }
-  if (displaySettings.overlayColor !== undefined) {
-    message.properties.gist.overlayColor = displaySettings.overlayColor;
-  }
-  if (displaySettings.dismissOutsideClick !== undefined) {
-    message.properties.gist.exitClick = displaySettings.dismissOutsideClick;
-  }
 }
 
 async function logUserMessageViewLocally(message) {
@@ -487,5 +387,7 @@ export async function logBroadcastDismissedLocally(message) {
   if (isMessageBroadcast(message)) {
     log(`Logging broadcast dismissed locally for: ${message.queueId}`);
     await markBroadcastAsDismissed(message.queueId);
+    // Clear saved message state when broadcast is dismissed
+    await clearMessageState(message.queueId);
   }
 }

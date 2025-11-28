@@ -6,8 +6,9 @@ import { showMessage, embedMessage } from "./message-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
 import { clearKeyFromLocalStore, getKeyFromLocalStore } from '../utilities/local-storage';
 import { updateBroadcastsLocalStore, getEligibleBroadcasts, isShowAlwaysBroadcast } from './message-broadcast-manager';
-import { updateQueueLocalStore, getMessagesFromLocalStore, isMessageLoading, setMessageLoading } from './message-user-queue-manager';
+import { updateQueueLocalStore, getMessagesFromLocalStore, isMessageLoading, setMessageLoading, getSavedMessageState } from './message-user-queue-manager';
 import { settings } from '../services/settings';
+import { applyDisplaySettings } from '../utilities/message-utils';
 
 var sleep = time => new Promise(resolve => setTimeout(resolve, time))
 var poll = (promiseFn, time) => promiseFn().then(sleep(time).then(() => poll(promiseFn, time)));
@@ -58,6 +59,23 @@ async function handleMessage(message) {
   }
   if (messageProperties.hasPosition) {
     message.position = messageProperties.position;
+  }
+
+  // Restore saved state for persistent messages or show-always broadcasts
+  if (messageProperties.persistent || isShowAlwaysBroadcast(message)) {
+    const savedState = await getSavedMessageState(message.queueId);
+    if (savedState) {
+      log(`Restoring saved state for queueId ${message.queueId}`);
+      
+      // Apply saved display settings if they exist
+      if (savedState.displaySettings) {
+        applyDisplaySettings(message, savedState.displaySettings);
+        messageProperties = resolveMessageProperties(message); // Re-resolve after applying
+      }
+      
+      // Store saved step for later use
+      message.savedStepName = savedState.stepName;
+    }
   }
 
   // If the message is not persistant, is not a show always broadcast, and is already loading, we skip it.
