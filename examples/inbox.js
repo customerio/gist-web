@@ -1,5 +1,5 @@
 async function refreshInboxMessages(messages) {
-    const unreadCount = await Gist.getInboxUnopenedCount();
+    const unreadCount = await window.Gist.getInboxUnopenedCount();
     const badge = document.getElementById('inboxBadge');
     if (unreadCount > 0) {
         badge.textContent = unreadCount;
@@ -9,7 +9,7 @@ async function refreshInboxMessages(messages) {
     }
 
     if (!messages) {
-        messages = await Gist.getInboxMessages();
+        messages = await window.Gist.getInboxMessages();
     }
 
     const content = document.getElementById('inboxPanelContent');
@@ -47,9 +47,10 @@ async function refreshInboxMessages(messages) {
     content.innerHTML = html;
 }
 
+// eslint-disable-next-line no-unused-vars
 async function markAsRead(queueId) {
     try {
-        await Gist.markInboxMessageOpened(queueId);
+        await window.Gist.markInboxMessageOpened(queueId);
     } catch (error) {
         console.error('Failed to mark message as read:', error);
         alert('Failed to mark message as read. Please try again.');
@@ -58,9 +59,10 @@ async function markAsRead(queueId) {
     await refreshInboxMessages();
 }
 
+// eslint-disable-next-line no-unused-vars
 async function deleteMessage(queueId) {
     try {
-        await Gist.removeInboxMessage(queueId);
+        await window.Gist.removeInboxMessage(queueId);
     } catch (error) {
         console.error('Failed to delete message:', error);
         alert('Failed to delete message. Please try again.');
@@ -82,6 +84,6 @@ document.querySelectorAll(".toggle-inbox").forEach(element => {
 
 refreshInboxMessages();
 
-Gist.events.on('messageInboxUpdated', async function(messages) {
+window.Gist.events.on('messageInboxUpdated', async function(messages) {
     await refreshInboxMessages(messages);
 });
