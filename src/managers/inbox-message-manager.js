@@ -5,6 +5,7 @@ import { log } from '../utilities/log';
 import { logUserMessageView } from '../services/log-service';
 import { updateMessage } from '../services/message-service';
 
+const messageInboxUpdatedEventName = 'messageInboxUpdated';
 const inboxMessagesLocalStoreName = "gist.web.inbox.messages";
 const inboxMessagesLocalStoreCacheInMinutes = 60;
 
@@ -17,7 +18,7 @@ export async function updateInboxMessagesLocalStore(messages) {
 
   setKeyToLocalStore(inboxLocalStoreName, messages, expiryDate);
 
-  Gist.events.dispatch('messageInboxUpdated', messages);
+  Gist.events.dispatch(messageInboxUpdatedEventName, messages);
 }
 
 export async function getInboxMessagesFromLocalStore() {
@@ -70,7 +71,7 @@ export async function markInboxMessageOpened(queueId) {
   expiryDate.setMinutes(expiryDate.getMinutes() + inboxMessagesLocalStoreCacheInMinutes);
   setKeyToLocalStore(inboxLocalStoreName, updatedMessages, expiryDate);
 
-  return true;
+  Gist.events.dispatch(messageInboxUpdatedEventName, await getInboxMessagesFromLocalStore());
 }
 
 export async function removeInboxMessage(queueId) {
@@ -93,8 +94,8 @@ export async function removeInboxMessage(queueId) {
   const expiryDate = new Date();
   expiryDate.setMinutes(expiryDate.getMinutes() + inboxMessagesLocalStoreCacheInMinutes);
   setKeyToLocalStore(inboxLocalStoreName, filteredMessages, expiryDate);
-
-  return true;
+  
+  Gist.events.dispatch(messageInboxUpdatedEventName, await getInboxMessagesFromLocalStore());
 }
 
 async function getInboxMessagesLocalStoreName() {

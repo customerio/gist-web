@@ -55,8 +55,6 @@ async function markAsRead(queueId) {
         console.error('Failed to mark message as read:', error);
         alert('Failed to mark message as read. Please try again.');
     }
-
-    await refreshInboxMessages();
 }
 
 // eslint-disable-next-line no-unused-vars
@@ -67,8 +65,6 @@ async function deleteMessage(queueId) {
         console.error('Failed to delete message:', error);
         alert('Failed to delete message. Please try again.');
     }
-
-    await refreshInboxMessages();
 }
 
 document.querySelectorAll(".toggle-inbox").forEach(element => {
