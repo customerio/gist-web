@@ -200,6 +200,11 @@ h1 {
   color: #264653;
 }
 
+.inbox-message-header p {
+  font-size: 12px;
+  font-style: italic;
+}
+
 .unread-dot {
   width: 8px;
   height: 8px;

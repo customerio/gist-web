@@ -9,7 +9,7 @@ import { setCustomAttribute, clearCustomAttributes, removeCustomAttribute } from
 import { setupPreview } from "./utilities/preview-mode";
 import {
   getInboxMessagesFromLocalStore,
-  markInboxMessageAsOpened,
+  markInboxMessageOpened,
   removeInboxMessage
 } from "./managers/inbox-message-manager";
 
@@ -132,12 +132,17 @@ export default class {
 
   // Inbox Messages
 
+  static async getInboxUnopenedCount() {
+    const messages = await getInboxMessagesFromLocalStore();
+    return messages.filter(msg => !msg.opened).length;
+  }
+
   static async getInboxMessages() {
     return await getInboxMessagesFromLocalStore();
   }
 
-  static async markInboxMessageAsOpened(queueId) {
-    return await markInboxMessageAsOpened(queueId);
+  static async markInboxMessageOpened(queueId) {
+    return await markInboxMessageOpened(queueId);
   }
 
   static async removeInboxMessage(queueId) {

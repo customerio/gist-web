@@ -1,9 +1,9 @@
 import Gist from '../gist';
 import { getKeyFromLocalStore, setKeyToLocalStore } from '../utilities/local-storage';
 import { getHashedUserToken } from './user-manager';
-import { UserNetworkInstance } from '../services/network';
 import { log } from '../utilities/log';
 import { logUserMessageView } from '../services/log-service';
+import { updateMessage } from '../services/message-service';
 
 const inboxMessagesLocalStoreName = "gist.web.inbox.messages";
 const inboxMessagesLocalStoreCacheInMinutes = 60;
@@ -17,7 +17,7 @@ export async function updateInboxMessagesLocalStore(messages) {
 
   setKeyToLocalStore(inboxLocalStoreName, messages, expiryDate);
 
-  Gist.events.dispatch('inboxMessages', messages);
+  Gist.events.dispatch('messageInboxUpdated', messages);
 }
 
 export async function getInboxMessagesFromLocalStore() {
@@ -27,7 +27,6 @@ export async function getInboxMessagesFromLocalStore() {
   const storedMessages = getKeyFromLocalStore(inboxLocalStoreName) ?? [];
   const now = new Date();
 
-  // Filter out messages that have expired
   return storedMessages.filter(message => {
     if (!message.expiry) return true;
     const expiryDate = new Date(message.expiry);
@@ -47,29 +46,16 @@ export async function getInboxMessagesByTopic(topic) {
   });
 }
 
-export async function markInboxMessageAsOpened(queueId) {
+export async function markInboxMessageOpened(queueId) {
   const inboxLocalStoreName = await getInboxMessagesLocalStoreName();
-  if (!inboxLocalStoreName) {
-    throw new Error('User token not available');
-  }
+  if (!inboxLocalStoreName) return;
 
-  try {
-    const response = await UserNetworkInstance()(`/api/v1/messages/${queueId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ opened: true }),
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+  const response = await updateMessage(queueId, { opened: true });
 
-    if (response.status < 200 || response.status >= 300) {
-      throw new Error(`Failed to mark message as opened: ${response.status}`);
-    }
-
-    log(`Marked inbox message ${queueId} as opened on server:`, response);
-  } catch (error) {
-    log(`Error marking inbox message ${queueId} as opened:`, error);
-    throw error;
+  if (!response || response.status < 200 || response.status >= 300) {
+    const errorMsg = `Failed to mark inbox message opened: ${response?.status || 'unknown error'}`;
+    log(errorMsg);
+    throw new Error(errorMsg);
   }
 
   const messages = await getInboxMessagesFromLocalStore();
@@ -89,14 +75,12 @@ export async function markInboxMessageAsOpened(queueId) {
 
 export async function removeInboxMessage(queueId) {
   const inboxLocalStoreName = await getInboxMessagesLocalStoreName();
-  if (!inboxLocalStoreName) {
-    throw new Error('User token not available');
-  }
+  if (!inboxLocalStoreName) return;
 
   const response = await logUserMessageView(queueId);
 
   if (!response || response.status < 200 || response.status >= 300) {
-    const errorMsg = `Failed to log message view: ${response?.status || 'unknown error'}`;
+    const errorMsg = `Failed to remove inbox message: ${response?.status || 'unknown error'}`;
     log(errorMsg);
     throw new Error(errorMsg);
   }
