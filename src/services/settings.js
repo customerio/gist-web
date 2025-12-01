@@ -26,7 +26,7 @@ export const settings = {
   },
   GIST_VIEW_ENDPOINT: {
     "prod": "https://renderer.gist.build/3.0",
-    "dev": "https://renderer.gist.build/3.0",
+    "dev": "https://code.gist.build/renderer/0.6.0-preview11",
     "local": "http://app.local.gist.build:8080/web"
   },
   getSdkId: function() {
