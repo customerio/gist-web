@@ -30,7 +30,7 @@ export function mapOverlayPositionToElementId(overlayPosition) {
     "bottomCenter": "x-gist-floating-bottom",
     "bottomRight": "x-gist-floating-bottom-right"
   };
-  return positionMap[overlayPosition] || "x-gist-floating-bottom";
+  return positionMap[overlayPosition];
 }
 
 // Helper function to determine current display type
