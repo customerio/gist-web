@@ -1,5 +1,6 @@
 import Gist from '../gist';
 import { positions } from '../managers/page-component-manager';
+import { resolveMessageProperties } from '../managers/gist-properties-manager';
 
 export function fetchMessageByInstanceId(instanceId) {
   return Gist.currentMessages.find(message => message.instanceId === instanceId);
@@ -60,20 +61,48 @@ export function hasDisplayChanged(currentMessage, displaySettings) {
     return true;
   }
   
+  // Check if other display settings changed using resolved properties
+  const resolvedProps = resolveMessageProperties(currentMessage);
+
   // Check if position changed within the same display type
-  if (newDisplayType === "modal") {
-    const currentPosition = currentMessage.position || "center";
-    const newPosition = displaySettings.modalPosition || "center";
-    if (currentPosition !== newPosition) {
-      return true;
+  switch (newDisplayType) {
+    case "modal": {
+      const currentPosition = currentMessage.position || "center";
+      const newPosition = displaySettings.modalPosition || "center";
+      if (currentPosition !== newPosition) {
+        return true;
+      }
+
+      if (displaySettings.dismissOutsideClick !== undefined) {
+        if (resolvedProps.exitClick !== displaySettings.dismissOutsideClick) {
+          return true;
+        }
+      }
+      
+      if (displaySettings.overlayColor !== undefined) {
+        if (resolvedProps.overlayColor !== displaySettings.overlayColor) {
+          return true;
+        }
+      }
+      break;
     }
-  } else if (newDisplayType === "overlay") {
-    const newElementId = mapOverlayPositionToElementId(displaySettings.overlayPosition);
-    if (currentMessage.elementId !== newElementId) {
-      return true;
+    case "overlay": {
+      const newElementId = mapOverlayPositionToElementId(displaySettings.overlayPosition);
+      if (currentMessage.elementId !== newElementId) {
+        return true;
+      }
+      break;
     }
-  } else if (newDisplayType === "inline") {
-    if (currentMessage.elementId !== displaySettings.elementSelector) {
+    case "inline": {
+      if (currentMessage.elementId !== displaySettings.elementSelector) {
+        return true;
+      }
+      break;
+    }
+  }
+  
+  if (displaySettings.maxWidth !== undefined) {
+    if (resolvedProps.messageWidth !== displaySettings.maxWidth) {
       return true;
     }
   }
@@ -113,15 +142,23 @@ export function applyDisplaySettings(message, displaySettings) {
     message.properties.gist.position = null;
   }
   
-  // Apply other settings
+  // Apply other settings - clear if not specified so defaults are used
   if (displaySettings.maxWidth !== undefined) {
     message.properties.gist.messageWidth = displaySettings.maxWidth;
+  } else {
+    delete message.properties.gist.messageWidth;
   }
+  
   if (displaySettings.overlayColor !== undefined) {
     message.properties.gist.overlayColor = displaySettings.overlayColor;
+  } else {
+    delete message.properties.gist.overlayColor;
   }
+  
   if (displaySettings.dismissOutsideClick !== undefined) {
     message.properties.gist.exitClick = displaySettings.dismissOutsideClick;
+  } else {
+    delete message.properties.gist.exitClick;
   }
 }
 
