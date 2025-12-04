@@ -6,6 +6,7 @@ import { logUserMessageView } from '../services/log-service';
 import { updateMessage } from '../services/message-service';
 
 const messageInboxUpdatedEventName = 'messageInboxUpdated';
+const inboxMessageEventName = 'inboxMessageAction';
 const inboxMessagesLocalStoreName = "gist.web.inbox.messages";
 const inboxMessagesLocalStoreCacheInMinutes = 60;
 
@@ -60,9 +61,12 @@ export async function updateInboxMessageOpenState(queueId, opened) {
   }
 
   const messages = await getInboxMessagesFromLocalStore();
+  let updatedMessage = null;
   const updatedMessages = messages.map(message => {
     if (message.queueId === queueId) {
-      return { ...message, opened: opened };
+      message.opened = opened;
+      updatedMessage = message;
+      return { ...message };
     }
     return message;
   });
@@ -71,6 +75,10 @@ export async function updateInboxMessageOpenState(queueId, opened) {
   const expiryDate = new Date();
   expiryDate.setMinutes(expiryDate.getMinutes() + inboxMessagesLocalStoreCacheInMinutes);
   setKeyToLocalStore(inboxLocalStoreName, updatedMessages, expiryDate);
+
+  if (updatedMessage && opened) {
+    Gist.events.dispatch(inboxMessageEventName, {message: updatedMessage, action: 'opened'});
+  }
 
   Gist.events.dispatch(messageInboxUpdatedEventName, await getInboxMessagesFromLocalStore());
 }

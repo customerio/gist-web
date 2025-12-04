@@ -1,8 +1,8 @@
 async function refreshInboxMessages(messages) {
-    const unreadCount = await window.Gist.getInboxUnopenedCount();
+    const unopenedCount = await window.Gist.getInboxUnopenedCount();
     const badge = document.getElementById('inboxBadge');
-    if (unreadCount > 0) {
-        badge.textContent = unreadCount;
+    if (unopenedCount > 0) {
+        badge.textContent = unopenedCount;
         badge.style.display = 'inline-block';
     } else {
         badge.style.display = 'none';
@@ -30,7 +30,7 @@ async function refreshInboxMessages(messages) {
             <div class="inbox-message-header">
             <strong>Properties</strong>
             <p>Sent at ${new Date(message.sentAt).toLocaleString()}</p>
-            ${!message.opened ? '<span class="unread-dot"></span>' : ''}
+            ${!message.opened ? '<span class="unopened-dot"></span>' : ''}
             </div>
             <div class="inbox-message-body">
             <pre>${propertiesJson}</pre>
@@ -51,7 +51,7 @@ async function updateInboxMessageOpenState(queueId, opened) {
     try {
         await window.Gist.updateInboxMessageOpenState(queueId, opened);
     } catch (error) {
-        console.error('Failed to mark message as read:', error);
+        console.error('Failed to mark message as opened:', error);
         alert('Failed to mark message as read. Please try again.');
     }
 }
