@@ -76,8 +76,9 @@ export async function updateInboxMessageOpenState(queueId, opened) {
   expiryDate.setMinutes(expiryDate.getMinutes() + inboxMessagesLocalStoreCacheInMinutes);
   setKeyToLocalStore(inboxLocalStoreName, updatedMessages, expiryDate);
 
-  if (updatedMessage && opened) {
-    Gist.events.dispatch(inboxMessageEventName, {message: updatedMessage, action: 'opened'});
+  if (updatedMessage) {
+    const action = opened ? 'opened' : 'unopened';
+    Gist.events.dispatch(inboxMessageEventName, {message: updatedMessage, action: action});
   }
 
   Gist.events.dispatch(messageInboxUpdatedEventName, await getInboxMessagesFromLocalStore());

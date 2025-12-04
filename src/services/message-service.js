@@ -11,6 +11,6 @@ export async function updateMessage(queueId, updatedFields) {
     });
     return response;
   } catch (error) {
-    throw error.response;
+    return error.response;
   }
 }
