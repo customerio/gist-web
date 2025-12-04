@@ -47,11 +47,11 @@ export async function getInboxMessagesByTopic(topic) {
   });
 }
 
-export async function markInboxMessageOpened(queueId) {
+export async function updateInboxMessageOpenState(queueId, opened) {
   const inboxLocalStoreName = await getInboxMessagesLocalStoreName();
   if (!inboxLocalStoreName) return;
 
-  const response = await updateMessage(queueId, { opened: true });
+  const response = await updateMessage(queueId, { opened: opened });
 
   if (!response || response.status < 200 || response.status >= 300) {
     const errorMsg = `Failed to mark inbox message opened: ${response?.status || 'unknown error'}`;
@@ -62,10 +62,11 @@ export async function markInboxMessageOpened(queueId) {
   const messages = await getInboxMessagesFromLocalStore();
   const updatedMessages = messages.map(message => {
     if (message.queueId === queueId) {
-      return { ...message, opened: true };
+      return { ...message, opened: opened };
     }
     return message;
   });
+
 
   const expiryDate = new Date();
   expiryDate.setMinutes(expiryDate.getMinutes() + inboxMessagesLocalStoreCacheInMinutes);

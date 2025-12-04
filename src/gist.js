@@ -9,7 +9,7 @@ import { setCustomAttribute, clearCustomAttributes, removeCustomAttribute } from
 import { setupPreview } from "./utilities/preview-mode";
 import {
   getInboxMessagesFromLocalStore,
-  markInboxMessageOpened,
+  updateInboxMessageOpenState,
   removeInboxMessage
 } from "./managers/inbox-message-manager";
 
@@ -141,8 +141,8 @@ export default class {
     return await getInboxMessagesFromLocalStore();
   }
 
-  static async markInboxMessageOpened(queueId) {
-    return await markInboxMessageOpened(queueId);
+  static async updateInboxMessageOpenState(queueId, opened) {
+    return await updateInboxMessageOpenState(queueId, opened);
   }
 
   static async removeInboxMessage(queueId) {

@@ -21,23 +21,22 @@ async function refreshInboxMessages(messages) {
 
     let html = '';
     for (const message of messages) {
-        const isUnread = !message.opened;
         const props = message.properties || {};
         const queueId = message.queueId;
         const propertiesJson = JSON.stringify(props, null, 2);
 
         html += `
-        <div class="inbox-message ${isUnread ? 'unread' : ''}" data-queue-id="${queueId}">
+        <div class="inbox-message ${!message.opened ? 'unopened' : ''}" data-queue-id="${queueId}">
             <div class="inbox-message-header">
             <strong>Properties</strong>
             <p>Sent at ${new Date(message.sentAt).toLocaleString()}</p>
-            ${isUnread ? '<span class="unread-dot"></span>' : ''}
+            ${!message.opened ? '<span class="unread-dot"></span>' : ''}
             </div>
             <div class="inbox-message-body">
             <pre>${propertiesJson}</pre>
             </div>
             <div class="inbox-message-actions">
-            ${isUnread ? `<button onclick="markAsRead('${queueId}')">Mark as read</button>` : ''}
+            ${!message.opened ? `<button onclick="updateInboxMessageOpenState('${queueId}',true)">Mark as opened</button>` : `<button onclick="updateInboxMessageOpenState('${queueId}',false)">Mark as unopened</button>`}
             <button onclick="deleteMessage('${queueId}')">Delete</button>
             </div>
         </div>
@@ -48,9 +47,9 @@ async function refreshInboxMessages(messages) {
 }
 
 // eslint-disable-next-line no-unused-vars
-async function markAsRead(queueId) {
+async function updateInboxMessageOpenState(queueId, opened) {
     try {
-        await window.Gist.markInboxMessageOpened(queueId);
+        await window.Gist.updateInboxMessageOpenState(queueId, opened);
     } catch (error) {
         console.error('Failed to mark message as read:', error);
         alert('Failed to mark message as read. Please try again.');
