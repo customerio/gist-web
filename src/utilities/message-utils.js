@@ -13,6 +13,13 @@ export function isQueueIdAlreadyShowing(queueId) {
   return Gist.currentMessages.some(message => message.queueId === queueId);
 }
 
+export function fetchMessageByElementId(elementId) {
+  if (!elementId) {
+    return null;
+  }
+  return Gist.currentMessages.find(message => message.elementId === elementId);
+}
+
 export function removeMessageByInstanceId(instanceId) {
   Gist.currentMessages = Gist.currentMessages.filter(message => message.instanceId !== instanceId)
 }

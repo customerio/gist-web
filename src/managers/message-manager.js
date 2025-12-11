@@ -25,6 +25,7 @@ import { markUserQueueMessageAsSeen, saveMessageState, clearMessageState } from 
 import { setMessageLoaded } from './message-user-queue-manager';
 import { 
   fetchMessageByInstanceId,
+  fetchMessageByElementId,
   isQueueIdAlreadyShowing,
   removeMessageByInstanceId,
   updateMessageByInstanceId,
@@ -351,6 +352,15 @@ async function reloadMessageWithNewDisplay(message, stepName) {
   
   // Determine elementId based on display type
   var elementId = message.elementId || null;
+  
+  // If moving to an elementId position, check if there's already a message there and dismiss it
+  if (elementId) {
+    const existingMessage = fetchMessageByElementId(elementId);
+    if (existingMessage && existingMessage.instanceId !== message.instanceId) {
+      log(`Dismissing existing message at ${elementId} to make room for multi-step message`);
+      await hideMessage(existingMessage);
+    }
+  }
   
   // Add page element if it's an overlay position
   if (elementId && positions.includes(elementId)) {
