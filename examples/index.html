@@ -7,6 +7,24 @@
     <link href="styles.css" rel="stylesheet">
   </head>
   <body>
+    <div class="inbox-header">
+      <div class="inbox-icon-container toggle-inbox">
+        <svg class="inbox-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+          <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+        </svg>
+        <span class="inbox-badge" id="inboxBadge" style="display: none;">0</span>
+      </div>
+    </div>
+    <div class="inbox-panel" id="inboxPanel" style="display: none;">
+      <div class="inbox-panel-header">
+        <h3>Inbox Messages</h3>
+        <button class="close-btn toggle-inbox">×</button>
+      </div>
+      <div class="inbox-panel-content" id="inboxPanelContent">
+        <p class="no-messages">No messages</p>
+      </div>
+    </div>
     <div id="banner"></div>
     <div class="row header">
       <h1>Gist for Web</h1>
@@ -26,15 +44,79 @@
     <div class="row docs">
       <p>More information can be found on our <a target="_blank" href="https://docs.gist.build">docs</a>, if you have any question you can email us at <a target="_blank" href="mailto:support@gist.build">support@gist.build</a></p>
     </div>
+    <div class="config-form-sticky">
+      <div class="config-form-header" onclick="toggleConfigForm()">
+        <span>⚙️ Configuration Override</span>
+        <span id="configToggleIcon">▼</span>
+      </div>
+      <div class="config-form-content" id="configFormContent">
+        <form id="configForm" onsubmit="saveConfig(event)">
+          <div class="form-section">
+            <h4>Gist.setup()</h4>
+            <div class="form-field">
+              <label for="siteId">Site ID:</label>
+              <input type="text" id="siteId" name="siteId" />
+            </div>
+            <div class="form-field">
+              <label for="dataCenter">Data Center:</label>
+              <select id="dataCenter" name="dataCenter">
+                <option value="us">us</option>
+                <option value="eu">eu</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="env">Environment:</label>
+              <select id="env" name="env">
+                <option value="prod">prod</option>
+                <option value="dev">dev</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="logging">
+                <input type="checkbox" id="logging" name="logging" />
+                Logging
+              </label>
+            </div>
+            <div class="form-field">
+              <label for="useAnonymousSession">
+                <input type="checkbox" id="useAnonymousSession" name="useAnonymousSession" />
+                Use Anonymous Session
+              </label>
+            </div>
+          </div>
+          <div class="form-section">
+            <h4>Gist.setUserToken()</h4>
+            <div class="form-field">
+              <label for="userToken">User Token:</label>
+              <input type="text" id="userToken" name="userToken" />
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="button primary">Save & Reload</button>
+            <button type="button" class="button" onclick="resetConfig()">Reset to Defaults</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <script src="settings.js"></script>
     <script src="../dist/gist.js"></script>
     <script type="text/javascript">
       var EncodedTestHTMLMessage = "eNrdWG1v2zYQ/p5fwWkfkgCWZcd2V7i2hy1dVwxpMyAphn0aKPEkcaFIgaT80qL/fUfLSRRFcpVsKwoTdiKRx7vjPc+RPM++e315fv3n77+Q1GZicTRz/4igMpl7ID3XAZQtjgi2WQaWkiil2oCdex+u3/gvveqQpBnMvSWHVa609UikpAWJoivObDpnsOQR+NuXHuGSW06FbyIqYD7sD25VWW4FLH67unxPrCJvr99dkBW3KTm/upoF5WApaOzm9tm1ULEN+XT36lqMDvgxzbjYTMlPGs31iKHS+AY0j1/dyX4+unvsZ2AMTeCNxsXU1IU0ukm0KiTzIyWUnpLv47iipvRCM9C+powXZkqGg3z9UCCjOuFySs4ejeSUMS6TpqFQrX2TUqZWUzIgZ/majPGrk5CeDHpk9+kPT5uXFPM1sAtu7B+cJWBrq2Lc5IJigGIBNbOux2dcQ2S5Qp9x1UUm9xh5qzT/iEGn4jnm/i6M5fHG3/GmFPFBsmaLdOvVzgjPkpqhLc+mZPQomCnwJLVNI1GhjYM1Vxw90M1mLaybV7Zlm+EfAWF/+Uj1jjCj0aiZD44pZLAntr9qzvZHNEGJh8pdj28hw3ELfgkfslJDDtSeTHpkGOvThikJzevcbY18PxQqumn0rCFhBoMfwi/kzLgeu6dQJoKHyLlGBU+kzzEOplmgFXfXrMYdg5cJUF8QJt3IEKAGnhioaaqWoLuEa/IiHHVR3omWL9poOdi2lv1o0sYDU+glbK7cDn5BQxCmhZkdcDM5xbMhBLsCaNthlEJwrnGdNTNu6f4W5GZ4qxEYd0rMilnaCNXWJINIaVoyA0EDLbiEzjuK+zsLdofYLCjP2Zk7xXbnG+NLEglqzNyrHkre/ZFXFamQqyJRl6odBTXJRummPb1hXn1ulZ0eUfJc8OjmbiV9pEbGjTk5fdWia6vP7epGR3MvtTY30yBA1WBNP0FP+mHBBQtudzcT8AwVm8DRFjCDhDLQz2XiYf7jHeTcvZOfC2uVbHM/QP8bItLS3Sn4TdL3qeotrlNuCH4oKZOJ3K6nvPRQ4ggmMQouyXokVSuyUoVgZKMKNwaE2x+/luNfZk/rrPvTa8+sZ3Lok7t4To8vcydNhsef95LqeWH4b8LSlRXDFugadXQT7SDWReTfonN2AOicHSw6owNAZ3Sw6IwPAJ3xwaIzOQB0Jt8iOnuGv9bFpxtO1RmPSqMnXHuqiLxGouEN0MQc2BNZXFVz1VHHNxDr+zLPW1zgZR9vxMYSozIgWF/dYAnf7j19nKwqB/lBi5NjV0JgBZEolQjoRyo77pFdBsccS25VWD9TGrDbUu1q9OO/QkHlDea1t7hENYRLvJBLWKFAOAtoexiV/p99rLqENabGqhfr9QRaveqOXq2r8rp7nAVlkYo1q/vN+B8CSHpg";
+
+      // Initialize Gist with config
+      const config = getConfig();
       /*
         Dev Setup Options
         { siteId: "siteid", dataCenter: "us", env: "dev", logging: true }
       */
-      Gist.setup({ siteId: "a5ec106751ef4b34a0b9", dataCenter: "eu", logging: true, env: "prod", useAnonymousSession: true });
-      Gist.setUserToken("ABC123");
+      Gist.setup({
+        siteId: config.siteId,
+        dataCenter: config.dataCenter,
+        logging: config.logging,
+        env: config.env,
+        useAnonymousSession: config.useAnonymousSession
+      });
+      Gist.setUserToken(config.userToken);
       Gist.setCurrentRoute("home");
 
       Gist.events.on("messageShown", message => {
@@ -51,6 +133,10 @@
 
       Gist.events.on("messageAction", params => {
         console.log(`onMessageAction, Action: ${params.action} with name ${params.name} on route: ${params.message.currentRoute} with instanceId: ${params.message.instanceId}`);
+      });
+
+      Gist.events.on("inboxMessageAction", params => {
+        console.log(`onInboxMessageAction, Action: ${params.action}, Inbox Message:`, params.message);
       });
 
       function showHTMLMessage() {
@@ -122,5 +208,6 @@
         Gist.setCustomAttribute("cio_anonymous_id", "123456");
       }
     </script>
+    <script src="inbox.js"></script>
   </body>
 </html>

@@ -7,6 +7,7 @@ import { resolveMessageProperties } from "./gist-properties-manager";
 import { clearKeyFromLocalStore, getKeyFromLocalStore } from '../utilities/local-storage';
 import { updateBroadcastsLocalStore, getEligibleBroadcasts, isShowAlwaysBroadcast } from './message-broadcast-manager';
 import { updateQueueLocalStore, getMessagesFromLocalStore, isMessageLoading, setMessageLoading } from './message-user-queue-manager';
+import { updateInboxMessagesLocalStore } from './inbox-message-manager';
 import { settings } from '../services/settings';
 
 var sleep = time => new Promise(resolve => setTimeout(resolve, time))
@@ -109,13 +110,14 @@ async function checkQueueThroughPolling() {
       // We're using the TTL as a way to determine if we should check the queue, so if the key is not there, we check the queue.
       if (getKeyFromLocalStore(userQueueNextPullCheckLocalStoreName) === null) {
         var response = await getUserQueue();
-        var responseData = [];
         if (response) {
           if (response.status === 200 || response.status === 204) {
             log("200 response, updating local store.");
-            responseData = response.data;
-            updateQueueLocalStore(responseData);
-            updateBroadcastsLocalStore(responseData);
+            var inAppMessages = response.data?.inAppMessages || [];
+            var inboxMessages = response.data?.inboxMessages || [];
+            updateQueueLocalStore(inAppMessages);
+            updateBroadcastsLocalStore(inAppMessages);
+            updateInboxMessagesLocalStore(inboxMessages);
           } else if (response.status === 304) {
             log("304 response, using local store.");
           }
@@ -178,6 +180,16 @@ async function setupSSEQueueListener() {
     } catch (e) {
       log("Failed to parse SSE message", e);
       stopSSEListener();
+    }
+  });
+
+  sseSource.addEventListener("inbox_messages", async (event) => {
+    try {
+      var inboxMessages = JSON.parse(event.data);
+      log("SSE inbox messages received:", inboxMessages);
+      await updateInboxMessagesLocalStore(inboxMessages);
+    } catch (e) {
+      log("Failed to parse SSE inbox messages", e);
     }
   });
 

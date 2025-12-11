@@ -22,7 +22,7 @@ export async function getUserQueue() {
         "X-Gist-User-Anonymous": isUsingGuestUserToken(),
         "Content-Language": getUserLocale()
       }
-      response = await UserNetworkInstance().post(`/api/v3/users?sessionId=${getSessionId()}`, {}, { headers: headers });
+      response = await UserNetworkInstance().post(`/api/v4/users?sessionId=${getSessionId()}`, {}, { headers: headers });
     }
   } catch (error) {
     if (error.response) {
