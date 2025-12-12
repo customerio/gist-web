@@ -376,7 +376,6 @@ async function reloadMessageWithNewDisplay(message, stepName) {
 async function hideMessageVisually(message) {
   if (message.overlay) {
     await hideOverlayComponent();
-    removeOverlayComponent();
   } else {
     hideEmbedComponent(message.elementId);
   }

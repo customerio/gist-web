@@ -1,6 +1,7 @@
 import Gist from '../gist';
 import { positions } from '../managers/page-component-manager';
 import { resolveMessageProperties } from '../managers/gist-properties-manager';
+import { log } from './log';
 
 export function fetchMessageByInstanceId(instanceId) {
   return Gist.currentMessages.find(message => message.instanceId === instanceId);
@@ -38,6 +39,13 @@ export function mapOverlayPositionToElementId(overlayPosition) {
     "bottomCenter": "x-gist-floating-bottom",
     "bottomRight": "x-gist-floating-bottom-right"
   };
+  
+  // Validate overlayPosition and provide fallback
+  if (!overlayPosition || !positionMap[overlayPosition]) {
+    log(`Invalid overlay position "${overlayPosition}", defaulting to "topCenter"`);
+    return positionMap["topCenter"];
+  }
+  
   return positionMap[overlayPosition];
 }
 
