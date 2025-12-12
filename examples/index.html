@@ -7,6 +7,24 @@
     <link href="styles.css" rel="stylesheet">
   </head>
   <body>
+    <div class="inbox-header">
+      <div class="inbox-icon-container toggle-inbox">
+        <svg class="inbox-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+          <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+        </svg>
+        <span class="inbox-badge" id="inboxBadge" style="display: none;">0</span>
+      </div>
+    </div>
+    <div class="inbox-panel" id="inboxPanel" style="display: none;">
+      <div class="inbox-panel-header">
+        <h3>Inbox Messages</h3>
+        <button class="close-btn toggle-inbox">×</button>
+      </div>
+      <div class="inbox-panel-content" id="inboxPanelContent">
+        <p class="no-messages">No messages</p>
+      </div>
+    </div>
     <div id="banner"></div>
     <div class="row header">
       <h1>Gist for Web</h1>
@@ -27,16 +45,80 @@
     <div class="row docs">
       <p>More information can be found on our <a target="_blank" href="https://docs.gist.build">docs</a>, if you have any question you can email us at <a target="_blank" href="mailto:support@gist.build">support@gist.build</a></p>
     </div>
+    <div class="config-form-sticky">
+      <div class="config-form-header" onclick="toggleConfigForm()">
+        <span>⚙️ Configuration Override</span>
+        <span id="configToggleIcon">▼</span>
+      </div>
+      <div class="config-form-content" id="configFormContent">
+        <form id="configForm" onsubmit="saveConfig(event)">
+          <div class="form-section">
+            <h4>Gist.setup()</h4>
+            <div class="form-field">
+              <label for="siteId">Site ID:</label>
+              <input type="text" id="siteId" name="siteId" />
+            </div>
+            <div class="form-field">
+              <label for="dataCenter">Data Center:</label>
+              <select id="dataCenter" name="dataCenter">
+                <option value="us">us</option>
+                <option value="eu">eu</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="env">Environment:</label>
+              <select id="env" name="env">
+                <option value="prod">prod</option>
+                <option value="dev">dev</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="logging">
+                <input type="checkbox" id="logging" name="logging" />
+                Logging
+              </label>
+            </div>
+            <div class="form-field">
+              <label for="useAnonymousSession">
+                <input type="checkbox" id="useAnonymousSession" name="useAnonymousSession" />
+                Use Anonymous Session
+              </label>
+            </div>
+          </div>
+          <div class="form-section">
+            <h4>Gist.setUserToken()</h4>
+            <div class="form-field">
+              <label for="userToken">User Token:</label>
+              <input type="text" id="userToken" name="userToken" />
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="button primary">Save & Reload</button>
+            <button type="button" class="button" onclick="resetConfig()">Reset to Defaults</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <script src="settings.js"></script>
     <script src="../dist/gist.js"></script>
     <script type="text/javascript">
       var EncodedTestHTMLMessage = "eNrdWG1v2zYQ/p5fwWkfkgCWZcd2V7i2hy1dVwxpMyAphn0aKPEkcaFIgaT80qL/fUfLSRRFcpVsKwoTdiKRx7vjPc+RPM++e315fv3n77+Q1GZicTRz/4igMpl7ID3XAZQtjgi2WQaWkiil2oCdex+u3/gvveqQpBnMvSWHVa609UikpAWJoivObDpnsOQR+NuXHuGSW06FbyIqYD7sD25VWW4FLH67unxPrCJvr99dkBW3KTm/upoF5WApaOzm9tm1ULEN+XT36lqMDvgxzbjYTMlPGs31iKHS+AY0j1/dyX4+unvsZ2AMTeCNxsXU1IU0ukm0KiTzIyWUnpLv47iipvRCM9C+powXZkqGg3z9UCCjOuFySs4ejeSUMS6TpqFQrX2TUqZWUzIgZ/majPGrk5CeDHpk9+kPT5uXFPM1sAtu7B+cJWBrq2Lc5IJigGIBNbOux2dcQ2S5Qp9x1UUm9xh5qzT/iEGn4jnm/i6M5fHG3/GmFPFBsmaLdOvVzgjPkpqhLc+mZPQomCnwJLVNI1GhjYM1Vxw90M1mLaybV7Zlm+EfAWF/+Uj1jjCj0aiZD44pZLAntr9qzvZHNEGJh8pdj28hw3ELfgkfslJDDtSeTHpkGOvThikJzevcbY18PxQqumn0rCFhBoMfwi/kzLgeu6dQJoKHyLlGBU+kzzEOplmgFXfXrMYdg5cJUF8QJt3IEKAGnhioaaqWoLuEa/IiHHVR3omWL9poOdi2lv1o0sYDU+glbK7cDn5BQxCmhZkdcDM5xbMhBLsCaNthlEJwrnGdNTNu6f4W5GZ4qxEYd0rMilnaCNXWJINIaVoyA0EDLbiEzjuK+zsLdofYLCjP2Zk7xXbnG+NLEglqzNyrHkre/ZFXFamQqyJRl6odBTXJRummPb1hXn1ulZ0eUfJc8OjmbiV9pEbGjTk5fdWia6vP7epGR3MvtTY30yBA1WBNP0FP+mHBBQtudzcT8AwVm8DRFjCDhDLQz2XiYf7jHeTcvZOfC2uVbHM/QP8bItLS3Sn4TdL3qeotrlNuCH4oKZOJ3K6nvPRQ4ggmMQouyXokVSuyUoVgZKMKNwaE2x+/luNfZk/rrPvTa8+sZ3Lok7t4To8vcydNhsef95LqeWH4b8LSlRXDFugadXQT7SDWReTfonN2AOicHSw6owNAZ3Sw6IwPAJ3xwaIzOQB0Jt8iOnuGv9bFpxtO1RmPSqMnXHuqiLxGouEN0MQc2BNZXFVz1VHHNxDr+zLPW1zgZR9vxMYSozIgWF/dYAnf7j19nKwqB/lBi5NjV0JgBZEolQjoRyo77pFdBsccS25VWD9TGrDbUu1q9OO/QkHlDea1t7hENYRLvJBLWKFAOAtoexiV/p99rLqENabGqhfr9QRaveqOXq2r8rp7nAVlkYo1q/vN+B8CSHpg";
       var EncodedTestMultiStepMessage = "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";
+
+      // Initialize Gist with config
+      const config = getConfig();
       /*
         Dev Setup Options
         { siteId: "siteid", dataCenter: "us", env: "dev", logging: true }
       */
-      Gist.setup({ siteId: "a5ec106751ef4b34a0b9", dataCenter: "eu", logging: true, env: "prod", useAnonymousSession: true });
-      Gist.setUserToken("ABC123");
+      Gist.setup({
+        siteId: config.siteId,
+        dataCenter: config.dataCenter,
+        logging: config.logging,
+        env: config.env,
+        useAnonymousSession: config.useAnonymousSession
+      });
+      Gist.setUserToken(config.userToken);
       Gist.setCurrentRoute("home");
 
       Gist.events.on("messageShown", message => {
@@ -53,6 +135,10 @@
 
       Gist.events.on("messageAction", params => {
         console.log(`onMessageAction, Action: ${params.action} with name ${params.name} on route: ${params.message.currentRoute} with instanceId: ${params.message.instanceId}`);
+      });
+
+      Gist.events.on("inboxMessageAction", params => {
+        console.log(`onInboxMessageAction, Action: ${params.action}, Inbox Message:`, params.message);
       });
 
       function showHTMLMessage() {
@@ -138,5 +224,6 @@
         Gist.setCustomAttribute("cio_anonymous_id", "123456");
       }
     </script>
+    <script src="inbox.js"></script>
   </body>
 </html>

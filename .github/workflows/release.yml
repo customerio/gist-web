@@ -6,9 +6,14 @@ on:
     tags:
       - '*'
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   release:
     runs-on: ubuntu-latest
+    environment: release
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.GIST_WEB_AWS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.GIST_WEB_AWS_SECRET_ACCESS_KEY }}
@@ -16,11 +21,16 @@ jobs:
       CLOUDFLARE_ACCESS_TOKEN: ${{ secrets.CLOUDFLARE_ACCESS_TOKEN }}
       CLOUDFLARE_ZONE_ID: 3310bc68d22035edbc12d5d4a4fd278c
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
           node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install npm 11.5.1+ for OIDC support
+        run: npm install -g npm@latest
+
       - name: Build
         shell: bash
         run: |
@@ -41,13 +51,12 @@ jobs:
           aws_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws_bucket: ${{ env.AWS_BUCKET }}
-          source_dir: 'dist'          
+          source_dir: 'dist'
           destination_dir: ${{ env.AWS_DEST }}
           endpoint: 'ams3.digitaloceanspaces.com'
       - name: Publish to NPM
-        uses: JS-DevTools/npm-publish@9ff4ebfbe48473265867fb9608c047e7995edfa3 # v3.1.1
-        with:
-          token: ${{ secrets.NPM_TOKEN }}
+        run: npm publish
+
       - name: Update Cloudflare rules
         shell: bash
         run: |
@@ -74,7 +83,6 @@ jobs:
             UPDATED_RULE=$(echo "$RULE_BODY" | jq \
               --arg version "$RELEASE_VERSION" \
               '(.actions[] | select(.id == "forwarding_url") | .value.url) = "https://code.gist.build/web/" + $version + "/gist.min.js"')
-
 
             echo "Sending updated rule back to Cloudflare..."
             curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/pagerules/$RULE_ID" \
