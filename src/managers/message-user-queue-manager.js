@@ -1,5 +1,6 @@
 import { getKeyFromLocalStore, setKeyToLocalStore, clearKeyFromLocalStore } from '../utilities/local-storage';
 import { getHashedUserToken } from './user-manager';
+import { log } from '../utilities/log';
 
 const messageQueueLocalStoreName = "gist.web.message.user";
 const messagesLocalStoreCacheInMinutes = 60;
@@ -77,4 +78,43 @@ async function getMessageLoadingStateLocalStoreName(queueId) {
   const userToken = await getHashedUserToken();
   if (!userToken) return null;
   return `${messageQueueLocalStoreName}.${userToken}.message.${queueId}.loading`
+}
+
+async function getMessageStateLocalStoreName(queueId) {
+  const userToken = await getHashedUserToken();
+  if (!userToken) return null;
+  return `${messageQueueLocalStoreName}.${userToken}.message.${queueId}.state`;
+}
+
+export async function saveMessageState(queueId, stepName, displaySettings) {
+  const messageStateLocalStoreName = await getMessageStateLocalStoreName(queueId);
+  if (!messageStateLocalStoreName) return;
+  
+  // Get existing state to merge with new values
+  const existingState = getKeyFromLocalStore(messageStateLocalStoreName) || {};
+  
+  const state = {
+    stepName: stepName !== undefined ? stepName : existingState.stepName,
+    displaySettings: displaySettings !== undefined ? displaySettings : existingState.displaySettings
+  };
+  
+  const expiryDate = new Date();
+  expiryDate.setDate(expiryDate.getDate() + 30); // 30-day TTL
+  setKeyToLocalStore(messageStateLocalStoreName, state, expiryDate);
+  log(`Saved message state for queueId: ${queueId}`, state);
+}
+
+export async function getSavedMessageState(queueId) {
+  const messageStateLocalStoreName = await getMessageStateLocalStoreName(queueId);
+  if (!messageStateLocalStoreName) return null;
+  
+  return getKeyFromLocalStore(messageStateLocalStoreName);
+}
+
+export async function clearMessageState(queueId) {
+  const messageStateLocalStoreName = await getMessageStateLocalStoreName(queueId);
+  if (!messageStateLocalStoreName) return;
+  
+  clearKeyFromLocalStore(messageStateLocalStoreName);
+  log(`Cleared message state for queueId: ${queueId}`);
 }

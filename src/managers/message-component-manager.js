@@ -4,9 +4,9 @@ import { resolveMessageProperties } from "./gist-properties-manager";
 import { embedHTMLTemplate } from "../templates/embed";
 import { messageHTMLTemplate } from "../templates/message";
 import { positions } from "./page-component-manager";
+import { wideOverlayPositions } from "../utilities/message-utils";
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
-const wideOverlayPositions = ["x-gist-top", "x-gist-bottom", "x-gist-floating-top", "x-gist-floating-bottom"];
 
 export function isElementLoaded(elementId) {
   var element = safelyFetchElement(elementId);
@@ -17,7 +17,7 @@ export function isElementLoaded(elementId) {
   }
 }
 
-export function loadEmbedComponent(elementId, url, message, options) {
+export function loadEmbedComponent(elementId, url, message, options, stepName = null) {
   var element = safelyFetchElement(elementId);
   if (element) {
     var messageElementId = getMessageElementId(message.instanceId);
@@ -35,7 +35,7 @@ export function loadEmbedComponent(elementId, url, message, options) {
       element.style.height = "0px";
     }
     element.innerHTML = embed(url, message, messageProperties);
-    attachIframeLoadEvent(messageElementId, options);
+    attachIframeLoadEvent(messageElementId, options, stepName);
   } else {
     log(`Message could not be embedded, elementId ${elementId} not found.`);
   }
@@ -52,7 +52,11 @@ export function hideEmbedComponent(elementId) {
   var element = safelyFetchElement(elementId);
   if (element) {
     element.classList.remove("gist-visible");
+    // Remove all gist-* classes (instanceId classes)
+    const classesToRemove = Array.from(element.classList).filter(cls => cls.startsWith('gist-'));
+    classesToRemove.forEach(cls => element.classList.remove(cls));
     element.style.removeProperty("height");
+    element.style.removeProperty("width");
     element.innerHTML = "";
   }
 }
@@ -85,24 +89,36 @@ export function resizeComponent(message, size) {
   }
 }
 
-export function loadOverlayComponent(url, message, options) {
+export function loadOverlayComponent(url, message, options, stepName = null) {
   document.body.insertAdjacentHTML('afterbegin', component(url, message));
-  attachIframeLoadEvent(getMessageElementId(message.instanceId), options);
+  attachIframeLoadEvent(getMessageElementId(message.instanceId), options, stepName);
 }
 
-function attachIframeLoadEvent(elementId, options) {
+function attachIframeLoadEvent(elementId, options, stepName = null) {
   const iframe = document.getElementById(elementId);
   if (iframe) {
       iframe.onload = function() {
-          sendOptionsToIframe(elementId, options); // Send the options when iframe loads
+          sendOptionsToIframe(elementId, options, stepName); // Send the options when iframe loads
       };
   }
 }
 
-function sendOptionsToIframe(iframeId, options) {
+// SDK capabilities that can be communicated to the renderer
+const SDK_CAPABILITIES = [
+  'MultiStepDisplayTypes'
+];
+
+export function sendOptionsToIframe(iframeId, options, stepName = null) {
   const iframe = document.getElementById(iframeId);
   if (iframe && iframe.contentWindow) {
-      iframe.contentWindow.postMessage({ options: options }, '*');
+      const message = { 
+        options: options,
+        capabilities: SDK_CAPABILITIES
+      };
+      if (stepName) {
+        options.stepId = stepName;
+      }
+      iframe.contentWindow.postMessage(message, '*');
   }
 }
 

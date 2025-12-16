@@ -65,7 +65,7 @@ function checkKeyForExpiry(key) {
         const expiryTime = new Date(item.expiry);
         
         // remove old cache entries with long expiry times
-        const isBroadcastOrUserKey = (key.startsWith("gist.web.message.broadcasts") && !key.endsWith("shouldShow") && !key.endsWith("numberOfTimesShown")) || (key.startsWith("gist.web.message.user") && !key.endsWith("seen"));
+        const isBroadcastOrUserKey = (key.startsWith("gist.web.message.broadcasts") && !key.endsWith("shouldShow") && !key.endsWith("numberOfTimesShown")) || (key.startsWith("gist.web.message.user") && !key.endsWith("seen") && !key.endsWith("state"));
         const sixtyMinutesFromNow = new Date(now.getTime() + 61 * 60 * 1000);
         if (isBroadcastOrUserKey && expiryTime.getTime() > sixtyMinutesFromNow.getTime()) {
             clearKeyFromLocalStore(key);
