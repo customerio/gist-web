@@ -3,6 +3,8 @@ import { positions } from '../managers/page-component-manager';
 import { resolveMessageProperties } from '../managers/gist-properties-manager';
 import { log } from './log';
 
+export const wideOverlayPositions = ["x-gist-top", "x-gist-bottom", "x-gist-floating-top", "x-gist-floating-bottom"];
+
 export function fetchMessageByInstanceId(instanceId) {
   return Gist.currentMessages.find(message => message.instanceId === instanceId);
 }
@@ -157,8 +159,14 @@ export function applyDisplaySettings(message, displaySettings) {
     message.properties.gist.position = null;
   }
   
-  // Apply other settings - clear if not specified so defaults are used
-  if (displaySettings.maxWidth !== undefined) {
+  // Apply width settings - clear if not specified so defaults are used
+  // This is especially important for wide overlay positions (top/bottom) which should use 100% width
+  const isWideOverlayPosition = message.elementId && wideOverlayPositions.includes(message.elementId);
+  
+  // For wide overlay positions, ALWAYS clear custom width to ensure 100% width
+  if (isWideOverlayPosition) {
+    delete message.properties.gist.messageWidth;
+  } else if (displaySettings.maxWidth !== undefined && displaySettings.maxWidth > 0) {
     message.properties.gist.messageWidth = displaySettings.maxWidth;
   } else {
     delete message.properties.gist.messageWidth;

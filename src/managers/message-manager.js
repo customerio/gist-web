@@ -342,17 +342,10 @@ async function reloadMessageWithNewDisplay(message, stepName) {
   // but without triggering messageShown event or logging view
   message.isDisplayChange = true;
   message.renderStartTime = new Date().getTime();
-  
-  // Update Gist.overlayInstanceId based on new display type
-  if (message.overlay) {
-    Gist.overlayInstanceId = message.instanceId;
-  } else {
-    Gist.overlayInstanceId = null;
-  }
-  
+
   // Determine elementId based on display type
   var elementId = message.elementId || null;
-  
+
   // If moving to an elementId position, check if there's already a message there and dismiss it
   if (elementId) {
     const existingMessage = fetchMessageByElementId(elementId);
@@ -360,6 +353,20 @@ async function reloadMessageWithNewDisplay(message, stepName) {
       log(`Dismissing existing message at ${elementId} to make room for multi-step message`);
       await hideMessage(existingMessage);
     }
+  }
+  
+  // Update Gist.overlayInstanceId based on new display type
+  if (message.overlay) {
+    Gist.overlayInstanceId = message.instanceId;
+    // Set properties for overlay display
+    var properties = resolveMessageProperties(message);
+    message.shouldScale = properties.shouldScale;
+    message.shouldResizeHeight = true;
+  } else {
+    Gist.overlayInstanceId = null;
+    // Set properties for embedded display
+    message.shouldScale = false;
+    message.shouldResizeHeight = !elementHasHeight(elementId);
   }
   
   // Add page element if it's an overlay position

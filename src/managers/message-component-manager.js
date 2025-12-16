@@ -4,9 +4,9 @@ import { resolveMessageProperties } from "./gist-properties-manager";
 import { embedHTMLTemplate } from "../templates/embed";
 import { messageHTMLTemplate } from "../templates/message";
 import { positions } from "./page-component-manager";
+import { wideOverlayPositions } from "../utilities/message-utils";
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
-const wideOverlayPositions = ["x-gist-top", "x-gist-bottom", "x-gist-floating-top", "x-gist-floating-bottom"];
 
 export function isElementLoaded(elementId) {
   var element = safelyFetchElement(elementId);
@@ -52,7 +52,11 @@ export function hideEmbedComponent(elementId) {
   var element = safelyFetchElement(elementId);
   if (element) {
     element.classList.remove("gist-visible");
+    // Remove all gist-* classes (instanceId classes)
+    const classesToRemove = Array.from(element.classList).filter(cls => cls.startsWith('gist-'));
+    classesToRemove.forEach(cls => element.classList.remove(cls));
     element.style.removeProperty("height");
+    element.style.removeProperty("width");
     element.innerHTML = "";
   }
 }
