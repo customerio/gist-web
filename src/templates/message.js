@@ -28,6 +28,7 @@ export function messageHTMLTemplate(elementId, messageProperties, url) {
                 z-index: 9999999999;
                 left: 50%;
                 transform: translateX(-50%);
+                color-scheme: light;
             }
             .gist-message.gist-visible {
                 opacity: 1;
