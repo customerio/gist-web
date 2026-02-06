@@ -52,7 +52,6 @@ export async function showMessage(message) {
       message.shouldScale = properties.shouldScale;
       message.renderStartTime = new Date().getTime();
       Gist.overlayInstanceId = message.instanceId;
-      Gist.currentMessages.push(message);
 
       // Use saved step if available (set by queue manager)
       const savedStep = message.savedStepName || null;
@@ -64,17 +63,10 @@ export async function showMessage(message) {
   }
 }
 
-export async function embedMessage(message, elementId) {
+export function embedMessage(message, elementId) {
   if (Gist.isDocumentVisible) {
     if (isQueueIdAlreadyShowing(message.queueId)) {
       log(`Message with queueId ${message.queueId} is already showing.`);
-      return null;
-    }
-    
-    // Check if the target element already has a message
-    const existingMessage = fetchMessageByElementId(elementId);
-    if (existingMessage) {
-      log(`Message with elementId ${elementId} already has a message.`);
       return null;
     }
 
@@ -85,7 +77,6 @@ export async function embedMessage(message, elementId) {
     message.elementId = elementId;
     message.shouldResizeHeight = !elementHasHeight(elementId);
     message.renderStartTime = new Date().getTime();
-    Gist.currentMessages.push(message);
 
     // Use saved step if available (set by queue manager)
     const savedStep = message.savedStepName || null;
@@ -148,9 +139,19 @@ async function resetOverlayState(hideFirst, message) {
 
 function loadMessageComponent(message, elementId = null, stepName = null) {
   if (elementId && isElementLoaded(elementId)) {
-    log(`Message ${message.messageId} already showing in element ${elementId}.`);
-    return null;
+    if (isElementLoaded(elementId)) {
+      log(`Message ${message.messageId} already showing in element ${elementId}.`);
+      return null;
+    }
+
+    const existingMessage = fetchMessageByElementId(elementId);
+    if (existingMessage) {
+      log(`ElementId ${elementId} already occupied by message ${existingMessage.instanceId}.`);
+      return null;
+    }
   }
+
+  Gist.currentMessages.push(message);
 
   var options = {
     endpoint: settings.ENGINE_API_ENDPOINT[Gist.config.env],
