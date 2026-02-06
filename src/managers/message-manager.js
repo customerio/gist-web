@@ -52,6 +52,7 @@ export async function showMessage(message) {
       message.shouldScale = properties.shouldScale;
       message.renderStartTime = new Date().getTime();
       Gist.overlayInstanceId = message.instanceId;
+      Gist.currentMessages.push(message);
 
       // Use saved step if available (set by queue manager)
       const savedStep = message.savedStepName || null;
@@ -70,6 +71,12 @@ export function embedMessage(message, elementId) {
       return null;
     }
 
+    const existingMessage = fetchMessageByElementId(elementId);
+    if (existingMessage) {
+      log(`Message with elementId ${elementId} already has a message.`);
+      return null;
+    }
+
     message.instanceId = uuidv4();
     message.overlay = false;
     message.firstLoad = true;
@@ -77,6 +84,7 @@ export function embedMessage(message, elementId) {
     message.elementId = elementId;
     message.shouldResizeHeight = !elementHasHeight(elementId);
     message.renderStartTime = new Date().getTime();
+    Gist.currentMessages.push(message);
 
     // Use saved step if available (set by queue manager)
     const savedStep = message.savedStepName || null;
@@ -150,8 +158,6 @@ function loadMessageComponent(message, elementId = null, stepName = null) {
       return null;
     }
   }
-
-  Gist.currentMessages.push(message);
 
   var options = {
     endpoint: settings.ENGINE_API_ENDPOINT[Gist.config.env],
