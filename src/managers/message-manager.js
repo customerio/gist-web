@@ -147,16 +147,8 @@ async function resetOverlayState(hideFirst, message) {
 
 function loadMessageComponent(message, elementId = null, stepName = null) {
   if (elementId && isElementLoaded(elementId)) {
-    if (isElementLoaded(elementId)) {
-      log(`Message ${message.messageId} already showing in element ${elementId}.`);
-      return null;
-    }
-
-    const existingMessage = fetchMessageByElementId(elementId);
-    if (existingMessage) {
-      log(`ElementId ${elementId} already occupied by message ${existingMessage.instanceId}.`);
-      return null;
-    }
+    log(`Message ${message.messageId} already showing in element ${elementId}.`);
+    return null;
   }
 
   var options = {
