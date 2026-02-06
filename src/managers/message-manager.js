@@ -71,6 +71,13 @@ export async function embedMessage(message, elementId) {
       return null;
     }
     
+    // Check if the target element already has a message
+    const existingMessage = fetchMessageByElementId(elementId);
+    if (existingMessage) {
+      log(`Message with elementId ${elementId} already has a message.`);
+      return null;
+    }
+
     message.instanceId = uuidv4();
     message.overlay = false;
     message.firstLoad = true;

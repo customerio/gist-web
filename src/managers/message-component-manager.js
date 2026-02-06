@@ -111,14 +111,14 @@ const SDK_CAPABILITIES = [
 export function sendOptionsToIframe(iframeId, options, stepName = null) {
   const iframe = document.getElementById(iframeId);
   if (iframe && iframe.contentWindow) {
-      const message = { 
-        options: options,
-        capabilities: SDK_CAPABILITIES
-      };
-      if (stepName) {
-        options.stepId = stepName;
-      }
-      iframe.contentWindow.postMessage(message, '*');
+    const message = { 
+      options: options,
+      capabilities: SDK_CAPABILITIES
+    };
+    if (stepName) {
+      options.stepId = stepName;
+    }
+    iframe.contentWindow.postMessage(message, '*');
   }
 }
 
