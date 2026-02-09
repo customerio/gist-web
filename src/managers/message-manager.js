@@ -146,11 +146,6 @@ async function resetOverlayState(hideFirst, message) {
 }
 
 function loadMessageComponent(message, elementId = null, stepName = null) {
-  if (elementId && isElementLoaded(elementId)) {
-    log(`Message ${message.messageId} already showing in element ${elementId}.`);
-    return null;
-  }
-
   var options = {
     endpoint: settings.ENGINE_API_ENDPOINT[Gist.config.env],
     siteId: Gist.config.siteId,
