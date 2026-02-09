@@ -13,7 +13,6 @@ import {
   hideEmbedComponent,
   resizeComponent,
   elementHasHeight,
-  isElementLoaded,
   changeOverlayTitle
 } from "./message-component-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
