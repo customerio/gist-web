@@ -86,7 +86,7 @@ async function handleMessage(message) {
   } else {
     var loading = false;
     if (messageProperties.isEmbedded) {
-      loading = await embedMessage(message, messageProperties.elementId);
+      loading = embedMessage(message, messageProperties.elementId);
     } else {
       loading = await showMessage(message);
     }

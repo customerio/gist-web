@@ -1,4 +1,4 @@
 .vscode
 node_modules
-dist/gist.js
+dist
 web

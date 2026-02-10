@@ -13,7 +13,6 @@ import {
   hideEmbedComponent,
   resizeComponent,
   elementHasHeight,
-  isElementLoaded,
   changeOverlayTitle
 } from "./message-component-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
@@ -64,13 +63,19 @@ export async function showMessage(message) {
   }
 }
 
-export async function embedMessage(message, elementId) {
+export function embedMessage(message, elementId) {
   if (Gist.isDocumentVisible) {
     if (isQueueIdAlreadyShowing(message.queueId)) {
       log(`Message with queueId ${message.queueId} is already showing.`);
       return null;
     }
-    
+
+    const existingMessage = fetchMessageByElementId(elementId);
+    if (existingMessage) {
+      log(`Message with elementId ${elementId} already has a message.`);
+      return null;
+    }
+
     message.instanceId = uuidv4();
     message.overlay = false;
     message.firstLoad = true;
@@ -140,11 +145,6 @@ async function resetOverlayState(hideFirst, message) {
 }
 
 function loadMessageComponent(message, elementId = null, stepName = null) {
-  if (elementId && isElementLoaded(elementId)) {
-    log(`Message ${message.messageId} already showing in element ${elementId}.`);
-    return null;
-  }
-
   var options = {
     endpoint: settings.ENGINE_API_ENDPOINT[Gist.config.env],
     siteId: Gist.config.siteId,

@@ -8,15 +8,6 @@ import { wideOverlayPositions } from "../utilities/message-utils";
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
-export function isElementLoaded(elementId) {
-  var element = safelyFetchElement(elementId);
-  if (element && element.classList.contains("gist-visible")) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
 export function loadEmbedComponent(elementId, url, message, options, stepName = null) {
   var element = safelyFetchElement(elementId);
   if (element) {
@@ -111,14 +102,14 @@ const SDK_CAPABILITIES = [
 export function sendOptionsToIframe(iframeId, options, stepName = null) {
   const iframe = document.getElementById(iframeId);
   if (iframe && iframe.contentWindow) {
-      const message = { 
-        options: options,
-        capabilities: SDK_CAPABILITIES
-      };
-      if (stepName) {
-        options.stepId = stepName;
-      }
-      iframe.contentWindow.postMessage(message, '*');
+    const message = { 
+      options: options,
+      capabilities: SDK_CAPABILITIES
+    };
+    if (stepName) {
+      options.stepId = stepName;
+    }
+    iframe.contentWindow.postMessage(message, '*');
   }
 }
 
