@@ -88,7 +88,8 @@ export function loadOverlayComponent(url, message, options, stepName = null) {
 function attachIframeLoadEvent(elementId, options, stepName = null) {
   const iframe = document.getElementById(elementId);
   if (iframe) {
-    if (iframe.contentDocument?.readyState === 'complete') {
+    const isLoaded = iframe.contentDocument?.readyState === 'complete' && iframe.contentWindow?.location.href !== 'about:blank';
+    if (isLoaded) {
       sendOptionsToIframe(elementId, options, stepName);
     } else {
       iframe.onload = function() {
