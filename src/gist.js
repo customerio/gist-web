@@ -25,7 +25,7 @@ export default class {
       logging: config.logging === undefined ? false : config.logging,
       experiments: config.experiments === undefined ? false : config.experiments
     }
-    if (!this.currentMessages || !this.overlayInstanceId) {
+    if (this.currentMessages == null || this.overlayInstanceId == null) {
       this.currentMessages = [];
       this.overlayInstanceId = null;
     }
