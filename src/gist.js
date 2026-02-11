@@ -25,7 +25,7 @@ export default class {
       logging: config.logging === undefined ? false : config.logging,
       experiments: config.experiments === undefined ? false : config.experiments
     }
-    this.currentMessages = [];
+    this.currentMessages = this.currentMessages ?? [];
     this.overlayInstanceId = null;
     this.currentRoute = null;
     this.isDocumentVisible = true;

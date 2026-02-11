@@ -88,9 +88,13 @@ export function loadOverlayComponent(url, message, options, stepName = null) {
 function attachIframeLoadEvent(elementId, options, stepName = null) {
   const iframe = document.getElementById(elementId);
   if (iframe) {
+    if (iframe.contentDocument?.readyState === 'complete') {
+      sendOptionsToIframe(elementId, options, stepName);
+    } else {
       iframe.onload = function() {
-          sendOptionsToIframe(elementId, options, stepName); // Send the options when iframe loads
+        sendOptionsToIframe(elementId, options, stepName);
       };
+    }
   }
 }
 

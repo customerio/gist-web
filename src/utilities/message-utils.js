@@ -28,8 +28,12 @@ export function removeMessageByInstanceId(instanceId) {
 }
 
 export function updateMessageByInstanceId(instanceId, message) {
-  removeMessageByInstanceId(instanceId);
-  Gist.currentMessages.push(message);
+  const index = Gist.currentMessages.findIndex(m => m.instanceId === instanceId);
+  if (index !== -1) {
+    Gist.currentMessages[index] = message;
+  } else {
+    Gist.currentMessages.push(message);
+  }
 }
 
 export function mapOverlayPositionToElementId(overlayPosition) {
