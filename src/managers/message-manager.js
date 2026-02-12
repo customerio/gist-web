@@ -204,10 +204,9 @@ async function handleGistEvents(e) {
         log(`Engine render for message: ${currentMessage.messageId} timer elapsed in ${timeElapsed.toFixed(3)} seconds`);
         setMessageLoaded(currentMessage.queueId);
         currentMessage.currentRoute = e.data.gist.parameters.route;
-        if (e.data.gist.parameters.fullDisplaySettings && currentMessage.displaySettings === undefined) {
+        if (e.data.gist.parameters.fullDisplaySettings && !currentMessage.displaySettings) {
           currentMessage.displaySettings = e.data.gist.parameters.fullDisplaySettings;
-        }
-        else {
+        } else {
           log(`SDK already has display settings state, sending it to iframe`);
           sendDisplaySettingsToIframe(currentMessage);
         }

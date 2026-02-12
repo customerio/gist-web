@@ -114,6 +114,11 @@ export function sendOptionsToIframe(iframeId, options, stepName = null) {
 }
 
 export function sendDisplaySettingsToIframe(message) {
+  // Only send if displaySettings exist
+  if (!message.displaySettings) {
+    return;
+  }
+  
   const iframeId = getMessageElementId(message.instanceId);
   const iframe = document.getElementById(iframeId);
   if (iframe && iframe.contentWindow) {
