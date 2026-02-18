@@ -206,7 +206,7 @@ async function handleGistEvents(e) {
         currentMessage.currentRoute = e.data.gist.parameters.route;
         if (e.data.gist.parameters.fullDisplaySettings && !currentMessage.displaySettings) {
           currentMessage.displaySettings = e.data.gist.parameters.fullDisplaySettings;
-        } else {
+        } else if (currentMessage.displaySettings) {
           log(`SDK already has display settings state, sending it to iframe`);
           sendDisplaySettingsToIframe(currentMessage);
         }
