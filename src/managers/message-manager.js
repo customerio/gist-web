@@ -142,6 +142,7 @@ export async function messageHealthCheck() {
     
     // One-time use to avoid potentially adding multiple listeners
     clearInterval(Gist.messageHealthCheck);
+    Gist.messageHealthCheck = null;
   }
 }
 
