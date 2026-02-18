@@ -97,7 +97,6 @@ export function embedMessage(message, elementId) {
 export async function hideMessage(message) {
   if (message) {
     Gist.messageDismissed(message);
-    Gist.lastEventReceived = null;
 
     if (message.overlay) {
       await resetOverlayState(true, message);
@@ -138,7 +137,11 @@ export async function messageHealthCheck() {
 
   if (Gist.config.eventTimeoutThreshold < (new Date().getTime() - Gist.lastEventReceived)) {
     log(`No message received since last healthcheck ${Gist.config.eventTimeoutThreshold / 1000} second(s) ago, re-adding event listener.`);
+    Gist.lastEventReceived = null;
     window.addEventListener('message', handleGistEvents);
+    
+    // One-time use to avoid potentially adding multiple listeners
+    clearInterval(Gist.messageHealthCheck);
   }
 }
 

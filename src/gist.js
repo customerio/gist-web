@@ -51,8 +51,8 @@ export default class {
     }, false);
 
     this.lastEventReceived = null;
-    if (this.messageEventTimeout == null) {
-      this.messageEventTimeout = setInterval(messageHealthCheck, this.config.eventTimeoutThreshold);
+    if (this.messageHealthCheck == null) {
+      this.messageHealthCheck = setInterval(messageHealthCheck, this.config.eventTimeoutThreshold);
     }
   }
 
