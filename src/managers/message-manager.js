@@ -126,10 +126,12 @@ export async function removePersistentMessage(message) {
 
 export async function messageHealthCheck() {
   if (Gist.lastEventReceived == null) {
+    // Initial event form message not set yet, so nothing to do here
     return;
   }
 
   if (document.querySelector('.gist-visible') == null) {
+    // No visible message, so nothing to do here as well
     Gist.lastEventReceived = null;
     return;
   }
