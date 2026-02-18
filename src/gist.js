@@ -23,7 +23,8 @@ export default class {
       dataCenter: config.dataCenter,
       env: config.env === undefined ? "prod" : config.env,
       logging: config.logging === undefined ? false : config.logging,
-      experiments: config.experiments === undefined ? false : config.experiments
+      experiments: config.experiments === undefined ? false : config.experiments,
+      eventTimeoutThreshold: config.eventTimeoutThreshold || 5000,
     }
     this.currentMessages = [];
     this.overlayInstanceId = null;
@@ -51,7 +52,7 @@ export default class {
 
     this.lastEventReceived = null;
     if (this.messageEventTimeout == null) {
-      this.messageEventTimeout = setInterval(messageHealthCheck, 5000);
+      this.messageEventTimeout = setInterval(messageHealthCheck, this.config.eventTimeoutThreshold);
     }
   }
 

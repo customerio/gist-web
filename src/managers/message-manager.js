@@ -124,7 +124,7 @@ export async function removePersistentMessage(message) {
   }
 }
 
-export async function messageHealthCheck(e) {
+export async function messageHealthCheck() {
   if (Gist.lastEventReceived == null) {
     return;
   }
@@ -134,8 +134,8 @@ export async function messageHealthCheck(e) {
     return;
   }
 
-  if (Gist.lastEventReceived && (new Date().getTime() - Gist.lastEventReceived) > healthCheckThresholdMs) {
-    log(`No message received since last healthcheck, re-adding event listener.`);
+  if (Gist.lastEventReceived && (new Date().getTime() - Gist.lastEventReceived) > Gist.config.eventTimeoutThreshold) {
+    log(`No message received since last healthcheck ${Gist.config.eventTimeoutThreshold / 1000} second(s) ago, re-adding event listener.`);
     window.addEventListener('message', handleGistEvents);
   }
 }
