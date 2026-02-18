@@ -97,6 +97,7 @@ export function embedMessage(message, elementId) {
 export async function hideMessage(message) {
   if (message) {
     Gist.messageDismissed(message);
+    Gist.lastEventReceived = null;
 
     if (message.overlay) {
       await resetOverlayState(true, message);
@@ -120,6 +121,22 @@ export async function removePersistentMessage(message) {
     }
   } else {
     log(`Message with instance id: ${message.instanceId} not found`);
+  }
+}
+
+export async function messageHealthCheck(e) {
+  if (Gist.lastEventReceived == null) {
+    return;
+  }
+
+  if (document.querySelector('.gist-visible') == null) {
+    Gist.lastEventReceived = null;
+    return;
+  }
+
+  if (Gist.lastEventReceived && (new Date().getTime() - Gist.lastEventReceived) > healthCheckThresholdMs) {
+    log(`No message received since last healthcheck, re-adding event listener.`);
+    window.addEventListener('message', handleGistEvents);
   }
 }
 
@@ -193,6 +210,8 @@ function handleTouchStartEvents() {
 
 async function handleGistEvents(e) {
   if (e.data.gist && e.origin === settings.RENDERER_HOST) {
+    Gist.lastEventReceived = new Date().getTime();
+
     var currentInstanceId = e.data.gist.instanceId;
     var currentMessage = fetchMessageByInstanceId(currentInstanceId);
     if (!currentMessage) { return; }

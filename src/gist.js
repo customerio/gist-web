@@ -3,7 +3,7 @@ import { log } from "./utilities/log";
 import { clearExpiredFromLocalStore } from "./utilities/local-storage";
 import { startQueueListener, checkMessageQueue, stopSSEListener } from "./managers/queue-manager";
 import { setUserToken, clearUserToken, useGuestSession } from "./managers/user-manager";
-import { showMessage, embedMessage, hideMessage, removePersistentMessage, logBroadcastDismissedLocally } from "./managers/message-manager";
+import { showMessage, embedMessage, hideMessage, removePersistentMessage, logBroadcastDismissedLocally, messageHealthCheck } from "./managers/message-manager";
 import { fetchMessageByInstanceId } from "./utilities/message-utils";
 import { setUserLocale } from "./managers/locale-manager";
 import { setCustomAttribute, clearCustomAttributes, removeCustomAttribute } from "./managers/custom-attribute-manager";
@@ -25,10 +25,8 @@ export default class {
       logging: config.logging === undefined ? false : config.logging,
       experiments: config.experiments === undefined ? false : config.experiments
     }
-    if (this.currentMessages == null || this.overlayInstanceId == null) {
-      this.currentMessages = [];
-      this.overlayInstanceId = null;
-    }
+    this.currentMessages = [];
+    this.overlayInstanceId = null;
     this.currentRoute = null;
     this.isDocumentVisible = true;
     this.config.isPreviewSession = setupPreview();
@@ -50,6 +48,11 @@ export default class {
         await checkMessageQueue();
       }
     }, false);
+
+    this.lastEventReceived = null;
+    if (this.messageEventTimeout == null) {
+      this.messageEventTimeout = setInterval(messageHealthCheck, 5000);
+    }
   }
 
   static async setCurrentRoute(route) {

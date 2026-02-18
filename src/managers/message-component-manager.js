@@ -88,15 +88,9 @@ export function loadOverlayComponent(url, message, options, stepName = null) {
 function attachIframeLoadEvent(elementId, options, stepName = null) {
   const iframe = document.getElementById(elementId);
   if (iframe) {
-    if (iframe.contentDocument?.readyState === 'complete' && iframe.contentWindow?.location.href !== 'about:blank') {
-      // Send the options directly since iframe is loaded
-      sendOptionsToIframe(elementId, options, stepName);
-    } else {
-      // Set the options to send when iframe loads
-      iframe.onload = function() {
-        sendOptionsToIframe(elementId, options, stepName);
-      };
-    }
+    iframe.onload = function() {
+      sendOptionsToIframe(elementId, options, stepName); // Send the options when iframe loads
+    };
   }
 }
 
