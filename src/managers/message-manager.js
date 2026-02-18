@@ -134,7 +134,7 @@ export async function messageHealthCheck() {
     return;
   }
 
-  if (Gist.lastEventReceived && (new Date().getTime() - Gist.lastEventReceived) > Gist.config.eventTimeoutThreshold) {
+  if (Gist.config.eventTimeoutThreshold < (new Date().getTime() - Gist.lastEventReceived)) {
     log(`No message received since last healthcheck ${Gist.config.eventTimeoutThreshold / 1000} second(s) ago, re-adding event listener.`);
     window.addEventListener('message', handleGistEvents);
   }
