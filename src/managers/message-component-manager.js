@@ -113,6 +113,22 @@ export function sendOptionsToIframe(iframeId, options, stepName = null) {
   }
 }
 
+export function sendDisplaySettingsToIframe(message) {
+  // Only send if displaySettings exist
+  if (!message.displaySettings) {
+    return;
+  }
+  
+  const iframeId = getMessageElementId(message.instanceId);
+  const iframe = document.getElementById(iframeId);
+  if (iframe && iframe.contentWindow) {
+    iframe.contentWindow.postMessage({
+      action: 'updateDisplaySettings',
+      displaySettings: message.displaySettings
+    }, '*');
+  }
+}
+
 export function showOverlayComponent(message) {
   var messageProperties = resolveMessageProperties(message);
   var mainMessageElement = document.querySelector("#gist-overlay");
