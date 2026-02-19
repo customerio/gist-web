@@ -33,17 +33,16 @@ export async function getUserQueue() {
     }
   } finally {
     checkInProgress = false;
-
-    if (existingUserToken !== getUserToken()) {
-      log("User token changed, clearing queue next pull check.");
-      clearKeyFromLocalStore(userQueueNextPullCheckLocalStoreName);
-      return;
-    }
-
-    scheduleNextQueuePull(response);
-    setQueueUseSSE(response);
   }
 
+  if (existingUserToken !== getUserToken()) {
+    log("User token changed, clearing queue next pull check.");
+    clearKeyFromLocalStore(userQueueNextPullCheckLocalStoreName);
+    return;
+  }
+
+  scheduleNextQueuePull(response);
+  setQueueUseSSE(response);
   return response;
 }
 
