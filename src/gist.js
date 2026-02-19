@@ -34,7 +34,7 @@ export default class {
 
     log(`Setup complete on ${this.config.env} environment.`);
 
-    if (!this.config.isPreviewSession && this.config.useAnonymousSession && new URLSearchParams(location.search).has('ajs_uid')) {
+    if (!this.config.isPreviewSession && this.config.useAnonymousSession && !new URLSearchParams(location.search).has('ajs_uid')) {
       useGuestSession();
     }
 
