@@ -47,7 +47,7 @@
     </div>
     <div class="config-form-sticky">
       <div class="config-form-header" onclick="toggleConfigForm()">
-        <span>⚙️ Configuration Override</span>
+        <span>⚙️ Configuration Override & Debugging</span>
         <span id="configToggleIcon">▼</span>
       </div>
       <div class="config-form-content" id="configFormContent">
@@ -97,6 +97,13 @@
             <button type="button" class="button" onclick="resetConfig()">Reset to Defaults</button>
           </div>
         </form>
+        <div class="form-section" style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 20px;">
+          <h4>Active Messages & Display Settings</h4>
+          <div id="activeMessages" style="margin-top: 10px;">
+            <p style="color: #999; font-size: 14px;">No active messages</p>
+          </div>
+          <button type="button" class="button" onclick="refreshActiveMessages()" style="margin-top: 10px;">Refresh Messages</button>
+        </div>
       </div>
     </div>
     <script src="settings.js"></script>
@@ -223,6 +230,89 @@
       function addAnonymousCustomAttribute() {
         Gist.setCustomAttribute("cio_anonymous_id", "123456");
       }
+
+      // Active Messages Display Settings Utility
+      function refreshActiveMessages() {
+        const container = document.getElementById('activeMessages');
+        
+        if (!Gist.currentMessages || Gist.currentMessages.length === 0) {
+          container.innerHTML = '<p style="color: #999; font-size: 14px;">No active messages</p>';
+          return;
+        }
+
+        let html = '';
+        Gist.currentMessages.forEach((message, index) => {
+          const displaySettings = message.displaySettings || {};
+          const displaySettingsJson = JSON.stringify(displaySettings, null, 2);
+          
+          html += `
+            <div style="border: 1px solid #ddd; border-radius: 4px; padding: 10px; margin-bottom: 10px; background: #f9f9f9;">
+              <div style="font-weight: bold; margin-bottom: 5px;">
+                Message: ${message.messageId || 'Unknown'}
+                <span style="font-size: 11px; color: #666; font-weight: normal;">(${message.instanceId})</span>
+              </div>
+              <div style="margin-bottom: 8px;">
+                <label style="display: block; font-size: 13px; font-weight: bold; margin-bottom: 4px;">Display Settings JSON:</label>
+                <textarea 
+                  id="displaySettings-${index}" 
+                  style="width: 100%; min-height: 100px; font-family: monospace; font-size: 12px; padding: 8px; border: 1px solid #ccc; border-radius: 3px;"
+                >${displaySettingsJson}</textarea>
+              </div>
+              <button 
+                class="button" 
+                onclick="updateMessageDisplaySettings(${index})" 
+                style="padding: 4px 12px; font-size: 12px;">
+                Save & Update
+              </button>
+            </div>
+          `;
+        });
+
+        container.innerHTML = html;
+      }
+
+      function updateMessageDisplaySettings(messageIndex) {
+        const message = Gist.currentMessages[messageIndex];
+        if (!message) {
+          console.error('Message not found at index', messageIndex);
+          return;
+        }
+
+        const textarea = document.getElementById(`displaySettings-${messageIndex}`);
+        try {
+          const newDisplaySettings = JSON.parse(textarea.value);
+          console.log('Updating display settings for message:', message.instanceId, newDisplaySettings);
+          
+          const success = Gist.updateMessageDisplaySettings(message.instanceId, newDisplaySettings);
+          if (success) {
+            console.log('Display settings updated successfully');
+          } else {
+            console.error('Failed to update display settings');
+          }
+        } catch (e) {
+          console.error('Invalid JSON:', e);
+          alert('Invalid JSON: ' + e.message);
+        }
+      }
+
+      // Auto-refresh when config panel is opened
+      const originalToggleConfigForm = window.toggleConfigForm;
+      window.toggleConfigForm = function() {
+        if (typeof originalToggleConfigForm === 'function') {
+          originalToggleConfigForm();
+        }
+        // Refresh messages when opening the panel
+        setTimeout(refreshActiveMessages, 100);
+      };
+
+      // Refresh messages when they're shown
+      Gist.events.on("messageShown", message => {
+        setTimeout(refreshActiveMessages, 500);
+      });
+
+      Gist.events.on("messageDismissed", message => {
+        setTimeout(refreshActiveMessages, 500);
+      });
     </script>
     <script src="inbox.js"></script>
   </body>

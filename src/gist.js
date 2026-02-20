@@ -5,6 +5,7 @@ import { startQueueListener, checkMessageQueue, stopSSEListener } from "./manage
 import { setUserToken, clearUserToken, useGuestSession } from "./managers/user-manager";
 import { showMessage, embedMessage, hideMessage, removePersistentMessage, logBroadcastDismissedLocally } from "./managers/message-manager";
 import { fetchMessageByInstanceId } from "./utilities/message-utils";
+import { sendDisplaySettingsToIframe } from "./managers/message-component-manager";
 import { setUserLocale } from "./managers/locale-manager";
 import { setCustomAttribute, clearCustomAttributes, removeCustomAttribute } from "./managers/custom-attribute-manager";
 import { setupPreview } from "./utilities/preview-mode";
@@ -105,6 +106,16 @@ export default class {
   static async showMessage(message) {
     var messageResponse = await showMessage(message);
     return messageResponse ? messageResponse.instanceId : null;
+  }
+
+  static updateMessageDisplaySettings(instanceId, displaySettings) {
+    var message = fetchMessageByInstanceId(instanceId);
+    if (message) {
+      message.displaySettings = displaySettings;
+      sendDisplaySettingsToIframe(message);
+      return true;
+    }
+    return false;
   }
 
   // Actions

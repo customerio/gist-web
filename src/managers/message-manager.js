@@ -13,7 +13,8 @@ import {
   hideEmbedComponent,
   resizeComponent,
   elementHasHeight,
-  changeOverlayTitle
+  changeOverlayTitle,
+  sendDisplaySettingsToIframe
 } from "./message-component-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
 import { positions, addPageElement } from "./page-component-manager";
@@ -203,7 +204,12 @@ async function handleGistEvents(e) {
         log(`Engine render for message: ${currentMessage.messageId} timer elapsed in ${timeElapsed.toFixed(3)} seconds`);
         setMessageLoaded(currentMessage.queueId);
         currentMessage.currentRoute = e.data.gist.parameters.route;
-        
+        if (e.data.gist.parameters.fullDisplaySettings && !currentMessage.displaySettings) {
+          currentMessage.displaySettings = e.data.gist.parameters.fullDisplaySettings;
+        } else if (currentMessage.displaySettings) {
+          log(`SDK already has display settings state, sending it to iframe`);
+          sendDisplaySettingsToIframe(currentMessage);
+        }
         // Show component for first load or display change reload
         if (currentMessage.firstLoad || currentMessage.isDisplayChange) {
           if (currentMessage.overlay) {
