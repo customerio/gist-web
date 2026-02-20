@@ -1,8 +1,8 @@
 import Gist from '../gist';
 import { UserNetworkInstance } from './network';
-import { getKeyFromLocalStore, setKeyToLocalStore } from '../utilities/local-storage';
+import { getKeyFromLocalStore, setKeyToLocalStore, clearKeyFromLocalStore } from '../utilities/local-storage';
 import { log } from "../utilities/log";
-import { isUsingGuestUserToken, getEncodedUserToken } from '../managers/user-manager';
+import { isUsingGuestUserToken, getEncodedUserToken, getUserToken } from '../managers/user-manager';
 import { getUserLocale } from '../managers/locale-manager';
 import { settings } from './settings';
 import { v4 as uuidv4 } from 'uuid';
@@ -14,6 +14,7 @@ var checkInProgress = false;
 export const userQueueNextPullCheckLocalStoreName = "gist.web.userQueueNextPullCheck";
 export const sessionIdLocalStoreName = "gist.web.sessionId";
 export async function getUserQueue() {
+  const existingUserToken = getUserToken();
   var response;
   try {
     if (!checkInProgress) {
@@ -32,10 +33,16 @@ export async function getUserQueue() {
     }
   } finally {
     checkInProgress = false;
-    scheduleNextQueuePull(response);
-    setQueueUseSSE(response);
   }
 
+  if (existingUserToken !== getUserToken()) {
+    log("User token changed, clearing queue next pull check.");
+    clearKeyFromLocalStore(userQueueNextPullCheckLocalStoreName);
+    return;
+  }
+
+  scheduleNextQueuePull(response);
+  setQueueUseSSE(response);
   return response;
 }
 

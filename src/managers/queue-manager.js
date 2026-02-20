@@ -141,7 +141,7 @@ async function checkQueueThroughPolling() {
           }
           await checkMessageQueue();
         } else {
-          log(`There was an error while checking message queue.`);
+          log(`No response object returned while checking message queue.`);
         }
       } else {
         log(`Next queue pull scheduled for later.`);
