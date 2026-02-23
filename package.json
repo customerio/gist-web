@@ -6,7 +6,7 @@
   "scripts": {
     "start": "npm-run-all --parallel watch:server watch:build",
     "build:prod": "webpack --mode=production --output-filename gist.min.js && npm run build:types",
-    "build:types": "tsc --noEmit false --emitDeclarationOnly --declaration --declarationDir dist/types",
+    "build:types": "tsc --project tsconfig.build.json",
     "watch:build": "webpack --watch --progress --mode=development",
     "watch:server": "http-server",
     "test": "vitest run",
