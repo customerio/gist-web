@@ -17,6 +17,11 @@ import {
 
 export default class {
   static async setup(config) {
+    if (this.initialized) {
+      log("Gist SDK already initialized, skipping setup.");
+      return;
+    }
+    this.initialized = true;
     this.events = new EventEmitter();
     this.config = {
       useAnonymousSession: config.useAnonymousSession === undefined ? false : config.useAnonymousSession,
