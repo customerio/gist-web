@@ -13,9 +13,10 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
-  "types": "./dist/types/gist.d.ts",
+  "types": "./dist/types/index.d.ts",
   "browser": "dist/gist.min.js",
   "exports": {
+    "types": "./dist/types/index.d.ts",
     "require": "./dist/gist.min.js",
     "import": "./src/index.js"
   },
