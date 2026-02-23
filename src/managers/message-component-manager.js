@@ -81,6 +81,9 @@ export function resizeComponent(message, size) {
 }
 
 export function loadOverlayComponent(url, message, options, stepName = null) {
+  document.querySelectorAll('#gist-embed-message').forEach(function(el) {
+    el.parentNode.removeChild(el);
+  });
   document.body.insertAdjacentHTML('afterbegin', component(url, message));
   attachIframeLoadEvent(getMessageElementId(message.instanceId), options, stepName);
 }
