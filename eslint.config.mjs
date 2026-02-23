@@ -6,5 +6,5 @@ export default [
   { languageOptions: { globals: { ...globals.browser, ...globals.node } } },
   pluginJs.configs.recommended,
   ...tseslint.configs.recommended,
-  { ignores: ['node_modules/*', 'dist/*'] },
+  { ignores: ['node_modules/*', 'dist/*', 'examples/*', 'src/index.js'] },
 ];

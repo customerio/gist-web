@@ -15,7 +15,6 @@ function loadConfig() {
 }
 
 // Get current configuration
-// eslint-disable-next-line no-unused-vars
 function getConfig() {
   return loadConfig();
 }
@@ -32,7 +31,6 @@ function populateConfigForm() {
 }
 
 // Toggle config form visibility
-// eslint-disable-next-line no-unused-vars
 function toggleConfigForm() {
   const content = document.getElementById('configFormContent');
   const icon = document.getElementById('configToggleIcon');
@@ -46,7 +44,6 @@ function toggleConfigForm() {
 }
 
 // Save config and reload page
-// eslint-disable-next-line no-unused-vars
 function saveConfig(event) {
   event.preventDefault();
   const newConfig = {
@@ -62,7 +59,6 @@ function saveConfig(event) {
 }
 
 // Reset to default config
-// eslint-disable-next-line no-unused-vars
 function resetConfig() {
   if (confirm('Are you sure you want to reset to default configuration?')) {
     localStorage.removeItem('gistConfig');
