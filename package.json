@@ -5,10 +5,15 @@
   "private": false,
   "scripts": {
     "start": "npm-run-all --parallel watch:server watch:build",
-    "build:prod": "webpack --mode=production --output-filename gist.min.js",
+    "build:prod": "webpack --mode=production --output-filename gist.min.js && npm run build:types",
+    "build:types": "tsc --noEmit false --emitDeclarationOnly --declaration --declarationDir dist/types",
     "watch:build": "webpack --watch --progress --mode=development",
-    "watch:server": "http-server"
+    "watch:server": "http-server",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
+  "types": "./dist/types/gist.d.ts",
   "browser": "dist/gist.min.js",
   "exports": {
     "require": "./dist/gist.min.js",
@@ -21,7 +26,12 @@
     "eslint": "^9.13.0",
     "globals": "^15.11.0",
     "http-server": "^14.1.1",
+    "jsdom": "^27.0.1",
     "npm-run-all": "^4.1.5",
+    "ts-loader": "^9.5.4",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.0",
+    "vitest": "^4.0.18",
     "webpack": "^5.91.0",
     "webpack-cli": "^5.1.4"
   },
