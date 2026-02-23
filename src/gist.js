@@ -1,21 +1,54 @@
 import EventEmitter from "./utilities/event-emitter";
 import { log } from "./utilities/log";
 import { clearExpiredFromLocalStore } from "./utilities/local-storage";
-import { startQueueListener, checkMessageQueue, stopSSEListener } from "./managers/queue-manager";
-import { setUserToken, clearUserToken, useGuestSession } from "./managers/user-manager";
-import { showMessage, embedMessage, hideMessage, removePersistentMessage, logBroadcastDismissedLocally } from "./managers/message-manager";
+import {
+  startQueueListener,
+  checkMessageQueue,
+  stopSSEListener,
+} from "./managers/queue-manager";
+import {
+  setUserToken,
+  clearUserToken,
+  useGuestSession,
+} from "./managers/user-manager";
+import {
+  showMessage,
+  embedMessage,
+  hideMessage,
+  removePersistentMessage,
+  logBroadcastDismissedLocally,
+} from "./managers/message-manager";
 import { fetchMessageByInstanceId } from "./utilities/message-utils";
 import { sendDisplaySettingsToIframe } from "./managers/message-component-manager";
 import { setUserLocale } from "./managers/locale-manager";
-import { setCustomAttribute, clearCustomAttributes, removeCustomAttribute } from "./managers/custom-attribute-manager";
+import {
+  setCustomAttribute,
+  clearCustomAttributes,
+  removeCustomAttribute,
+} from "./managers/custom-attribute-manager";
 import { setupPreview } from "./utilities/preview-mode";
 import {
   getInboxMessagesFromLocalStore,
   updateInboxMessageOpenState,
-  removeInboxMessage
+  removeInboxMessage,
 } from "./managers/inbox-message-manager";
 
 export default class {
+  /** @type {import('./utilities/event-emitter').default} */
+  static events;
+  /** @type {import('./types').GistConfig} */
+  static config;
+  /** @type {boolean} */
+  static initialized;
+  /** @type {any[]} */
+  static currentMessages;
+  /** @type {string | null} */
+  static overlayInstanceId;
+  /** @type {string | null} */
+  static currentRoute;
+  /** @type {boolean} */
+  static isDocumentVisible;
+
   static async setup(config) {
     if (this.initialized) {
       log("Gist SDK already initialized, skipping setup.");
@@ -24,13 +57,17 @@ export default class {
     this.initialized = true;
     this.events = new EventEmitter();
     this.config = {
-      useAnonymousSession: config.useAnonymousSession === undefined ? false : config.useAnonymousSession,
+      useAnonymousSession:
+        config.useAnonymousSession === undefined
+          ? false
+          : config.useAnonymousSession,
       siteId: config.siteId,
       dataCenter: config.dataCenter,
       env: config.env === undefined ? "prod" : config.env,
       logging: config.logging === undefined ? false : config.logging,
-      experiments: config.experiments === undefined ? false : config.experiments
-    }
+      experiments:
+        config.experiments === undefined ? false : config.experiments,
+    };
     this.currentMessages = [];
     this.overlayInstanceId = null;
     this.currentRoute = null;
@@ -40,20 +77,28 @@ export default class {
 
     log(`Setup complete on ${this.config.env} environment.`);
 
-    if (!this.config.isPreviewSession && this.config.useAnonymousSession && !new URLSearchParams(location.search).has('ajs_uid')) {
+    if (
+      !this.config.isPreviewSession &&
+      this.config.useAnonymousSession &&
+      !new URLSearchParams(location.search).has("ajs_uid")
+    ) {
       useGuestSession();
     }
 
     await startQueueListener();
 
-    document.addEventListener("visibilitychange", async () => {
-      if (document.visibilityState === "hidden") {
-        this.isDocumentVisible = false;
-      } else  {
-        this.isDocumentVisible = true;
-        await checkMessageQueue();
-      }
-    }, false);
+    document.addEventListener(
+      "visibilitychange",
+      async () => {
+        if (document.visibilityState === "hidden") {
+          this.isDocumentVisible = false;
+        } else {
+          this.isDocumentVisible = true;
+          await checkMessageQueue();
+        }
+      },
+      false,
+    );
   }
 
   static async setCurrentRoute(route) {
@@ -62,6 +107,7 @@ export default class {
     await checkMessageQueue();
   }
 
+  /** @param {string} userToken @param {Date} [expiryDate] */
   static async setUserToken(userToken, expiryDate) {
     if (this.config.isPreviewSession) return;
     setUserToken(userToken, expiryDate);
@@ -127,31 +173,37 @@ export default class {
 
   static messageShown(message) {
     log(`Message shown: ${message.messageId}`);
-    this.events.dispatch('messageShown', message);
+    this.events.dispatch("messageShown", message);
   }
 
   static messageDismissed(message) {
     if (message !== null) {
       log(`Message dismissed: ${message.messageId}`);
-      this.events.dispatch('messageDismissed', message);
+      this.events.dispatch("messageDismissed", message);
     }
   }
 
   static messageError(message) {
     log(`Message error: ${message.messageId}`);
-    this.events.dispatch('messageError', message);
+    this.events.dispatch("messageError", message);
   }
 
   static messageAction(message, action, name) {
-    log(`Message action: ${message.currentRoute}, ${action} with name ${name} on ${message.instanceId}`);
-    this.events.dispatch('messageAction', {message: message, action: action, name: name});
+    log(
+      `Message action: ${message.currentRoute}, ${action} with name ${name} on ${message.instanceId}`,
+    );
+    this.events.dispatch("messageAction", {
+      message: message,
+      action: action,
+      name: name,
+    });
   }
 
   // Inbox Messages
 
   static async getInboxUnopenedCount() {
     const messages = await getInboxMessagesFromLocalStore();
-    return messages.filter(msg => !msg.opened).length;
+    return messages.filter((msg) => !msg.opened).length;
   }
 
   static async getInboxMessages() {
@@ -165,5 +217,4 @@ export default class {
   static async removeInboxMessage(queueId) {
     return await removeInboxMessage(queueId);
   }
-
 }
