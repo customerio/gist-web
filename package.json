@@ -3,6 +3,10 @@
   "version": "3.18.3",
   "description": "Build beautiful in-app flows with no code and deliver them instantly to your app. http://customer.io",
   "private": false,
+  "files": [
+    "dist",
+    "src"
+  ],
   "scripts": {
     "start": "npm-run-all --parallel watch:server watch:build",
     "build:prod": "webpack --mode=production --output-filename gist.min.js && npm run build:types",
