@@ -46,7 +46,6 @@ async function refreshInboxMessages(messages) {
     content.innerHTML = html;
 }
 
-// eslint-disable-next-line no-unused-vars
 async function updateInboxMessageOpenState(queueId, opened) {
     try {
         await window.Gist.updateInboxMessageOpenState(queueId, opened);
@@ -56,7 +55,6 @@ async function updateInboxMessageOpenState(queueId, opened) {
     }
 }
 
-// eslint-disable-next-line no-unused-vars
 async function deleteMessage(queueId) {
     try {
         await window.Gist.removeInboxMessage(queueId);
