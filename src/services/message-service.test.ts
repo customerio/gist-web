@@ -3,9 +3,13 @@ import { updateMessage } from "./message-service";
 
 const mockRequest = vi.fn();
 
-vi.mock("./network", () => ({
-  UserNetworkInstance: vi.fn(() => mockRequest),
-}));
+vi.mock("./network", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./network")>();
+  return {
+    ...actual,
+    UserNetworkInstance: vi.fn(() => mockRequest),
+  };
+});
 
 describe("message-service", () => {
   beforeEach(() => {

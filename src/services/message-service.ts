@@ -1,4 +1,4 @@
-import { UserNetworkInstance } from "./network";
+import { UserNetworkInstance, getNetworkErrorResponse } from "./network";
 import type { NetworkResponse } from "./network";
 
 export async function updateMessage(
@@ -18,6 +18,6 @@ export async function updateMessage(
     );
     return response;
   } catch (error) {
-    return (error as { response?: NetworkResponse }).response;
+    return getNetworkErrorResponse(error);
   }
 }

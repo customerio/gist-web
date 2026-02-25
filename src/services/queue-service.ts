@@ -14,6 +14,7 @@ import {
 import { getUserLocale } from "../managers/locale-manager";
 import { settings } from "./settings";
 import { v4 as uuidv4 } from "uuid";
+import { getNetworkErrorResponse } from "./network";
 import type { NetworkResponse } from "./network";
 
 const defaultPollingDelayInSeconds = 600;
@@ -24,9 +25,7 @@ export const userQueueNextPullCheckLocalStoreName =
   "gist.web.userQueueNextPullCheck";
 export const sessionIdLocalStoreName = "gist.web.sessionId";
 
-export async function getUserQueue(): Promise<
-  NetworkResponse | undefined
-> {
+export async function getUserQueue(): Promise<NetworkResponse | undefined> {
   const existingUserToken = getUserToken();
   let response: NetworkResponse | undefined;
   try {
@@ -43,8 +42,9 @@ export async function getUserQueue(): Promise<
       );
     }
   } catch (error) {
-    if ((error as { response?: NetworkResponse }).response) {
-      response = (error as { response: NetworkResponse }).response;
+    const errorResponse = getNetworkErrorResponse(error);
+    if (errorResponse) {
+      response = errorResponse;
     } else {
       log(`Error getting user queue: ${error}`);
     }
@@ -64,8 +64,7 @@ export async function getUserQueue(): Promise<
 }
 
 function setQueueUseSSE(response?: NetworkResponse): void {
-  const useSSE =
-    response?.headers?.["x-cio-use-sse"]?.toLowerCase() === "true";
+  const useSSE = response?.headers?.["x-cio-use-sse"]?.toLowerCase() === "true";
   settings.setUseSSEFlag(useSSE);
 }
 

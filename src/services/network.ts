@@ -12,6 +12,16 @@ export interface NetworkError extends Error {
   response: NetworkResponse;
 }
 
+function isNetworkError(error: unknown): error is NetworkError {
+  return error !== null && typeof error === "object" && "response" in error;
+}
+
+export function getNetworkErrorResponse(
+  error: unknown,
+): NetworkResponse | undefined {
+  return isNetworkError(error) ? error.response : undefined;
+}
+
 export interface RequestOptions {
   method?: string;
   headers?: Record<string, string>;

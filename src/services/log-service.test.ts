@@ -3,11 +3,15 @@ import { logUserMessageView, logMessageView } from "./log-service";
 
 const mockPost = vi.fn();
 
-vi.mock("./network", () => ({
-  UserNetworkInstance: vi.fn(() => ({
-    post: mockPost,
-  })),
-}));
+vi.mock("./network", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./network")>();
+  return {
+    ...actual,
+    UserNetworkInstance: vi.fn(() => ({
+      post: mockPost,
+    })),
+  };
+});
 
 describe("log-service", () => {
   beforeEach(() => {

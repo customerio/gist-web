@@ -1,4 +1,4 @@
-import { UserNetworkInstance } from "./network";
+import { UserNetworkInstance, getNetworkErrorResponse } from "./network";
 import type { NetworkResponse } from "./network";
 
 export async function logUserMessageView(
@@ -10,7 +10,7 @@ export async function logUserMessageView(
     );
     return response;
   } catch (error) {
-    return (error as { response?: NetworkResponse }).response;
+    return getNetworkErrorResponse(error);
   }
 }
 
@@ -23,6 +23,6 @@ export async function logMessageView(
     );
     return response;
   } catch (error) {
-    return (error as { response?: NetworkResponse }).response;
+    return getNetworkErrorResponse(error);
   }
 }
