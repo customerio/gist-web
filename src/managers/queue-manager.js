@@ -43,11 +43,6 @@ export async function checkMessageQueue() {
 }
 
 export async function checkCurrentMessagesAfterRouteChange() {
-  var currentUrl = Gist.currentRoute;
-  if (currentUrl == null) {
-    currentUrl = new URL(window.location.href).pathname;
-  }
-
   for (const message of Gist.currentMessages) {
     var messageProperties = resolveMessageProperties(message);
     if (!isMessageValidForRoute(messageProperties)) {
