@@ -2,7 +2,7 @@ import Gist from '../gist';
 import { log } from "../utilities/log";
 import { getUserToken, isAnonymousUser } from "./user-manager";
 import { getUserQueue, getQueueSSEEndpoint, userQueueNextPullCheckLocalStoreName } from "../services/queue-service";
-import { showMessage, embedMessage, hideMessage } from "./message-manager";
+import { showMessage, embedMessage, resetMessage } from "./message-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
 import { clearKeyFromLocalStore, getKeyFromLocalStore } from '../utilities/local-storage';
 import { updateBroadcastsLocalStore, getEligibleBroadcasts, isShowAlwaysBroadcast } from './message-broadcast-manager';
@@ -47,7 +47,7 @@ export async function checkCurrentMessagesAfterRouteChange() {
     var messageProperties = resolveMessageProperties(message);
     if (!isMessageValidForRoute(messageProperties)) {
       log(`Hiding active message ${message.instanceId} after route change`);
-      await hideMessage(message);
+      await resetMessage(message);
     }
   }
 }
