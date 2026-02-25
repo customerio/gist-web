@@ -18,6 +18,9 @@ import { getNetworkErrorResponse } from "./network";
 import type { NetworkResponse } from "./network";
 
 const defaultPollingDelayInSeconds = 600;
+const sessionExpiryMs = 30 * 60 * 1000;
+const msPerSecond = 1000;
+
 let currentPollingDelayInSeconds = defaultPollingDelayInSeconds;
 let checkInProgress = false;
 
@@ -78,7 +81,7 @@ function getSessionId(): string {
   setKeyToLocalStore(
     sessionIdLocalStoreName,
     sessionId,
-    new Date(new Date().getTime() + 1800000),
+    new Date(new Date().getTime() + sessionExpiryMs),
   );
   return String(sessionId);
 }
@@ -91,7 +94,7 @@ function scheduleNextQueuePull(response?: NetworkResponse): void {
     }
   }
   const expiryDate = new Date(
-    new Date().getTime() + currentPollingDelayInSeconds * 1000,
+    new Date().getTime() + currentPollingDelayInSeconds * msPerSecond,
   );
   setKeyToLocalStore(
     userQueueNextPullCheckLocalStoreName,
