@@ -16,6 +16,10 @@ function isNetworkError(error: unknown): error is NetworkError {
   return error !== null && typeof error === "object" && "response" in error;
 }
 
+function createNetworkError(response: NetworkResponse): NetworkError {
+  return Object.assign(new Error(), { response }) as NetworkError;
+}
+
 export function getNetworkErrorResponse(
   error: unknown,
 ): NetworkResponse | undefined {
@@ -85,13 +89,11 @@ export function UserNetworkInstance(): UserNetworkRequest {
       ) as Record<string, string>;
 
       if (response.status < 200 || response.status >= 400) {
-        const err = new Error() as NetworkError;
-        err.response = {
+        throw createNetworkError({
           status: response.status,
           data,
           headers: headersObj,
-        };
-        throw err;
+        });
       }
 
       return {
@@ -102,13 +104,19 @@ export function UserNetworkInstance(): UserNetworkRequest {
     } catch (err) {
       clearTimeout(timeout);
 
-      const networkErr = err as NetworkError;
-      if (!networkErr.response) {
-        networkErr.response = {
-          status: 0,
-          data: (err as Error).message || "Unknown error",
-          headers: {},
-        };
+      if (isNetworkError(err)) {
+        throw err;
+      }
+
+      if (err instanceof Error) {
+        const networkErr = Object.assign(err, {
+          response: {
+            status: 0,
+            data: err.message || "Unknown error",
+            headers: {},
+          },
+        }) as NetworkError;
+        throw networkErr;
       }
 
       throw err;
