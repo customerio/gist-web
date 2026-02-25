@@ -98,7 +98,7 @@ export function embedMessage(message, elementId) {
 export async function hideMessage(message) {
   if (message) {
     Gist.messageDismissed(message);
-    resetMessage(message);
+    await resetMessage(message);
   } else {
     log(`Message with instance id: ${message.instanceId} not found`);
   }
