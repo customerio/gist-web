@@ -22,11 +22,15 @@ vi.mock("../gist", () => ({
   },
 }));
 
-vi.mock("./network", () => ({
-  UserNetworkInstance: vi.fn(() => ({
-    post: mockPost,
-  })),
-}));
+vi.mock("./network", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./network")>();
+  return {
+    ...actual,
+    UserNetworkInstance: vi.fn(() => ({
+      post: mockPost,
+    })),
+  };
+});
 
 vi.mock("../utilities/log", () => ({ log: vi.fn() }));
 
@@ -80,6 +84,15 @@ describe("queue-service", () => {
         }),
       }),
     );
+  });
+
+  it("getUserQueue() returns error.response when POST fails", async () => {
+    const errorResponse = { status: 500, data: "Server error", headers: {} };
+    mockPost.mockRejectedValue({ response: errorResponse });
+
+    const result = await getUserQueue();
+
+    expect(result).toEqual(errorResponse);
   });
 
   it("getUserQueue() skips if checkInProgress is true", async () => {
