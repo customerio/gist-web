@@ -51,7 +51,7 @@ export async function checkCurrentMessagesAfterRouteChange() {
   for (const message of Gist.currentMessages) {
     var messageProperties = resolveMessageProperties(message);
     if (!isMessageValidForRoute(messageProperties)) {
-      log(`Hiding active message ${message.instanceId} because route ${currentUrl} does not match rule: ${routeRule}`);
+      log(`Hiding active message ${message.instanceId} after route change`);
       await hideMessage(message);
     }
   }
