@@ -2,7 +2,7 @@ import Gist from '../gist';
 import { log } from "../utilities/log";
 import { getUserToken, isAnonymousUser } from "./user-manager";
 import { getUserQueue, getQueueSSEEndpoint, userQueueNextPullCheckLocalStoreName } from "../services/queue-service";
-import { showMessage, embedMessage } from "./message-manager";
+import { showMessage, embedMessage, hideMessage } from "./message-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
 import { clearKeyFromLocalStore, getKeyFromLocalStore } from '../utilities/local-storage';
 import { updateBroadcastsLocalStore, getEligibleBroadcasts, isShowAlwaysBroadcast } from './message-broadcast-manager';
@@ -42,21 +42,26 @@ export async function checkMessageQueue() {
   }
 }
 
+export async function checkCurrentMessagesAfterRouteChange() {
+  var currentUrl = Gist.currentRoute;
+  if (currentUrl == null) {
+    currentUrl = new URL(window.location.href).pathname;
+  }
+
+  for (const message of Gist.currentMessages) {
+    var messageProperties = resolveMessageProperties(message);
+    if (!isMessageValidForRoute(messageProperties)) {
+      log(`Hiding active message ${message.instanceId} because route ${currentUrl} does not match rule: ${routeRule}`);
+      await hideMessage(message);
+    }
+  }
+}
+
 //TODO: Move this to a utility and only return valid messages (from: getEligibleBroadcasts getMessagesFromLocalStore) & to handleMessage
 async function handleMessage(message) {
   var messageProperties = resolveMessageProperties(message);
-  if (messageProperties.hasRouteRule) {
-    var currentUrl = Gist.currentRoute;
-    if (currentUrl == null) {
-      currentUrl = new URL(window.location.href).pathname;
-    }
-    var routeRule = messageProperties.routeRule;
-    log(`Verifying route ${currentUrl} against rule: ${routeRule}`);
-    var urlTester = new RegExp(routeRule);
-    if (!urlTester.test(currentUrl)) {
-      log(`Route ${currentUrl} does not match rule.`);
-      return false;
-    }
+  if (!isMessageValidForRoute(messageProperties)) {
+    return false;
   }
   if (messageProperties.hasPosition) {
     message.position = messageProperties.position;
@@ -93,6 +98,22 @@ async function handleMessage(message) {
     if (loading) setMessageLoading(message.queueId);
     return loading;
   }
+}
+
+function isMessageValidForRoute(messageProperties) {
+  if (messageProperties.hasRouteRule) {
+    var currentUrl = Gist.currentRoute ?? new URL(window.location.href).pathname;
+    var routeRule = messageProperties.routeRule;
+    
+    log(`Verifying route ${currentUrl} against rule: ${routeRule}`);
+    var urlTester = new RegExp(routeRule);
+    if (!urlTester.test(currentUrl)) {
+      log(`Route ${currentUrl} does not match rule.`);
+      return false;
+    }
+  }
+
+  return true;
 }
 
 export async function pullMessagesFromQueue() {
