@@ -1,9 +1,15 @@
-export function messageHTMLTemplate(elementId, messageProperties, url) {
-    var maxWidthBreakpoint = 600;
-    if (messageProperties.messageWidth > maxWidthBreakpoint) {
-      maxWidthBreakpoint = messageProperties.messageWidth;    
-    }
-    var template = `
+import type { ResolvedMessageProperties } from "../types";
+
+export function messageHTMLTemplate(
+  elementId: string,
+  messageProperties: ResolvedMessageProperties,
+  url: string,
+): string {
+  let maxWidthBreakpoint = 600;
+  if (messageProperties.messageWidth > maxWidthBreakpoint) {
+    maxWidthBreakpoint = messageProperties.messageWidth;
+  }
+  const template = `
     <div id="gist-embed-message">
         <style>
             #gist-overlay.gist-background {
@@ -53,5 +59,5 @@ export function messageHTMLTemplate(elementId, messageProperties, url) {
             <iframe id="${elementId}" class="gist-message" src="${url}"></iframe>
         </div>
     </div>`;
-    return template;
+  return template;
 }

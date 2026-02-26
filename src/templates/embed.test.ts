@@ -1,0 +1,107 @@
+import { describe, it, expect } from "vitest";
+import { embedHTMLTemplate } from "./embed";
+import type { ResolvedMessageProperties } from "../types";
+
+function makeProps(
+  overrides: Partial<ResolvedMessageProperties> = {},
+): ResolvedMessageProperties {
+  return {
+    isEmbedded: false,
+    elementId: "",
+    hasRouteRule: false,
+    routeRule: "",
+    position: "",
+    hasPosition: false,
+    shouldScale: false,
+    campaignId: null,
+    messageWidth: 414,
+    overlayColor: "#00000033",
+    persistent: false,
+    exitClick: false,
+    hasCustomWidth: false,
+    ...overrides,
+  };
+}
+
+describe("embedHTMLTemplate", () => {
+  it("returns HTML containing the iframe with the correct id and src", () => {
+    const html = embedHTMLTemplate(
+      "my-embed-id",
+      makeProps(),
+      "https://example.com/embed",
+    );
+
+    expect(html).toContain('id="my-embed-id"');
+    expect(html).toContain('src="https://example.com/embed"');
+  });
+
+  it("includes positioning styles for floating-top positions", () => {
+    const html = embedHTMLTemplate("el", makeProps(), "https://example.com");
+
+    expect(html).toContain("#x-gist-floating-top,");
+    expect(html).toContain("#x-gist-floating-top-left,");
+    expect(html).toContain("#x-gist-floating-top-right");
+    expect(html).toContain("position: fixed");
+    expect(html).toContain("top: 0px");
+  });
+
+  it("includes positioning styles for floating-bottom positions", () => {
+    const html = embedHTMLTemplate("el", makeProps(), "https://example.com");
+
+    expect(html).toContain("#x-gist-floating-bottom,");
+    expect(html).toContain("#x-gist-floating-bottom-left,");
+    expect(html).toContain("#x-gist-floating-bottom-right");
+    expect(html).toContain("bottom: 0px");
+  });
+
+  it("uses default 800px breakpoint when messageWidth <= 800", () => {
+    const html = embedHTMLTemplate(
+      "el",
+      makeProps({ messageWidth: 414 }),
+      "https://example.com",
+    );
+
+    expect(html).toContain("@media (max-width: 800px)");
+  });
+
+  it("adjusts media query breakpoint when messageWidth > 800", () => {
+    const html = embedHTMLTemplate(
+      "el",
+      makeProps({ messageWidth: 1000 }),
+      "https://example.com",
+    );
+
+    expect(html).toContain("@media (max-width: 1000px)");
+    expect(html).not.toContain("@media (max-width: 800px)");
+  });
+
+  it("includes elementId in CSS selectors for transition styles", () => {
+    const html = embedHTMLTemplate(
+      "my-embed-id",
+      makeProps(),
+      "https://example.com",
+    );
+
+    expect(html).toContain("#x-gist-top.my-embed-id");
+    expect(html).toContain("#x-gist-bottom.my-embed-id");
+    expect(html).toContain("#x-gist-floating-top.my-embed-id");
+    expect(html).toContain("transition: height 0.1s ease-in-out");
+  });
+
+  it("includes width: 100% !important in media query for elementId selectors", () => {
+    const html = embedHTMLTemplate(
+      "my-embed-id",
+      makeProps(),
+      "https://example.com",
+    );
+
+    expect(html).toContain("width: 100% !important");
+  });
+
+  it("contains the gist-embed-container wrapper div", () => {
+    const html = embedHTMLTemplate("el", makeProps(), "https://example.com");
+
+    expect(html).toContain('id="gist-embed-container"');
+    expect(html).toContain('id="gist-embed"');
+  });
+});

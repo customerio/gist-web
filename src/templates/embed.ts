@@ -1,9 +1,16 @@
-export function embedHTMLTemplate(elementId, messageProperties, url) {
-    var maxWidthBreakpoint = 800;
-    if (messageProperties.messageWidth > maxWidthBreakpoint) {
-        maxWidthBreakpoint = messageProperties.messageWidth;
-    }
-    var template = `
+import type { ResolvedMessageProperties } from "../types";
+
+export function embedHTMLTemplate(
+  elementId: string,
+  messageProperties: ResolvedMessageProperties,
+  url: string,
+): string {
+  let maxWidthBreakpoint = 800;
+  if (messageProperties.messageWidth > maxWidthBreakpoint) {
+    maxWidthBreakpoint = messageProperties.messageWidth;
+  }
+
+  const template = `
     <div id="gist-embed">
         <style>
             #x-gist-floating-top, #x-gist-floating-top-left, #x-gist-floating-top-right {
@@ -65,5 +72,5 @@ export function embedHTMLTemplate(elementId, messageProperties, url) {
             <iframe id="${elementId}" class="gist-frame" src="${url}"></iframe>
         </div>
     </div>`;
-    return template
+  return template;
 }
