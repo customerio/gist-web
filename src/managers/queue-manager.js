@@ -43,7 +43,11 @@ export async function checkMessageQueue() {
 }
 
 export async function checkCurrentMessagesAfterRouteChange() {
-  for (const message of Gist.currentMessages) {
+  if (Gist.currentMessages.length === 0) {
+    return;
+  }
+  
+  for (const message of [...Gist.currentMessages]) {
     var messageProperties = resolveMessageProperties(message);
     if (!isMessageValidForRoute(messageProperties)) {
       log(`Hiding active message ${message.instanceId} after route change`);
