@@ -3,13 +3,13 @@ import { log } from "../utilities/log";
 import { logMessageView, logUserMessageView } from "../services/log-service";
 import { v4 as uuidv4 } from 'uuid';
 import { settings } from "../services/settings";
-import { 
-  loadOverlayComponent, 
-  showOverlayComponent, 
-  hideOverlayComponent, 
-  removeOverlayComponent, 
-  loadEmbedComponent, 
-  showEmbedComponent, 
+import {
+  loadOverlayComponent,
+  showOverlayComponent,
+  hideOverlayComponent,
+  removeOverlayComponent,
+  loadEmbedComponent,
+  showEmbedComponent,
   hideEmbedComponent,
   resizeComponent,
   elementHasHeight,
@@ -21,9 +21,8 @@ import { positions, addPageElement } from "./page-component-manager";
 import { getAllCustomAttributes } from "./custom-attribute-manager";
 import { checkMessageQueue } from "./queue-manager";
 import { isMessageBroadcast, markBroadcastAsSeen, markBroadcastAsDismissed, isShowAlwaysBroadcast } from './message-broadcast-manager';
-import { markUserQueueMessageAsSeen, saveMessageState, clearMessageState } from './message-user-queue-manager';
-import { setMessageLoaded } from './message-user-queue-manager';
-import { 
+import { markUserQueueMessageAsSeen, saveMessageState, clearMessageState, setMessageLoaded } from './message-user-queue-manager';
+import {
   fetchMessageByInstanceId,
   fetchMessageByElementId,
   isQueueIdAlreadyShowing,
@@ -32,8 +31,17 @@ import {
   hasDisplayChanged,
   applyDisplaySettings
 } from '../utilities/message-utils';
+import type { GistMessage, DisplaySettings } from '../types';
 
-export async function showMessage(message) {
+interface GistEventData {
+  gist?: {
+    method: string;
+    instanceId: string;
+    parameters: Record<string, unknown>;
+  };
+}
+
+export async function showMessage(message: GistMessage): Promise<GistMessage | null> {
   if (Gist.isDocumentVisible) {
     if (isQueueIdAlreadyShowing(message.queueId)) {
       log(`Message with queueId ${message.queueId} is already showing.`);
@@ -43,8 +51,8 @@ export async function showMessage(message) {
       log(`Message ${Gist.overlayInstanceId} already showing.`);
       return null;
     } else {
-      var properties = resolveMessageProperties(message);
-      
+      const properties = resolveMessageProperties(message);
+
       message.instanceId = uuidv4();
       message.overlay = true;
       message.firstLoad = true;
@@ -54,7 +62,6 @@ export async function showMessage(message) {
       Gist.overlayInstanceId = message.instanceId;
       Gist.currentMessages.push(message);
 
-      // Use saved step if available (set by queue manager)
       const savedStep = message.savedStepName || null;
       return loadMessageComponent(message, null, savedStep);
     }
@@ -64,7 +71,7 @@ export async function showMessage(message) {
   }
 }
 
-export function embedMessage(message, elementId) {
+export function embedMessage(message: GistMessage, elementId: string): GistMessage | null {
   if (Gist.isDocumentVisible) {
     if (isQueueIdAlreadyShowing(message.queueId)) {
       log(`Message with queueId ${message.queueId} is already showing.`);
@@ -86,7 +93,6 @@ export function embedMessage(message, elementId) {
     message.renderStartTime = new Date().getTime();
     Gist.currentMessages.push(message);
 
-    // Use saved step if available (set by queue manager)
     const savedStep = message.savedStepName || null;
     return loadMessageComponent(message, elementId, savedStep);
   } else {
@@ -95,7 +101,7 @@ export function embedMessage(message, elementId) {
   }
 }
 
-export async function hideMessage(message) {
+export async function hideMessage(message: GistMessage): Promise<void> {
   if (message) {
     Gist.messageDismissed(message);
 
@@ -105,59 +111,65 @@ export async function hideMessage(message) {
       resetEmbedState(message);
     }
   } else {
-    log(`Message with instance id: ${message.instanceId} not found`);
+    log(`Message not found`);
   }
 }
 
-export async function removePersistentMessage(message) {
-  var messageProperties = resolveMessageProperties(message);
+export async function removePersistentMessage(message: GistMessage): Promise<void> {
   if (message) {
+    const messageProperties = resolveMessageProperties(message);
     if (messageProperties.persistent) {
       log(`Persistent message dismissed, logging view`);
       await logUserMessageViewLocally(message);
       await reportMessageView(message);
-      // Clear saved message state when persistent message is removed
-      await clearMessageState(message.queueId);
+      await clearMessageState(message.queueId ?? "");
     }
   } else {
-    log(`Message with instance id: ${message.instanceId} not found`);
+    log(`Message not found`);
   }
 }
 
-function resetEmbedState(message) {
-  removeMessageByInstanceId(message.instanceId);
-  hideEmbedComponent(message.elementId);
+function resetEmbedState(message: GistMessage): void {
+  if (message.instanceId) {
+    removeMessageByInstanceId(message.instanceId);
+  }
+  if (message.elementId) {
+    hideEmbedComponent(message.elementId);
+  }
 }
 
-async function resetOverlayState(hideFirst, message) {
+async function resetOverlayState(hideFirst: boolean, message: GistMessage): Promise<void> {
   if (hideFirst) {
     await hideOverlayComponent();
   } else {
     removeOverlayComponent();
   }
 
-  if (Gist.currentMessages.length == 0) {
+  if (Gist.currentMessages.length === 0) {
     window.removeEventListener('message', handleGistEvents);
     window.removeEventListener('touchstart', handleTouchStartEvents);
   }
 
-  removeMessageByInstanceId(message.instanceId);
+  if (message.instanceId) {
+    removeMessageByInstanceId(message.instanceId);
+  }
   Gist.overlayInstanceId = null;
 }
 
-function loadMessageComponent(message, elementId = null, stepName = null) {
-  var options = {
-    endpoint: settings.ENGINE_API_ENDPOINT[Gist.config.env],
+function loadMessageComponent(message: GistMessage, elementId: string | null = null, stepName: string | null = null): GistMessage {
+  const env = Gist.config.env ?? "prod";
+  const options = {
+    endpoint: settings.ENGINE_API_ENDPOINT[env],
     siteId: Gist.config.siteId,
     dataCenter: Gist.config.dataCenter,
     messageId: message.messageId,
-    instanceId: message.instanceId,
+    instanceId: message.instanceId ?? "",
     livePreview: false,
     properties: message.properties,
     customAttributes: Object.fromEntries(getAllCustomAttributes())
-  }
-  
-  var url = `${settings.GIST_VIEW_ENDPOINT[Gist.config.env]}/index.html`
+  };
+
+  const url = `${settings.GIST_VIEW_ENDPOINT[env]}/index.html`;
   window.addEventListener('message', handleGistEvents);
   window.addEventListener('touchstart', handleTouchStartEvents);
 
@@ -171,54 +183,53 @@ function loadMessageComponent(message, elementId = null, stepName = null) {
   return message;
 }
 
-async function reportMessageView(message) {
+async function reportMessageView(message: GistMessage): Promise<void> {
   log(`Message shown, logging view for: ${message.messageId}`);
-  var response = {};
+  let response;
   if (message.queueId != null) {
     await logUserMessageViewLocally(message);
     response = await logUserMessageView(message.queueId);
   } else {
     response = await logMessageView(message.messageId);
   }
-  
-  if (response.status === 200) {
+
+  if (response?.status === 200) {
     log(`Message view logged`);
   } else {
-    log(`Problem logging message: ${response.status}`);
+    log(`Problem logging message: ${response?.status}`);
   }
 }
 
-function handleTouchStartEvents() {
+function handleTouchStartEvents(): void {
   // Added this to avoid errors in the console
 }
 
-async function handleGistEvents(e) {
-  if (e.data.gist && e.origin === settings.RENDERER_HOST) {
-    var currentInstanceId = e.data.gist.instanceId;
-    var currentMessage = fetchMessageByInstanceId(currentInstanceId);
+async function handleGistEvents(e: MessageEvent): Promise<void> {
+  const data = e.data as GistEventData;
+  if (data.gist && e.origin === settings.RENDERER_HOST) {
+    const currentInstanceId = data.gist.instanceId;
+    const currentMessage = fetchMessageByInstanceId(currentInstanceId);
     if (!currentMessage) { return; }
-    var messageProperties = resolveMessageProperties(currentMessage);
-    switch (e.data.gist.method) {
+    const messageProperties = resolveMessageProperties(currentMessage);
+    switch (data.gist.method) {
       case "routeLoaded": {
-        var timeElapsed = (new Date().getTime() - currentMessage.renderStartTime) * 0.001;
+        const timeElapsed = (new Date().getTime() - (currentMessage.renderStartTime ?? 0)) * 0.001;
         log(`Engine render for message: ${currentMessage.messageId} timer elapsed in ${timeElapsed.toFixed(3)} seconds`);
-        setMessageLoaded(currentMessage.queueId);
-        currentMessage.currentRoute = e.data.gist.parameters.route;
-        if (e.data.gist.parameters.fullDisplaySettings && !currentMessage.displaySettings) {
-          currentMessage.displaySettings = e.data.gist.parameters.fullDisplaySettings;
+        setMessageLoaded(currentMessage.queueId ?? "");
+        currentMessage.currentRoute = data.gist.parameters.route as string;
+        if (data.gist.parameters.fullDisplaySettings && !currentMessage.displaySettings) {
+          currentMessage.displaySettings = data.gist.parameters.fullDisplaySettings as DisplaySettings;
         } else if (currentMessage.displaySettings) {
           log(`SDK already has display settings state, sending it to iframe`);
           sendDisplaySettingsToIframe(currentMessage);
         }
-        // Show component for first load or display change reload
         if (currentMessage.firstLoad || currentMessage.isDisplayChange) {
           if (currentMessage.overlay) {
             showOverlayComponent(currentMessage);
           } else {
-            showEmbedComponent(currentMessage.elementId);
+            showEmbedComponent(currentMessage.elementId!);
           }
 
-          // Only trigger events for actual first load, not display changes
           if (currentMessage.firstLoad && !currentMessage.isDisplayChange) {
             Gist.messageShown(currentMessage);
             if (messageProperties.persistent) {
@@ -235,19 +246,19 @@ async function handleGistEvents(e) {
         break;
       }
       case "tap": {
-        var action = e.data.gist.parameters.action;
-        var name = e.data.gist.parameters.name;
+        const action = data.gist.parameters.action as string;
+        const name = data.gist.parameters.name;
         Gist.messageAction(currentMessage, action, name);
-        
-        if (e.data.gist.parameters.system && !messageProperties.persistent) {
+
+        if (data.gist.parameters.system && !messageProperties.persistent) {
           await hideMessage(currentMessage);
           break;
         }
 
         try {
-          var url = new URL(action);
-          if (url && url.protocol === "gist:") {
-            var gistAction = url.href.replace("gist://", "").split('?')[0];
+          const actionUrl = new URL(action);
+          if (actionUrl && actionUrl.protocol === "gist:") {
+            const gistAction = actionUrl.href.replace("gist://", "").split('?')[0];
             switch (gistAction) {
               case "close":
                 await hideMessage(currentMessage);
@@ -255,9 +266,9 @@ async function handleGistEvents(e) {
                 await logBroadcastDismissedLocally(currentMessage);
                 await checkMessageQueue();
                 break;
-              case "showMessage":
-                var messageId = url.searchParams.get('messageId');
-                var properties = url.searchParams.get('properties');
+              case "showMessage": {
+                const messageId = actionUrl.searchParams.get('messageId');
+                let properties = actionUrl.searchParams.get('properties');
                 if (messageId) {
                   if (properties) {
                     properties = JSON.parse(atob(properties));
@@ -265,74 +276,70 @@ async function handleGistEvents(e) {
                   await Gist.showMessage({ messageId: messageId, properties: properties });
                 }
                 break;
-              case "loadPage":
-                url = url.href.substring(url.href.indexOf('?url=') + 5);
-                if (url) {
-                  if (url.startsWith("mailto:") || url.startsWith("https://") || url.startsWith("http://") || url.startsWith("/")) {
-                    window.location.href = url;
+              }
+              case "loadPage": {
+                const redirectUrl = actionUrl.href.substring(actionUrl.href.indexOf('?url=') + 5);
+                if (redirectUrl) {
+                  if (redirectUrl.startsWith("mailto:") || redirectUrl.startsWith("https://") || redirectUrl.startsWith("http://") || redirectUrl.startsWith("/")) {
+                    window.location.href = redirectUrl;
                   } else {
-                    window.location.href = window.location + url;
+                    window.location.href = window.location + redirectUrl;
                   }
                 }
                 break;
+              }
             }
           }
         } catch {
           // If the action is not a URL, we don't need to do anything.
         }
-        
+
         break;
       }
       case "changeMessageStep": {
-        var displaySettings = e.data.gist.parameters.displaySettings;
-        var messageStepName = e.data.gist.parameters.messageStepName;
-        
-        // Save message state (step + display settings) for persistent messages or show-always broadcasts
+        const displaySettings = data.gist.parameters.displaySettings as DisplaySettings | undefined;
+        const messageStepName = data.gist.parameters.messageStepName as string | undefined;
+
         if (messageProperties.persistent || isShowAlwaysBroadcast(currentMessage)) {
-          await saveMessageState(currentMessage.queueId, messageStepName, displaySettings);
+          await saveMessageState(currentMessage.queueId ?? "", messageStepName, displaySettings);
         }
-        
+
         if (displaySettings && hasDisplayChanged(currentMessage, displaySettings)) {
           log(`Display settings changed, reloading message`);
-          // Hide visually without side effects
           await hideMessageVisually(currentMessage);
-          
-          // Apply new display settings
           applyDisplaySettings(currentMessage, displaySettings);
-          
-          // Re-show message with new settings
-          await reloadMessageWithNewDisplay(currentMessage, messageStepName);
+          await reloadMessageWithNewDisplay(currentMessage, messageStepName ?? null);
         }
         break;
       }
       case "routeChanged": {
-        currentMessage.currentRoute = e.data.gist.parameters.route;
+        currentMessage.currentRoute = data.gist.parameters.route as string;
         currentMessage.renderStartTime = new Date().getTime();
         updateMessageByInstanceId(currentInstanceId, currentMessage);
         log(`Route changed to: ${currentMessage.currentRoute}`);
         break;
       }
       case "sizeChanged": {
-        log(`Size Changed Width: ${e.data.gist.parameters.width} - Height: ${e.data.gist.parameters.height}`);
+        log(`Size Changed Width: ${data.gist.parameters.width} - Height: ${data.gist.parameters.height}`);
         if (!currentMessage.elementId || currentMessage.shouldResizeHeight) {
-          resizeComponent(currentMessage, e.data.gist.parameters);
+          resizeComponent(currentMessage, data.gist.parameters as { width: number; height: number });
         }
         break;
       }
       case "titleChanged": {
-        log(`Overlay title changed to: ${e.data.gist.parameters.title}`);
-        changeOverlayTitle(currentInstanceId, e.data.gist.parameters.title);
+        log(`Overlay title changed to: ${data.gist.parameters.title}`);
+        changeOverlayTitle(currentInstanceId, data.gist.parameters.title as string);
         break;
       }
       case "eventDispatched": {
-        Gist.events.dispatch("eventDispatched", { "name": e.data.gist.parameters.name, "payload": e.data.gist.parameters.payload });
+        Gist.events.dispatch("eventDispatched", { "name": data.gist.parameters.name, "payload": data.gist.parameters.payload });
         break;
       }
       case "error":
       case "routeError": {
         Gist.messageError(currentMessage);
         if (Gist.overlayInstanceId) {
-          resetOverlayState(false, currentMessage);
+          await resetOverlayState(false, currentMessage);
         } else {
           resetEmbedState(currentMessage);
         }
@@ -342,17 +349,12 @@ async function handleGistEvents(e) {
   }
 }
 
-// Reload message with new display settings
-async function reloadMessageWithNewDisplay(message, stepName) {
-  // Mark as display change reload to show component when routeLoaded is received
-  // but without triggering messageShown event or logging view
+async function reloadMessageWithNewDisplay(message: GistMessage, stepName: string | null): Promise<void> {
   message.isDisplayChange = true;
   message.renderStartTime = new Date().getTime();
 
-  // Determine elementId based on display type
-  var elementId = message.elementId || null;
+  const elementId = message.elementId || null;
 
-  // If moving to an elementId position, check if there's already a message there and dismiss it
   if (elementId) {
     const existingMessage = fetchMessageByElementId(elementId);
     if (existingMessage && existingMessage.instanceId !== message.instanceId) {
@@ -360,56 +362,46 @@ async function reloadMessageWithNewDisplay(message, stepName) {
       await hideMessage(existingMessage);
     }
   }
-  
-  // Update Gist.overlayInstanceId based on new display type
+
   if (message.overlay) {
-    Gist.overlayInstanceId = message.instanceId;
-    // Set properties for overlay display
-    var properties = resolveMessageProperties(message);
+    Gist.overlayInstanceId = message.instanceId ?? null;
+    const properties = resolveMessageProperties(message);
     message.shouldScale = properties.shouldScale;
     message.shouldResizeHeight = true;
   } else {
     Gist.overlayInstanceId = null;
-    // Set properties for embedded display
     message.shouldScale = false;
-    message.shouldResizeHeight = !elementHasHeight(elementId);
+    message.shouldResizeHeight = !elementHasHeight(elementId ?? "");
   }
-  
-  // Add page element if it's an overlay position
+
   if (elementId && positions.includes(elementId)) {
     addPageElement(elementId);
   }
-  
-  // Reload the message component with new settings
-  // Component will be shown when routeLoaded event is received
+
   loadMessageComponent(message, elementId, stepName);
 }
 
-// Visual-only hide without side effects
-async function hideMessageVisually(message) {
+async function hideMessageVisually(message: GistMessage): Promise<void> {
   if (message.overlay) {
     await hideOverlayComponent();
-  } else {
+  } else if (message.elementId) {
     hideEmbedComponent(message.elementId);
   }
-  // Note: We don't call removeMessageByInstanceId or clear Gist.overlayInstanceId
-  // to keep the message in memory for re-rendering
 }
 
-async function logUserMessageViewLocally(message) {
+async function logUserMessageViewLocally(message: GistMessage): Promise<void> {
   log(`Logging user message view locally for: ${message.queueId}`);
   if (isMessageBroadcast(message)) {
-    await markBroadcastAsSeen(message.queueId);
+    await markBroadcastAsSeen(message.queueId ?? "");
   } else {
-    await markUserQueueMessageAsSeen(message.queueId);
+    await markUserQueueMessageAsSeen(message.queueId ?? "");
   }
 }
 
-export async function logBroadcastDismissedLocally(message) {
+export async function logBroadcastDismissedLocally(message: GistMessage): Promise<void> {
   if (isMessageBroadcast(message)) {
     log(`Logging broadcast dismissed locally for: ${message.queueId}`);
-    await markBroadcastAsDismissed(message.queueId);
-    // Clear saved message state when broadcast is dismissed
-    await clearMessageState(message.queueId);
+    await markBroadcastAsDismissed(message.queueId ?? "");
+    await clearMessageState(message.queueId ?? "");
   }
 }
