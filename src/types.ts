@@ -21,7 +21,7 @@ export interface GistMessage {
   shouldResizeHeight?: boolean;
   renderStartTime?: number;
   currentRoute?: string;
-  position?: string;
+  position?: string | null;
   savedStepName?: string | null;
   isDisplayChange?: boolean;
   displaySettings?: DisplaySettings;

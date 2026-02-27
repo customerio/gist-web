@@ -5,7 +5,7 @@ import { initPreviewBar } from '../managers/preview-bar-manager';
 
 const previewParamId = "cioPreviewId";
 
-export function setupPreview() {
+export function setupPreview(): boolean {
     const cioPreviewId = fetchPreviewId();
     if (cioPreviewId) {
         shouldPersistSession(false);
@@ -16,7 +16,7 @@ export function setupPreview() {
     return !isSessionBeingPersisted();
 }
 
-function fetchPreviewId() {
+function fetchPreviewId(): string | null {
     const params = new URLSearchParams(window.location.search);
     return params.get(previewParamId);
 }
