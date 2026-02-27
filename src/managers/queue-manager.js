@@ -48,9 +48,7 @@ export async function checkCurrentMessagesAfterRouteChange() {
   }
 
   for (const message of [...Gist.currentMessages]) {
-    var messageProperties = resolveMessageProperties(message);
-    var el = document.querySelector(`#gist-${messageProperties.instanceId}`);
-    if (el == null) {
+    if (document.querySelector(`#gist-${message.instanceId}`) == null) {
       log(`Removing active message ${message.instanceId} that no longer exists after route change`);
       await resetMessage(message);
     }
