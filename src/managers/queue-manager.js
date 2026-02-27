@@ -46,11 +46,12 @@ export async function checkCurrentMessagesAfterRouteChange() {
   if (Gist.currentMessages.length === 0) {
     return;
   }
-  
+
   for (const message of [...Gist.currentMessages]) {
     var messageProperties = resolveMessageProperties(message);
-    if (!isMessageValidForRoute(messageProperties)) {
-      log(`Hiding active message ${message.instanceId} after route change`);
+    var el = document.querySelector(`#gist-${messageProperties.instanceId}`);
+    if (el == null) {
+      log(`Removing active message ${message.instanceId} that no longer exists after route change`);
       await resetMessage(message);
     }
   }
@@ -59,8 +60,18 @@ export async function checkCurrentMessagesAfterRouteChange() {
 //TODO: Move this to a utility and only return valid messages (from: getEligibleBroadcasts getMessagesFromLocalStore) & to handleMessage
 async function handleMessage(message) {
   var messageProperties = resolveMessageProperties(message);
-  if (!isMessageValidForRoute(messageProperties)) {
-    return false;
+  if (messageProperties.hasRouteRule) {
+    var currentUrl = Gist.currentRoute;
+    if (currentUrl == null) {
+      currentUrl = new URL(window.location.href).pathname;
+    }
+    var routeRule = messageProperties.routeRule;
+    log(`Verifying route ${currentUrl} against rule: ${routeRule}`);
+    var urlTester = new RegExp(routeRule);
+    if (!urlTester.test(currentUrl)) {
+      log(`Route ${currentUrl} does not match rule.`);
+      return false;
+    }
   }
   if (messageProperties.hasPosition) {
     message.position = messageProperties.position;
@@ -97,22 +108,6 @@ async function handleMessage(message) {
     if (loading) setMessageLoading(message.queueId);
     return loading;
   }
-}
-
-function isMessageValidForRoute(messageProperties) {
-  if (messageProperties.hasRouteRule) {
-    var currentUrl = Gist.currentRoute ?? new URL(window.location.href).pathname;
-    var routeRule = messageProperties.routeRule;
-    
-    log(`Verifying route ${currentUrl} against rule: ${routeRule}`);
-    var urlTester = new RegExp(routeRule);
-    if (!urlTester.test(currentUrl)) {
-      log(`Route ${currentUrl} does not match rule.`);
-      return false;
-    }
-  }
-
-  return true;
 }
 
 export async function pullMessagesFromQueue() {
