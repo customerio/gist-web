@@ -96,4 +96,5 @@ export const PREVIEW_BAR_CSS = `
   }
   .gist-pb-checkbox { cursor: pointer; width: 14px; height: 14px; }
   .gist-pb-pick-highlight { outline: 2px solid #3b82f6 !important; }
+  #gist-preview-bar.gist-pb-hidden { display: none; }
 `;

@@ -343,7 +343,9 @@ function startElementPicker(target: HTMLInputElement) {
 function renderBar() {
   const bar = document.getElementById(BAR_ID);
   if (!bar) return;
+  bar.classList.toggle("gist-pb-hidden", !currentInstanceId);
   bar.innerHTML = "";
+  if (!currentInstanceId) return;
 
   const toggleRowClass = `gist-pb-toggle-row${isCollapsed ? " gist-pb-toggle-row--collapsed" : ""}`;
   const toggleRow = el("div", { className: toggleRowClass });
@@ -470,6 +472,14 @@ export function updatePreviewBarStep(stepName: string, displaySettings: DisplayS
 export function getPreviewBarStepSettings(stepName: string): DisplaySettings | null {
   const step = currentSteps.find((s) => s.stepName === stepName);
   return step ? { ...step.displaySettings } : null;
+}
+
+export function clearPreviewBarMessage(): void {
+  currentInstanceId = null;
+  currentSteps = [];
+  currentSettings = {};
+  currentStepName = null;
+  renderBar();
 }
 
 export function destroyPreviewBar(): void {

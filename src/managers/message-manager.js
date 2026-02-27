@@ -32,7 +32,7 @@ import {
   hasDisplayChanged,
   applyDisplaySettings
 } from '../utilities/message-utils';
-import { updatePreviewBarMessage, updatePreviewBarStep } from './preview-bar-manager';
+import { updatePreviewBarMessage, updatePreviewBarStep, clearPreviewBarMessage } from './preview-bar-manager';
 
 export async function showMessage(message) {
   if (Gist.isDocumentVisible) {
@@ -128,6 +128,10 @@ export async function removePersistentMessage(message) {
 function resetEmbedState(message) {
   removeMessageByInstanceId(message.instanceId);
   hideEmbedComponent(message.elementId);
+  if (Gist.config.isPreviewSession) {
+    clearPreviewBarMessage();
+    exitPreviewSession();
+  }
 }
 
 async function resetOverlayState(hideFirst, message) {
@@ -144,6 +148,16 @@ async function resetOverlayState(hideFirst, message) {
 
   removeMessageByInstanceId(message.instanceId);
   Gist.overlayInstanceId = null;
+  if (Gist.config.isPreviewSession) {
+    clearPreviewBarMessage();
+    exitPreviewSession();
+  }
+}
+
+function exitPreviewSession() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('cioPreviewId');
+  window.location.replace(url.toString());
 }
 
 function loadMessageComponent(message, elementId = null, stepName = null) {
@@ -211,7 +225,7 @@ async function handleGistEvents(e) {
           log(`SDK already has display settings state, sending it to iframe`);
           sendDisplaySettingsToIframe(currentMessage);
         }
-        if (Gist.config.isPreviewSession) {
+        if (Gist.config.isPreviewSession && currentMessage.properties?.gist?.livePreview) {
           updatePreviewBarMessage(currentMessage);
         }
         // Show component for first load or display change reload
@@ -291,7 +305,7 @@ async function handleGistEvents(e) {
         var displaySettings = e.data.gist.parameters.displaySettings;
         var messageStepName = e.data.gist.parameters.messageStepName;
         
-        if (Gist.config.isPreviewSession && messageStepName) {
+        if (Gist.config.isPreviewSession && messageStepName && currentMessage.properties?.gist?.livePreview) {
           updatePreviewBarStep(messageStepName, displaySettings);
         }
         
