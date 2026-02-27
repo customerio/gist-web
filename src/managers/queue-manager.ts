@@ -45,7 +45,7 @@ export async function startQueueListener(): Promise<void> {
     if (getUserToken()) {
       log("Queue watcher started");
       pollingSetup = true;
-      poll(() => new Promise(() => pullMessagesFromQueue()), 1000);
+      poll(() => pullMessagesFromQueue(), 1000);
     } else {
       log("User token not setup, queue not started.");
     }
