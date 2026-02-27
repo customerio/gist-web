@@ -1,6 +1,6 @@
 import Gist from '../gist';
 import { positions } from '../managers/page-component-manager';
-import { resolveMessageProperties } from '../managers/gist-properties-manager';
+import { resolveMessageProperties, MESSAGE_PROPERTY_DEFAULTS } from '../managers/gist-properties-manager';
 import { log } from './log';
 
 export const wideOverlayPositions = ["x-gist-top", "x-gist-bottom", "x-gist-floating-top", "x-gist-floating-bottom"];
@@ -90,16 +90,15 @@ export function hasDisplayChanged(currentMessage, displaySettings) {
         return true;
       }
 
-      if (displaySettings.dismissOutsideClick !== undefined) {
-        if (resolvedProps.exitClick !== displaySettings.dismissOutsideClick) {
-          return true;
-        }
+      // Compare effective values: undefined means "revert to default", so we always compare
+      const newExitClick = displaySettings.dismissOutsideClick ?? MESSAGE_PROPERTY_DEFAULTS.exitClick;
+      if (resolvedProps.exitClick !== newExitClick) {
+        return true;
       }
-      
-      if (displaySettings.overlayColor !== undefined) {
-        if (resolvedProps.overlayColor !== displaySettings.overlayColor) {
-          return true;
-        }
+
+      const newOverlayColor = displaySettings.overlayColor ?? MESSAGE_PROPERTY_DEFAULTS.overlayColor;
+      if (resolvedProps.overlayColor !== newOverlayColor) {
+        return true;
       }
       break;
     }
@@ -118,10 +117,9 @@ export function hasDisplayChanged(currentMessage, displaySettings) {
     }
   }
   
-  if (displaySettings.maxWidth !== undefined) {
-    if (resolvedProps.messageWidth !== displaySettings.maxWidth) {
-      return true;
-    }
+  const newMaxWidth = displaySettings.maxWidth ?? MESSAGE_PROPERTY_DEFAULTS.messageWidth;
+  if (resolvedProps.messageWidth !== newMaxWidth) {
+    return true;
   }
   
   return false;

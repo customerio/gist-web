@@ -116,6 +116,7 @@ export function sendOptionsToIframe(iframeId, options, stepName = null) {
   }
 }
 
+
 export function sendDisplaySettingsToIframe(message) {
   // Only send if displaySettings exist
   if (!message.displaySettings) {
@@ -206,12 +207,9 @@ function component(url, message) {
 
 function safelyFetchElement(elementId) {
   try {
-    var element = document.querySelector(`#${elementId}`);
-    if (element) {
-      return element;
-    } else {
-      return null;
-    }
+    // Try as a plain ID first (backward-compatible), then as a full CSS selector
+    var element = document.getElementById(elementId) ?? document.querySelector(elementId);
+    return element || null;
   } catch {
     return null;
   }

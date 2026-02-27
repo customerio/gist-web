@@ -1,6 +1,7 @@
 import Gist from '../gist';
 import { log } from './log';
 import { shouldPersistSession, isSessionBeingPersisted } from './local-storage';
+import { initPreviewBar } from '../managers/preview-bar-manager';
 
 const previewParamId = "cioPreviewId";
 
@@ -10,6 +11,7 @@ export function setupPreview() {
         shouldPersistSession(false);
         Gist.setUserToken(cioPreviewId);
         log(`Preview mode enabled with user token: ${cioPreviewId}`);
+        initPreviewBar();
     }
     return !isSessionBeingPersisted();
 }

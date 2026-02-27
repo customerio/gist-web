@@ -1,19 +1,21 @@
+export const MESSAGE_PROPERTY_DEFAULTS = {
+    isEmbedded: false,
+    elementId: "",
+    hasRouteRule: false,
+    routeRule: "",
+    position: "",
+    hasPosition: false,
+    shouldScale: false,
+    campaignId: null,
+    messageWidth: 414,
+    overlayColor: "#00000033",
+    persistent: false,
+    exitClick: false,
+    hasCustomWidth: false
+};
+
 export function resolveMessageProperties(message) {
-    const defaults = {
-        isEmbedded: false,
-        elementId: "",
-        hasRouteRule: false,
-        routeRule: "",
-        position: "",
-        hasPosition: false,
-        shouldScale: false,
-        campaignId: null,
-        messageWidth: 414,
-        overlayColor: "#00000033",
-        persistent: false,
-        exitClick: false,
-        hasCustomWidth: false
-    };
+    const defaults = MESSAGE_PROPERTY_DEFAULTS;
 
     const gist = message?.properties?.gist;
     if (!gist) return defaults;

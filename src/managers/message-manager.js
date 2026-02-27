@@ -32,6 +32,7 @@ import {
   hasDisplayChanged,
   applyDisplaySettings
 } from '../utilities/message-utils';
+import { updatePreviewBarMessage, updatePreviewBarStep } from './preview-bar-manager';
 
 export async function showMessage(message) {
   if (Gist.isDocumentVisible) {
@@ -210,6 +211,9 @@ async function handleGistEvents(e) {
           log(`SDK already has display settings state, sending it to iframe`);
           sendDisplaySettingsToIframe(currentMessage);
         }
+        if (Gist.config.isPreviewSession) {
+          updatePreviewBarMessage(currentMessage);
+        }
         // Show component for first load or display change reload
         if (currentMessage.firstLoad || currentMessage.isDisplayChange) {
           if (currentMessage.overlay) {
@@ -287,6 +291,10 @@ async function handleGistEvents(e) {
         var displaySettings = e.data.gist.parameters.displaySettings;
         var messageStepName = e.data.gist.parameters.messageStepName;
         
+        if (Gist.config.isPreviewSession && messageStepName) {
+          updatePreviewBarStep(messageStepName, displaySettings);
+        }
+        
         // Save message state (step + display settings) for persistent messages or show-always broadcasts
         if (messageProperties.persistent || isShowAlwaysBroadcast(currentMessage)) {
           await saveMessageState(currentMessage.queueId, messageStepName, displaySettings);
@@ -294,14 +302,7 @@ async function handleGistEvents(e) {
         
         if (displaySettings && hasDisplayChanged(currentMessage, displaySettings)) {
           log(`Display settings changed, reloading message`);
-          // Hide visually without side effects
-          await hideMessageVisually(currentMessage);
-          
-          // Apply new display settings
-          applyDisplaySettings(currentMessage, displaySettings);
-          
-          // Re-show message with new settings
-          await reloadMessageWithNewDisplay(currentMessage, messageStepName);
+          await applyMessageStepChange(currentMessage, messageStepName, displaySettings);
         }
         break;
       }
@@ -340,6 +341,17 @@ async function handleGistEvents(e) {
       }
     }
   }
+}
+
+// Navigate to a specific step, applying any display setting changes along the way.
+// Used by the preview bar step dropdown -- always reloads the iframe so the renderer
+// shows the requested step, with or without a layout change.
+export async function applyMessageStepChange(message, stepName, displaySettings) {
+  if (displaySettings && hasDisplayChanged(message, displaySettings)) {
+    await hideMessageVisually(message);
+    applyDisplaySettings(message, displaySettings);
+  }
+  await reloadMessageWithNewDisplay(message, stepName);
 }
 
 // Reload message with new display settings
@@ -386,7 +398,7 @@ async function reloadMessageWithNewDisplay(message, stepName) {
 }
 
 // Visual-only hide without side effects
-async function hideMessageVisually(message) {
+export async function hideMessageVisually(message) {
   if (message.overlay) {
     await hideOverlayComponent();
   } else {
