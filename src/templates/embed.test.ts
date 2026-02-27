@@ -2,6 +2,11 @@ import { describe, it, expect } from "vitest";
 import { embedHTMLTemplate } from "./embed";
 import type { ResolvedMessageProperties } from "../types";
 
+function parseHTML(html: string): Document {
+  const parser = new DOMParser();
+  return parser.parseFromString(html, "text/html");
+}
+
 function makeProps(
   overrides: Partial<ResolvedMessageProperties> = {},
 ): ResolvedMessageProperties {
@@ -31,16 +36,18 @@ describe("embedHTMLTemplate", () => {
       "https://example.com/embed",
     );
 
-    expect(html).toContain('id="my-embed-id"');
-    expect(html).toContain('src="https://example.com/embed"');
+    const doc = parseHTML(html);
+    const iframe = doc.querySelector("#my-embed-id");
+    expect(iframe).not.toBeNull();
+    expect(iframe?.getAttribute("src")).toBe("https://example.com/embed");
   });
 
   it("includes positioning styles for floating-top positions", () => {
     const html = embedHTMLTemplate("el", makeProps(), "https://example.com");
 
-    expect(html).toContain("#x-gist-floating-top,");
-    expect(html).toContain("#x-gist-floating-top-left,");
-    expect(html).toContain("#x-gist-floating-top-right");
+    expect(html).toContain(
+      "#x-gist-floating-top, #x-gist-floating-top-left, #x-gist-floating-top-right",
+    );
     expect(html).toContain("position: fixed");
     expect(html).toContain("top: 0px");
   });
@@ -48,9 +55,9 @@ describe("embedHTMLTemplate", () => {
   it("includes positioning styles for floating-bottom positions", () => {
     const html = embedHTMLTemplate("el", makeProps(), "https://example.com");
 
-    expect(html).toContain("#x-gist-floating-bottom,");
-    expect(html).toContain("#x-gist-floating-bottom-left,");
-    expect(html).toContain("#x-gist-floating-bottom-right");
+    expect(html).toContain(
+      "#x-gist-floating-bottom, #x-gist-floating-bottom-left, #x-gist-floating-bottom-right",
+    );
     expect(html).toContain("bottom: 0px");
   });
 
@@ -100,8 +107,11 @@ describe("embedHTMLTemplate", () => {
 
   it("contains the gist-embed-container wrapper div", () => {
     const html = embedHTMLTemplate("el", makeProps(), "https://example.com");
+    const doc = parseHTML(html);
 
-    expect(html).toContain('id="gist-embed-container"');
-    expect(html).toContain('id="gist-embed"');
+    const container = doc.querySelector("#gist-embed-container");
+    const embed = doc.querySelector("#gist-embed");
+    expect(container).not.toBeNull();
+    expect(embed).not.toBeNull();
   });
 });

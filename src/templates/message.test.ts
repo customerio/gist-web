@@ -2,6 +2,11 @@ import { describe, it, expect } from "vitest";
 import { messageHTMLTemplate } from "./message";
 import type { ResolvedMessageProperties } from "../types";
 
+function parseHTML(html: string): Document {
+  const parser = new DOMParser();
+  return parser.parseFromString(html, "text/html");
+}
+
 function makeProps(
   overrides: Partial<ResolvedMessageProperties> = {},
 ): ResolvedMessageProperties {
@@ -31,8 +36,10 @@ describe("messageHTMLTemplate", () => {
       "https://example.com/msg",
     );
 
-    expect(html).toContain('id="my-element-id"');
-    expect(html).toContain('src="https://example.com/msg"');
+    const doc = parseHTML(html);
+    const iframe = doc.querySelector("#my-element-id");
+    expect(iframe).not.toBeNull();
+    expect(iframe?.getAttribute("src")).toBe("https://example.com/msg");
   });
 
   it("uses messageProperties.overlayColor in the background style", () => {
@@ -78,14 +85,17 @@ describe("messageHTMLTemplate", () => {
 
   it("contains the gist-overlay wrapper div", () => {
     const html = messageHTMLTemplate("el", makeProps(), "https://example.com");
+    const doc = parseHTML(html);
 
-    expect(html).toContain('id="gist-overlay"');
-    expect(html).toContain('class="gist-background"');
+    const overlay = doc.querySelector("#gist-overlay.gist-background");
+    expect(overlay).not.toBeNull();
   });
 
   it("contains the gist-embed-message wrapper div", () => {
     const html = messageHTMLTemplate("el", makeProps(), "https://example.com");
+    const doc = parseHTML(html);
 
-    expect(html).toContain('id="gist-embed-message"');
+    const wrapper = doc.querySelector("#gist-embed-message");
+    expect(wrapper).not.toBeNull();
   });
 });
