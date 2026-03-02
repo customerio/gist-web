@@ -2,7 +2,7 @@ import Gist from '../gist';
 import { log } from "../utilities/log";
 import { getUserToken, isAnonymousUser } from "./user-manager";
 import { getUserQueue, getQueueSSEEndpoint, userQueueNextPullCheckLocalStoreName } from "../services/queue-service";
-import { showMessage, embedMessage } from "./message-manager";
+import { showMessage, embedMessage, resetMessage } from "./message-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
 import { clearKeyFromLocalStore, getKeyFromLocalStore } from '../utilities/local-storage';
 import { updateBroadcastsLocalStore, getEligibleBroadcasts, isShowAlwaysBroadcast } from './message-broadcast-manager';
@@ -39,6 +39,19 @@ export async function checkMessageQueue() {
   var orderedMessages = allMessages.sort((a, b) => a.priority - b.priority);
   for (const message of orderedMessages) {
     await handleMessage(message);
+  }
+}
+
+export async function checkCurrentMessagesAfterRouteChange() {
+  if (Gist.currentMessages.length === 0) {
+    return;
+  }
+
+  for (const message of [...Gist.currentMessages]) {
+    if (document.querySelector(`#gist-${message.instanceId}`) == null) {
+      log(`Removing active message ${message.instanceId} that no longer exists after route change`);
+      await resetMessage(message);
+    }
   }
 }
 
