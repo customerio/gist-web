@@ -1,22 +1,26 @@
-import { v4 as uuidv4 } from 'uuid';
-import { log } from '../utilities/log';
-import { setKeyToLocalStore, getKeyFromLocalStore, clearKeyFromLocalStore } from '../utilities/local-storage';
-import { userQueueNextPullCheckLocalStoreName } from '../services/queue-service';
+import { v4 as uuidv4 } from "uuid";
+import { log } from "../utilities/log";
+import {
+  setKeyToLocalStore,
+  getKeyFromLocalStore,
+  clearKeyFromLocalStore,
+} from "../utilities/local-storage";
+import { userQueueNextPullCheckLocalStoreName } from "../services/queue-service";
 
 const userTokenLocalStoreName = "gist.web.userToken";
 const usingGuestUserTokenLocalStoreName = "gist.web.usingGuestUserToken";
 const guestUserTokenLocalStoreName = "gist.web.guestUserToken";
 const defaultExpiryInDays = 30;
 
-export function isUsingGuestUserToken() {
-  return (getKeyFromLocalStore(usingGuestUserTokenLocalStoreName) !== null);
+export function isUsingGuestUserToken(): boolean {
+  return getKeyFromLocalStore(usingGuestUserTokenLocalStoreName) !== null;
 }
 
-export function getUserToken() {
-  return getKeyFromLocalStore(userTokenLocalStoreName);
+export function getUserToken(): string | null {
+  return getKeyFromLocalStore(userTokenLocalStoreName) as string | null;
 }
 
-export function setUserToken(userToken, expiryDate) {
+export function setUserToken(userToken: string, expiryDate?: Date): void {
   if (expiryDate === undefined) {
     expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + defaultExpiryInDays);
@@ -31,14 +35,18 @@ export function setUserToken(userToken, expiryDate) {
   log(`Set user token "${userToken}" with expiry date set to ${expiryDate}`);
 }
 
-export function useGuestSession() {
+export function useGuestSession(): void {
   // Guest sessions should never override existing sessions
   if (getUserToken() === null) {
-    var guestUserToken = getKeyFromLocalStore(guestUserTokenLocalStoreName);
+    let guestUserToken = getKeyFromLocalStore(guestUserTokenLocalStoreName) as
+      | string
+      | null;
     if (guestUserToken == null) {
       guestUserToken = uuidv4();
       setKeyToLocalStore(guestUserTokenLocalStoreName, guestUserToken);
-      log(`Set guest user token "${guestUserToken}" with expiry date set to 1 year from today`);
+      log(
+        `Set guest user token "${guestUserToken}" with expiry date set to 1 year from today`,
+      );
     }
 
     setKeyToLocalStore(userTokenLocalStoreName, guestUserToken);
@@ -47,42 +55,38 @@ export function useGuestSession() {
   }
 }
 
-export function isAnonymousUser() {
+export function isAnonymousUser(): boolean {
   return isUsingGuestUserToken();
 }
 
-export async function getHashedUserToken() {
-  var userToken = getUserToken();
+export async function getHashedUserToken(): Promise<string | null> {
+  const userToken = getUserToken();
   if (userToken === null) {
     return null;
   }
   return await hashString(userToken);
 }
 
-export function getEncodedUserToken() {
-  var userToken = getUserToken();
+export function getEncodedUserToken(): string | null {
+  const userToken = getUserToken();
   if (userToken === null) {
     return null;
   }
   return btoa(userToken);
 }
 
-export function clearUserToken() {
+export function clearUserToken(): void {
   clearKeyFromLocalStore(userTokenLocalStoreName);
   log(`Cleared user token`);
 }
 
-async function hashString(message) {
-  // Encode the message as a Uint8Array
+async function hashString(message: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(message);
-
-  // Hash the message using the SHA-256 algorithm
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-
-  // Convert the hash to a hexadecimal string
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('');
-
+  const hashHex = hashArray
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
   return hashHex;
 }

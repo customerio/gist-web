@@ -1,27 +1,62 @@
-import Gist from '../gist';
+import Gist from "../gist";
 import { log } from "../utilities/log";
 import { getUserToken, isAnonymousUser } from "./user-manager";
-import { getUserQueue, getQueueSSEEndpoint, userQueueNextPullCheckLocalStoreName } from "../services/queue-service";
+import {
+  getUserQueue,
+  getQueueSSEEndpoint,
+  userQueueNextPullCheckLocalStoreName,
+} from "../services/queue-service";
 import { showMessage, embedMessage, resetMessage } from "./message-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
-import { clearKeyFromLocalStore, getKeyFromLocalStore } from '../utilities/local-storage';
-import { updateBroadcastsLocalStore, getEligibleBroadcasts, isShowAlwaysBroadcast } from './message-broadcast-manager';
-import { updateQueueLocalStore, getMessagesFromLocalStore, isMessageLoading, setMessageLoading, getSavedMessageState } from './message-user-queue-manager';
-import { updateInboxMessagesLocalStore } from './inbox-message-manager';
-import { settings } from '../services/settings';
-import { applyDisplaySettings } from '../utilities/message-utils';
+import {
+  clearKeyFromLocalStore,
+  getKeyFromLocalStore,
+} from "../utilities/local-storage";
+import {
+  updateBroadcastsLocalStore,
+  getEligibleBroadcasts,
+  isShowAlwaysBroadcast,
+} from "./message-broadcast-manager";
+import {
+  updateQueueLocalStore,
+  getMessagesFromLocalStore,
+  isMessageLoading,
+  setMessageLoading,
+  getSavedMessageState,
+} from "./message-user-queue-manager";
+import { updateInboxMessagesLocalStore } from "./inbox-message-manager";
+import type { InboxMessage } from "./inbox-message-manager";
+import { settings } from "../services/settings";
+import { applyDisplaySettings } from "../utilities/message-utils";
+import type { GistMessage, DisplaySettings } from "../types";
 
-var sleep = time => new Promise(resolve => setTimeout(resolve, time))
-var poll = (promiseFn, time) => promiseFn().then(sleep(time).then(() => poll(promiseFn, time)));
-var pollingSetup = false;
-let sseSource = null;
+const sleep = (time: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, time));
+const poll = (
+  promiseFn: () => Promise<unknown>,
+  time: number,
+): Promise<unknown> =>
+  promiseFn().then(
+    sleep(time).then(() => poll(promiseFn, time)) as unknown as (
+      value: unknown,
+    ) => unknown,
+  );
 
-export async function startQueueListener() {
+let pollingSetup = false;
+let sseSource: EventSource | null = null;
+
+export async function startQueueListener(): Promise<void> {
   if (!pollingSetup) {
     if (getUserToken()) {
       log("Queue watcher started");
       pollingSetup = true;
-      poll(() => new Promise(() => pullMessagesFromQueue()), 1000);
+      poll(
+        () =>
+          new Promise(() => {
+            void pullMessagesFromQueue();
+          }),
+        1000,
+      );
     } else {
       log("User token not setup, queue not started.");
     }
@@ -30,42 +65,48 @@ export async function startQueueListener() {
   }
 }
 
-export async function checkMessageQueue() {
-  var broadcastMessages = await getEligibleBroadcasts();
-  var userMessages = await getMessagesFromLocalStore();
-  var allMessages = broadcastMessages.concat(userMessages);
+export async function checkMessageQueue(): Promise<void> {
+  const broadcastMessages = await getEligibleBroadcasts();
+  const userMessages = await getMessagesFromLocalStore();
+  const allMessages = broadcastMessages.concat(userMessages);
 
   log(`Messages in local queue: ${allMessages.length}`);
-  var orderedMessages = allMessages.sort((a, b) => a.priority - b.priority);
+  const orderedMessages = allMessages.sort(
+    (a, b) =>
+      (a as GistMessage & { priority: number }).priority -
+      (b as GistMessage & { priority: number }).priority,
+  );
   for (const message of orderedMessages) {
     await handleMessage(message);
   }
 }
 
-export async function checkCurrentMessagesAfterRouteChange() {
+export async function checkCurrentMessagesAfterRouteChange(): Promise<void> {
   if (Gist.currentMessages.length === 0) {
     return;
   }
 
   for (const message of [...Gist.currentMessages]) {
     if (document.querySelector(`#gist-${message.instanceId}`) == null) {
-      log(`Removing active message ${message.instanceId} that no longer exists after route change`);
+      log(
+        `Removing active message ${message.instanceId} that no longer exists after route change`,
+      );
       await resetMessage(message);
     }
   }
 }
 
-//TODO: Move this to a utility and only return valid messages (from: getEligibleBroadcasts getMessagesFromLocalStore) & to handleMessage
-async function handleMessage(message) {
-  var messageProperties = resolveMessageProperties(message);
+// TODO: Move this to a utility and only return valid messages (from: getEligibleBroadcasts getMessagesFromLocalStore) & to handleMessage
+async function handleMessage(message: GistMessage): Promise<boolean> {
+  let messageProperties = resolveMessageProperties(message);
   if (messageProperties.hasRouteRule) {
-    var currentUrl = Gist.currentRoute;
+    let currentUrl = Gist.currentRoute;
     if (currentUrl == null) {
       currentUrl = new URL(window.location.href).pathname;
     }
-    var routeRule = messageProperties.routeRule;
+    const routeRule = messageProperties.routeRule;
     log(`Verifying route ${currentUrl} against rule: ${routeRule}`);
-    var urlTester = new RegExp(routeRule);
+    const urlTester = new RegExp(routeRule);
     if (!urlTester.test(currentUrl)) {
       log(`Route ${currentUrl} does not match rule.`);
       return false;
@@ -75,43 +116,44 @@ async function handleMessage(message) {
     message.position = messageProperties.position;
   }
 
-  // Restore saved state for persistent messages or show-always broadcasts
   if (messageProperties.persistent || isShowAlwaysBroadcast(message)) {
-    const savedState = await getSavedMessageState(message.queueId);
+    const savedState = (await getSavedMessageState(message.queueId ?? "")) as {
+      stepName?: string;
+      displaySettings?: DisplaySettings;
+    } | null;
     if (savedState) {
       log(`Restoring saved state for queueId ${message.queueId}`);
-      
-      // Apply saved display settings if they exist
       if (savedState.displaySettings) {
         applyDisplaySettings(message, savedState.displaySettings);
-        messageProperties = resolveMessageProperties(message); // Re-resolve after applying
+        messageProperties = resolveMessageProperties(message);
       }
-      
-      // Store saved step for later use
-      message.savedStepName = savedState.stepName;
+      message.savedStepName = savedState.stepName ?? null;
     }
   }
 
-  // If the message is not persistant, is not a show always broadcast, and is already loading, we skip it.
-  if (!messageProperties.persistent && !isShowAlwaysBroadcast(message) && await isMessageLoading(message.queueId)) {
-    log(`Not showing message with queueId ${message.queueId} because its already loading.`);
+  if (
+    !messageProperties.persistent &&
+    !isShowAlwaysBroadcast(message) &&
+    (await isMessageLoading(message.queueId ?? ""))
+  ) {
+    log(
+      `Not showing message with queueId ${message.queueId} because its already loading.`,
+    );
     return false;
   } else {
-    var loading = false;
+    let result: GistMessage | null = null;
     if (messageProperties.isEmbedded) {
-      loading = embedMessage(message, messageProperties.elementId);
+      result = embedMessage(message, messageProperties.elementId);
     } else {
-      loading = await showMessage(message);
+      result = await showMessage(message);
     }
-    if (loading) setMessageLoading(message.queueId);
-    return loading;
+    if (result) setMessageLoading(message.queueId ?? "");
+    return result !== null;
   }
 }
 
-export async function pullMessagesFromQueue() {
-  // If SSE connection is already active, just check the local queue
+export async function pullMessagesFromQueue(): Promise<void> {
   if (settings.hasActiveSSEConnection()) {
-    // Close our SSE connection if we're not the main instance.
     if (!settings.isSSEConnectionManagedBySDK() && sseSource) {
       log("Not the main instance, closing our SSE connection.");
       stopSSEListener();
@@ -125,27 +167,30 @@ export async function pullMessagesFromQueue() {
     }
   }
 
-  // If SSE is enabled and user is not anonymous, set up SSE listener
   if (settings.useSSE() && !isAnonymousUser()) {
     await setupSSEQueueListener();
     return;
   }
 
-  // Fall back to polling
   await checkQueueThroughPolling();
 }
 
-async function checkQueueThroughPolling() {
+async function checkQueueThroughPolling(): Promise<void> {
   if (getUserToken()) {
     if (Gist.isDocumentVisible) {
-      // We're using the TTL as a way to determine if we should check the queue, so if the key is not there, we check the queue.
       if (getKeyFromLocalStore(userQueueNextPullCheckLocalStoreName) === null) {
-        var response = await getUserQueue();
+        const response = await getUserQueue();
         if (response) {
           if (response.status === 200 || response.status === 204) {
             log("200 response, updating local store.");
-            var inAppMessages = response.data?.inAppMessages || [];
-            var inboxMessages = response.data?.inboxMessages || [];
+            const data = response.data as
+              | {
+                  inAppMessages?: GistMessage[];
+                  inboxMessages?: InboxMessage[];
+                }
+              | undefined;
+            const inAppMessages = data?.inAppMessages ?? [];
+            const inboxMessages = data?.inboxMessages ?? [];
             updateQueueLocalStore(inAppMessages);
             updateBroadcastsLocalStore(inAppMessages);
             updateInboxMessagesLocalStore(inboxMessages);
@@ -167,11 +212,9 @@ async function checkQueueThroughPolling() {
   }
 }
 
-async function setupSSEQueueListener() {
-  // Close any existing SSE connection.
+async function setupSSEQueueListener(): Promise<void> {
   stopSSEListener();
 
-  // Get the SSE endpoint.
   const sseURL = getQueueSSEEndpoint();
   if (sseURL === null) {
     log("SSE endpoint not available, falling back to polling.");
@@ -184,10 +227,10 @@ async function setupSSEQueueListener() {
 
   sseSource.addEventListener("connected", async (event) => {
     try {
-      log("SSE connection received:", event);
+      log("SSE connection received");
       settings.setUseSSEFlag(true);
-      var config = JSON.parse(event.data);
-      if(config.heartbeat) {
+      const config = JSON.parse(event.data);
+      if (config.heartbeat) {
         settings.setSSEHeartbeat(config.heartbeat);
         log(`SSE heartbeat set to ${config.heartbeat} seconds`);
       }
@@ -196,63 +239,58 @@ async function setupSSEQueueListener() {
       log(`Failed to parse SSE settings: ${e}`);
     }
 
-    // On successful SSE connection, pull the queue.
     clearKeyFromLocalStore(userQueueNextPullCheckLocalStoreName);
     await checkQueueThroughPolling();
   });
 
   sseSource.addEventListener("messages", async (event) => {
     try {
-      var messages = JSON.parse(event.data);
-      log("SSE message received:", messages);
+      const messages = JSON.parse(event.data);
+      log("SSE message received");
       await updateQueueLocalStore(messages);
       await updateBroadcastsLocalStore(messages);
       await checkMessageQueue();
     } catch (e) {
-      log("Failed to parse SSE message", e);
+      log(`Failed to parse SSE message: ${e}`);
       stopSSEListener();
     }
   });
 
   sseSource.addEventListener("inbox_messages", async (event) => {
     try {
-      var inboxMessages = JSON.parse(event.data);
-      log("SSE inbox messages received:", inboxMessages);
+      const inboxMessages = JSON.parse(event.data);
+      log("SSE inbox messages received");
       await updateInboxMessagesLocalStore(inboxMessages);
     } catch (e) {
-      log("Failed to parse SSE inbox messages", e);
+      log(`Failed to parse SSE inbox messages: ${e}`);
     }
   });
 
-  sseSource.addEventListener("error", async (event) => {
-    log("SSE error received:", event);
+  sseSource.addEventListener("error", async () => {
+    log("SSE error received");
     stopSSEListener();
   });
 
-  sseSource.addEventListener("heartbeat", async (event) => {
-    log("SSE heartbeat received:", event);
+  sseSource.addEventListener("heartbeat", async () => {
+    log("SSE heartbeat received");
     settings.setActiveSSEConnection();
     settings.setUseSSEFlag(true);
   });
 }
 
-export function stopSSEListener(disconnectGlobally = false) {
-  // When logging out, we need every instance to disconnect.
+export function stopSSEListener(disconnectGlobally = false): void {
   if (disconnectGlobally) {
     settings.removeActiveSSEConnection();
   }
 
-  // Update settings to reflect disconnected state
   if (disconnectGlobally || settings.isSSEConnectionManagedBySDK()) {
     settings.setUseSSEFlag(false);
   }
 
-  // No active SSE connection to stop
   if (!sseSource) {
     return;
   }
 
-  // Close the connection and clean up
   log("Stopping SSE queue listener...");
   sseSource.close();
   sseSource = null;
