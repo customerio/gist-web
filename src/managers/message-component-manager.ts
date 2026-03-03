@@ -10,7 +10,7 @@ import type { GistMessage, ResolvedMessageProperties } from "../types";
 interface MessageOptions {
   endpoint: string;
   siteId: string;
-  dataCenter: string;
+  dataCenter?: string;
   messageId: string;
   instanceId: string;
   livePreview: boolean;

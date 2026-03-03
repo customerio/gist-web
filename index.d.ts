@@ -1,1 +1,0 @@
-declare module 'customerio-gist-web';
