@@ -1,29 +1,31 @@
 export const PREVIEW_BAR_CSS = `
   #gist-preview-bar {
     position: fixed; bottom: 0; left: 0; right: 0;
-    background: white;
-    border-top: 1px solid #e5e7eb;
-    box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
     z-index: 99999999999;
     font-family: system-ui, -apple-system, sans-serif;
   }
   .gist-pb-toggle-row {
-    display: flex; justify-content: flex-end;
-    padding: 4px 16px 8px;
+    display: flex; justify-content: center;
+    padding: 6px 16px;
     border-bottom: 1px solid #e5e7eb;
   }
-  .gist-pb-toggle-row--collapsed { border-bottom: none; padding-bottom: 4px; }
+  .gist-pb-toggle-row--collapsed { border-bottom: none; }
   .gist-pb-toggle-btn {
-    background: none; border: none; padding: 0;
-    font-size: 12px; font-family: system-ui, -apple-system, sans-serif;
-    color: #6b7280; cursor: pointer;
-    display: flex; align-items: center; gap: 4px;
+    background: #08272B; border: none;
+    padding: 4px 14px;
+    border-radius: 100px;
+    font-size: 12px; font-weight: 500;
+    font-family: system-ui, -apple-system, sans-serif;
+    color: white; cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
   }
   .gist-pb-controls-row {
-    display: flex; flex-wrap: wrap; align-items: flex-end;
+    background: #ffffff;
+    display: flex; flex-wrap: wrap; align-items: center;
     gap: 12px; padding: 10px 16px 12px;
   }
   .gist-pb-label-group { display: flex; flex-direction: column; gap: 4px; }
+  .gist-pb-label-group--grow { flex: 1; }
   .gist-pb-label {
     font-size: 10px; font-weight: 600; color: #9ca3af;
     letter-spacing: 0.05em; text-transform: uppercase;
@@ -42,7 +44,7 @@ export const PREVIEW_BAR_CSS = `
     font-size: 13px; font-family: system-ui, -apple-system, sans-serif;
     color: #111827; outline: none; box-sizing: border-box;
   }
-  .gist-pb-checkbox-row { display: flex; align-items: center; gap: 6px; padding-top: 14px; }
+  .gist-pb-checkbox-row { display: flex; align-items: center; gap: 6px; height: 32px; }
   .gist-pb-checkbox-label {
     font-size: 12px; font-family: system-ui, -apple-system, sans-serif;
     color: #374151; cursor: pointer; user-select: none;
@@ -77,19 +79,22 @@ export const PREVIEW_BAR_CSS = `
   }
   .gist-pb-inline-row { display: flex; align-items: center; gap: 6px; }
   .gist-pb-select-elem-btn {
-    height: 32px; padding: 0 10px;
-    border: 1px solid #d1d5db; border-radius: 6px;
-    font-size: 12px; font-family: system-ui, -apple-system, sans-serif;
-    background: white; color: #374151; cursor: pointer; white-space: nowrap;
+    height: 32px; padding: 0 12px;
+    border: none; border-radius: 6px;
+    font-size: 12px; font-weight: 500; font-family: system-ui, -apple-system, sans-serif;
+    background: #08272B; color: white; cursor: pointer; white-space: nowrap; flex-shrink: 0;
   }
-  .gist-pb-spacer { flex: 1; }
+  .gist-pb-spacer { flex: 1; min-width: 0; }
   .gist-pb-save-btn {
     height: 36px; padding: 0 18px;
-    background: #0d9488; color: white;
+    background: #08272B; color: white;
     border: none; border-radius: 6px;
     font-size: 13px; font-weight: 600;
     font-family: system-ui, -apple-system, sans-serif;
-    cursor: pointer; white-space: nowrap; align-self: flex-end;
+    cursor: pointer; white-space: nowrap; align-self: center;
+  }
+  .gist-pb-save-btn:disabled {
+    background: #CAD6D8; cursor: not-allowed;
   }
   .gist-pb-picker-overlay {
     position: fixed; inset: 0; z-index: 999999999998; cursor: crosshair;
@@ -97,4 +102,16 @@ export const PREVIEW_BAR_CSS = `
   .gist-pb-checkbox { cursor: pointer; width: 14px; height: 14px; }
   .gist-pb-pick-highlight { outline: 2px solid #3b82f6 !important; }
   #gist-preview-bar.gist-pb-hidden { display: none; }
+  @media (max-width: 1024px) {
+    .gist-pb-controls-row { gap: 8px; }
+    .gist-pb-label-group { flex: 1 1 100%; }
+    .gist-pb-label-group--grow { flex: 1 1 100%; }
+    .gist-pb-select { width: 100%; min-width: unset; box-sizing: border-box; }
+    .gist-pb-input { width: 100% !important; box-sizing: border-box; }
+    .gist-pb-color-control { width: 100%; }
+    .gist-pb-checkbox-row { width: 100%; }
+    .gist-pb-inline-row { flex-direction: row; align-items: center; }
+    .gist-pb-inline-row .gist-pb-input { flex: 1; min-width: 0; }
+    .gist-pb-save-btn { width: 100%; box-sizing: border-box; }
+  }
 `;

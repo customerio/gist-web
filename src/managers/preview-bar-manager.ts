@@ -156,7 +156,9 @@ function buildModalControls(settings: DisplaySettings, row: HTMLElement) {
 
   checkRow.appendChild(checkbox);
   checkRow.appendChild(checkLabel);
-  row.appendChild(checkRow);
+  const checkGroup = labelGroup("\u00a0", checkRow);
+  checkGroup.classList.add("gist-pb-label-group--grow");
+  row.appendChild(checkGroup);
 }
 
 function buildOverlayControls(settings: DisplaySettings, row: HTMLElement) {
@@ -175,7 +177,7 @@ function buildOverlayControls(settings: DisplaySettings, row: HTMLElement) {
 }
 
 function buildInlineControls(settings: DisplaySettings, row: HTMLElement) {
-  const selectorInput = createInput("text", settings.elementSelector || "", "160px");
+  const selectorInput = createInput("text", settings.elementSelector || "", "260px");
   selectorInput.placeholder = "Element ID or selector";
   selectorInput.addEventListener("change", () =>
     emitSettings({ ...currentSettings, elementSelector: selectorInput.value })
@@ -349,10 +351,9 @@ function renderBar() {
 
   const toggleRowClass = `gist-pb-toggle-row${isCollapsed ? " gist-pb-toggle-row--collapsed" : ""}`;
   const toggleRow = el("div", { className: toggleRowClass });
-  const toggleBtn = el("button", {
-    className: "gist-pb-toggle-btn",
-    textContent: isCollapsed ? "Expand ∧" : "Collapse ∨",
-  });
+  const toggleBtn = el("button", { className: "gist-pb-toggle-btn" });
+  const chevronStyle = isCollapsed ? "transform:rotate(180deg);display:inline-flex;" : "display:inline-flex;";
+  toggleBtn.innerHTML = `${isCollapsed ? "Expand" : "Collapse"}<span style="${chevronStyle}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M3.54223 5.33301L7.7089 9.33301L11.8756 5.33301L12.6121 6.04011L7.7089 10.7472L2.80566 6.04011L3.54223 5.33301Z" fill="white"/></svg></span>`;
   toggleBtn.addEventListener("click", toggleCollapse);
   toggleRow.appendChild(toggleBtn);
   bar.appendChild(toggleRow);
