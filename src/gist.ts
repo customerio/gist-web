@@ -145,10 +145,10 @@ export default class Gist {
     await checkMessageQueue();
   }
 
-  static embedMessage(
+  static async embedMessage(
     message: GistMessage,
     elementId: string,
-  ): string | null {
+  ): Promise<string | null> {
     const messageResponse = embedMessage(message, elementId);
     return messageResponse?.instanceId ?? null;
   }

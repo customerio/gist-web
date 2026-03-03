@@ -360,21 +360,27 @@ describe("Gist", () => {
   });
 
   describe("embedMessage", () => {
-    it("returns instanceId on success", () => {
+    it("returns instanceId on success", async () => {
       vi.mocked(embedMessage).mockReturnValue({
         messageId: "msg-1",
         instanceId: "inst-1",
       });
 
-      const result = Gist.embedMessage({ messageId: "msg-1" }, "element-1");
+      const result = await Gist.embedMessage(
+        { messageId: "msg-1" },
+        "element-1",
+      );
 
       expect(result).toBe("inst-1");
     });
 
-    it("returns null on failure", () => {
+    it("returns null on failure", async () => {
       vi.mocked(embedMessage).mockReturnValue(null);
 
-      const result = Gist.embedMessage({ messageId: "msg-1" }, "element-1");
+      const result = await Gist.embedMessage(
+        { messageId: "msg-1" },
+        "element-1",
+      );
 
       expect(result).toBeNull();
     });
