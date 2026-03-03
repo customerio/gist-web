@@ -104,7 +104,6 @@ function resetGist() {
 function baseConfig(overrides: Partial<GistConfig> = {}): GistConfig {
   return {
     siteId: "test-site",
-    dataCenter: "us",
     ...overrides,
   };
 }
@@ -141,7 +140,6 @@ describe("Gist", () => {
       expect(Gist.config.experiments).toBe(false);
       expect(Gist.config.useAnonymousSession).toBe(false);
       expect(Gist.config.siteId).toBe("test-site");
-      expect(Gist.config.dataCenter).toBe("us");
     });
 
     it("respects provided config values", async () => {
