@@ -136,7 +136,7 @@ function attachIframeLoadEvent(
   stepName: string | null = null,
 ): void {
   const iframe = document.getElementById(elementId) as HTMLIFrameElement | null;
-  if (iframe?.contentWindow) {
+  if (iframe) {
     iframe.onload = () => {
       sendOptionsToIframe(elementId, options, stepName);
     };
