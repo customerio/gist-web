@@ -34,6 +34,7 @@ const sleep = (time: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, time));
 const poll = (promiseFn: () => Promise<void>, time: number): Promise<void> =>
   promiseFn()
+    .catch(() => {})
     .then(() => sleep(time))
     .then(() => poll(promiseFn, time));
 
@@ -77,7 +78,9 @@ export async function checkCurrentMessagesAfterRouteChange(): Promise<void> {
 
   for (const message of [...Gist.currentMessages]) {
     if (document.querySelector(`#gist-${message.instanceId}`) == null) {
-      log(`Removing active message ${message.instanceId} that no longer exists after route change`);
+      log(
+        `Removing active message ${message.instanceId} that no longer exists after route change`,
+      );
       await resetMessage(message);
     }
   }
