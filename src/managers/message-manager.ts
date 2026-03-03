@@ -104,14 +104,17 @@ export function embedMessage(message: GistMessage, elementId: string): GistMessa
 export async function hideMessage(message: GistMessage): Promise<void> {
   if (message) {
     Gist.messageDismissed(message);
-
-    if (message.overlay) {
-      await resetOverlayState(true, message);
-    } else {
-      resetEmbedState(message);
-    }
+    await resetMessage(message);
   } else {
     log(`Message not found`);
+  }
+}
+
+export async function resetMessage(message: GistMessage): Promise<void> {
+  if (message.overlay) {
+    await resetOverlayState(true, message);
+  } else {
+    resetEmbedState(message);
   }
 }
 

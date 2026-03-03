@@ -6,7 +6,7 @@ import {
   getQueueSSEEndpoint,
   userQueueNextPullCheckLocalStoreName,
 } from "../services/queue-service";
-import { showMessage, embedMessage } from "./message-manager";
+import { showMessage, embedMessage, resetMessage } from "./message-manager";
 import { resolveMessageProperties } from "./gist-properties-manager";
 import {
   clearKeyFromLocalStore,
@@ -70,6 +70,20 @@ export async function checkMessageQueue(): Promise<void> {
   }
 }
 
+export async function checkCurrentMessagesAfterRouteChange(): Promise<void> {
+  if (Gist.currentMessages.length === 0) {
+    return;
+  }
+
+  for (const message of [...Gist.currentMessages]) {
+    if (document.querySelector(`#gist-${message.instanceId}`) == null) {
+      log(`Removing active message ${message.instanceId} that no longer exists after route change`);
+      await resetMessage(message);
+    }
+  }
+}
+
+// TODO: Move this to a utility and only return valid messages (from: getEligibleBroadcasts getMessagesFromLocalStore) & to handleMessage
 async function handleMessage(message: GistMessage): Promise<boolean> {
   let messageProperties = resolveMessageProperties(message);
   if (messageProperties.hasRouteRule) {

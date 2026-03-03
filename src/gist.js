@@ -4,6 +4,7 @@ import { clearExpiredFromLocalStore } from "./utilities/local-storage";
 import {
   startQueueListener,
   checkMessageQueue,
+  checkCurrentMessagesAfterRouteChange,
   stopSSEListener,
 } from "./managers/queue-manager";
 import {
@@ -104,6 +105,7 @@ export default class {
   static async setCurrentRoute(route) {
     this.currentRoute = route;
     log(`Current route set to: ${route}`);
+    await checkCurrentMessagesAfterRouteChange();
     await checkMessageQueue();
   }
 
