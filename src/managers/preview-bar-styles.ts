@@ -27,27 +27,28 @@ export const PREVIEW_BAR_CSS = `
   .gist-pb-label-group { display: flex; flex-direction: column; gap: 4px; }
   .gist-pb-label-group--grow { flex: 1; }
   .gist-pb-label {
-    font-size: 10px; font-weight: 600; color: #9ca3af;
+    font-size: 10px; font-weight: 600; color: #3F4E50;
     letter-spacing: 0.05em; text-transform: uppercase;
     font-family: system-ui, -apple-system, sans-serif;
   }
   .gist-pb-select {
-    height: 32px; padding: 0 24px 0 8px;
+    height: 32px; padding: 0 32px 0 8px;
     border: 1px solid #d1d5db; border-radius: 6px;
     font-size: 13px; font-family: system-ui, -apple-system, sans-serif;
-    background: white; color: #111827; cursor: pointer; outline: none;
-    appearance: auto; min-width: 120px;
+    background: white url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M3.54223 5.33301L7.7089 9.33301L11.8756 5.33301L12.6121 6.04011L7.7089 10.7472L2.80566 6.04011L3.54223 5.33301Z' fill='%233F4E50'/%3E%3C/svg%3E") no-repeat right 2px center;
+    color: #3F4E50; cursor: pointer; outline: none;
+    appearance: none; min-width: 120px;
   }
   .gist-pb-input {
     height: 32px; padding: 0 8px;
     border: 1px solid #d1d5db; border-radius: 6px;
     font-size: 13px; font-family: system-ui, -apple-system, sans-serif;
-    color: #111827; outline: none; box-sizing: border-box;
+    color: #3F4E50; outline: none; box-sizing: border-box;
   }
   .gist-pb-checkbox-row { display: flex; align-items: center; gap: 6px; height: 32px; }
   .gist-pb-checkbox-label {
     font-size: 12px; font-family: system-ui, -apple-system, sans-serif;
-    color: #374151; cursor: pointer; user-select: none;
+    color: #3F4E50; cursor: pointer; user-select: none;
   }
   .gist-pb-color-control {
     display: flex; align-items: center;
@@ -64,17 +65,17 @@ export const PREVIEW_BAR_CSS = `
   }
   .gist-pb-color-hex {
     flex: 1; border: none; outline: none; padding: 0 6px;
-    font-size: 13px; font-family: monospace; color: #111827;
+    font-size: 13px; font-family: monospace; color: #3F4E50;
     min-width: 0; background: transparent;
   }
   .gist-pb-color-opacity {
     width: 36px; border: none; border-left: 1px solid #d1d5db;
     outline: none; padding: 0 4px;
     font-size: 13px; font-family: system-ui, -apple-system, sans-serif;
-    color: #111827; background: transparent; text-align: right;
+    color: #3F4E50; background: transparent; text-align: right;
   }
   .gist-pb-color-pct {
-    font-size: 12px; color: #6b7280; padding: 0 6px 0 2px;
+    font-size: 12px; color: #3F4E50; padding: 0 6px 0 2px;
     font-family: system-ui, -apple-system, sans-serif; flex-shrink: 0;
   }
   .gist-pb-inline-row { display: flex; align-items: center; gap: 6px; }
@@ -113,5 +114,6 @@ export const PREVIEW_BAR_CSS = `
     .gist-pb-inline-row { flex-direction: row; align-items: center; }
     .gist-pb-inline-row .gist-pb-input { flex: 1; min-width: 0; }
     .gist-pb-save-btn { width: 100%; box-sizing: border-box; }
+    .gist-pb-label--spacer { display: none; }
   }
 `;

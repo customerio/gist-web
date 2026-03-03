@@ -158,6 +158,7 @@ function buildModalControls(settings: DisplaySettings, row: HTMLElement) {
   checkRow.appendChild(checkLabel);
   const checkGroup = labelGroup("\u00a0", checkRow);
   checkGroup.classList.add("gist-pb-label-group--grow");
+  (checkGroup.firstChild as HTMLElement).classList.add("gist-pb-label--spacer");
   row.appendChild(checkGroup);
 }
 
