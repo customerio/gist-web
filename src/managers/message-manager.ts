@@ -41,7 +41,7 @@ import {
   hasDisplayChanged,
   applyDisplaySettings,
 } from "../utilities/message-utils";
-import type { GistMessage, DisplaySettings } from "../types";
+import type { GistMessage, DisplaySettings, MessageProperties } from "../types";
 
 interface GistEventData {
   gist?: {
@@ -287,7 +287,7 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
       }
       case "tap": {
         const action = data.gist.parameters.action as string;
-        const name = data.gist.parameters.name;
+        const name = data.gist.parameters.name as string;
         Gist.messageAction(currentMessage, action, name);
 
         if (data.gist.parameters.system && !messageProperties.persistent) {
@@ -310,11 +310,11 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
                 break;
               case "showMessage": {
                 const messageId = actionUrl.searchParams.get("messageId");
-                let properties = actionUrl.searchParams.get("properties");
+                const propertiesParam = actionUrl.searchParams.get("properties");
                 if (messageId) {
-                  if (properties) {
-                    properties = JSON.parse(atob(properties));
-                  }
+                  const properties: MessageProperties | undefined = propertiesParam
+                    ? JSON.parse(atob(propertiesParam))
+                    : undefined;
                   await Gist.showMessage({
                     messageId: messageId,
                     properties: properties,
