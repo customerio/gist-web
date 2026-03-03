@@ -32,11 +32,15 @@ import type { GistMessage, DisplaySettings } from "../types";
 
 const sleep = (time: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, time));
-const poll = (promiseFn: () => Promise<void>, time: number): Promise<void> =>
-  promiseFn()
-    .catch(() => {})
-    .then(() => sleep(time))
-    .then(() => poll(promiseFn, time));
+const poll = (
+  promiseFn: () => Promise<unknown>,
+  time: number,
+): Promise<unknown> =>
+  promiseFn().then(
+    sleep(time).then(() => poll(promiseFn, time)) as unknown as (
+      value: unknown,
+    ) => unknown,
+  );
 
 let pollingSetup = false;
 let sseSource: EventSource | null = null;
@@ -46,7 +50,13 @@ export async function startQueueListener(): Promise<void> {
     if (getUserToken()) {
       log("Queue watcher started");
       pollingSetup = true;
-      poll(() => pullMessagesFromQueue(), 1000);
+      poll(
+        () =>
+          new Promise(() => {
+            void pullMessagesFromQueue();
+          }),
+        1000,
+      );
     } else {
       log("User token not setup, queue not started.");
     }

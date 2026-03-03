@@ -40,7 +40,9 @@ export async function updateInboxMessagesLocalStore(
   Gist.events.dispatch(messageInboxUpdatedEventName, messages);
 }
 
-export async function getInboxMessagesFromLocalStore(): Promise<InboxMessage[]> {
+export async function getInboxMessagesFromLocalStore(): Promise<
+  InboxMessage[]
+> {
   const inboxLocalStoreName = await getInboxMessagesLocalStoreName();
   if (!inboxLocalStoreName) return [];
 
