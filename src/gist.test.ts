@@ -326,6 +326,18 @@ describe("Gist", () => {
       expect(logBroadcastDismissedLocally).toHaveBeenCalledWith(message);
       expect(checkMessageQueue).toHaveBeenCalled();
     });
+
+    it("returns early when message not found", async () => {
+      vi.mocked(fetchMessageByInstanceId).mockReturnValue(undefined);
+
+      await Gist.dismissMessage("nonexistent");
+
+      expect(fetchMessageByInstanceId).toHaveBeenCalledWith("nonexistent");
+      expect(hideMessage).not.toHaveBeenCalled();
+      expect(removePersistentMessage).not.toHaveBeenCalled();
+      expect(logBroadcastDismissedLocally).not.toHaveBeenCalled();
+      expect(checkMessageQueue).not.toHaveBeenCalled();
+    });
   });
 
   describe("showMessage", () => {
@@ -350,27 +362,21 @@ describe("Gist", () => {
   });
 
   describe("embedMessage", () => {
-    it("returns instanceId on success", async () => {
+    it("returns instanceId on success", () => {
       vi.mocked(embedMessage).mockReturnValue({
         messageId: "msg-1",
         instanceId: "inst-1",
       });
 
-      const result = await Gist.embedMessage(
-        { messageId: "msg-1" },
-        "element-1",
-      );
+      const result = Gist.embedMessage({ messageId: "msg-1" }, "element-1");
 
       expect(result).toBe("inst-1");
     });
 
-    it("returns null on failure", async () => {
+    it("returns null on failure", () => {
       vi.mocked(embedMessage).mockReturnValue(null);
 
-      const result = await Gist.embedMessage(
-        { messageId: "msg-1" },
-        "element-1",
-      );
+      const result = Gist.embedMessage({ messageId: "msg-1" }, "element-1");
 
       expect(result).toBeNull();
     });

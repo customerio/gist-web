@@ -34,6 +34,7 @@ import {
   removeInboxMessage,
 } from "./managers/inbox-message-manager";
 import type { GistConfig, GistMessage, DisplaySettings } from "./types";
+import type { InboxMessage } from "./managers/inbox-message-manager";
 
 export default class Gist {
   static events: EventEmitter;
@@ -52,16 +53,12 @@ export default class Gist {
     this.initialized = true;
     this.events = new EventEmitter();
     this.config = {
-      useAnonymousSession:
-        config.useAnonymousSession === undefined
-          ? false
-          : config.useAnonymousSession,
+      useAnonymousSession: config.useAnonymousSession ?? false,
       siteId: config.siteId,
       dataCenter: config.dataCenter,
-      env: config.env === undefined ? "prod" : config.env,
-      logging: config.logging === undefined ? false : config.logging,
-      experiments:
-        config.experiments === undefined ? false : config.experiments,
+      env: config.env ?? "prod",
+      logging: config.logging ?? false,
+      experiments: config.experiments ?? false,
     };
     this.currentMessages = [];
     this.overlayInstanceId = null;
@@ -141,23 +138,24 @@ export default class Gist {
 
   static async dismissMessage(instanceId: string): Promise<void> {
     const message = fetchMessageByInstanceId(instanceId);
-    await hideMessage(message as GistMessage);
-    await removePersistentMessage(message as GistMessage);
-    await logBroadcastDismissedLocally(message as GistMessage);
+    if (!message) return;
+    await hideMessage(message);
+    await removePersistentMessage(message);
+    await logBroadcastDismissedLocally(message);
     await checkMessageQueue();
   }
 
-  static async embedMessage(
+  static embedMessage(
     message: GistMessage,
     elementId: string,
-  ): Promise<string | null> {
+  ): string | null {
     const messageResponse = embedMessage(message, elementId);
-    return messageResponse ? messageResponse.instanceId! : null;
+    return messageResponse?.instanceId ?? null;
   }
 
   static async showMessage(message: GistMessage): Promise<string | null> {
     const messageResponse = await showMessage(message);
-    return messageResponse ? messageResponse.instanceId! : null;
+    return messageResponse?.instanceId ?? null;
   }
 
   static updateMessageDisplaySettings(
@@ -200,11 +198,7 @@ export default class Gist {
     log(
       `Message action: ${message.currentRoute}, ${action} with name ${name} on ${message.instanceId}`,
     );
-    this.events.dispatch("messageAction", {
-      message: message,
-      action: action,
-      name: name,
-    });
+    this.events.dispatch("messageAction", { message, action, name });
   }
 
   // Inbox Messages
@@ -214,7 +208,7 @@ export default class Gist {
     return messages.filter((msg) => !msg.opened).length;
   }
 
-  static async getInboxMessages() {
+  static async getInboxMessages(): Promise<InboxMessage[]> {
     return await getInboxMessagesFromLocalStore();
   }
 
