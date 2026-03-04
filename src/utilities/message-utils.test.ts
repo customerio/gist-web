@@ -31,7 +31,24 @@ vi.mock("../managers/page-component-manager", () => ({
   ],
 }));
 
+const MESSAGE_PROPERTY_DEFAULTS = {
+  isEmbedded: false,
+  elementId: "",
+  hasRouteRule: false,
+  routeRule: "",
+  position: "",
+  hasPosition: false,
+  shouldScale: false,
+  campaignId: null,
+  messageWidth: 414,
+  overlayColor: "#00000033",
+  persistent: false,
+  exitClick: false,
+  hasCustomWidth: false,
+};
+
 vi.mock("../managers/gist-properties-manager", () => ({
+  MESSAGE_PROPERTY_DEFAULTS,
   resolveMessageProperties: vi.fn((message: GistMessage) => {
     const gist = message?.properties?.gist;
     return {

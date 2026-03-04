@@ -2,7 +2,7 @@ export type GistEnv = "prod" | "dev" | "local";
 
 export interface GistConfig {
   siteId: string;
-  dataCenter: string;
+  dataCenter?: string;
   env?: GistEnv;
   logging?: boolean;
   experiments?: boolean;

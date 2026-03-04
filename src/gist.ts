@@ -4,6 +4,7 @@ import { clearExpiredFromLocalStore } from "./utilities/local-storage";
 import {
   startQueueListener,
   checkMessageQueue,
+  checkCurrentMessagesAfterRouteChange,
   stopSSEListener,
 } from "./managers/queue-manager";
 import {
@@ -32,24 +33,19 @@ import {
   updateInboxMessageOpenState,
   removeInboxMessage,
 } from "./managers/inbox-message-manager";
+import type { GistConfig, GistMessage, DisplaySettings } from "./types";
+import type { InboxMessage } from "./managers/inbox-message-manager";
 
-export default class {
-  /** @type {import('./utilities/event-emitter').default} */
-  static events;
-  /** @type {import('./types').GistConfig} */
-  static config;
-  /** @type {boolean} */
-  static initialized;
-  /** @type {any[]} */
-  static currentMessages;
-  /** @type {string | null} */
-  static overlayInstanceId;
-  /** @type {string | null} */
-  static currentRoute;
-  /** @type {boolean} */
-  static isDocumentVisible;
+export default class Gist {
+  static events: EventEmitter;
+  static config: GistConfig;
+  static initialized: boolean;
+  static currentMessages: GistMessage[];
+  static overlayInstanceId: string | null;
+  static currentRoute: string | null;
+  static isDocumentVisible: boolean;
 
-  static async setup(config) {
+  static async setup(config: GistConfig): Promise<void> {
     if (this.initialized) {
       log("Gist SDK already initialized, skipping setup.");
       return;
@@ -57,16 +53,12 @@ export default class {
     this.initialized = true;
     this.events = new EventEmitter();
     this.config = {
-      useAnonymousSession:
-        config.useAnonymousSession === undefined
-          ? false
-          : config.useAnonymousSession,
+      useAnonymousSession: config.useAnonymousSession ?? false,
       siteId: config.siteId,
       dataCenter: config.dataCenter,
-      env: config.env === undefined ? "prod" : config.env,
-      logging: config.logging === undefined ? false : config.logging,
-      experiments:
-        config.experiments === undefined ? false : config.experiments,
+      env: config.env ?? "prod",
+      logging: config.logging ?? false,
+      experiments: config.experiments ?? false,
     };
     this.currentMessages = [];
     this.overlayInstanceId = null;
@@ -101,37 +93,40 @@ export default class {
     );
   }
 
-  static async setCurrentRoute(route) {
+  static async setCurrentRoute(route: string): Promise<void> {
     this.currentRoute = route;
     log(`Current route set to: ${route}`);
+    await checkCurrentMessagesAfterRouteChange();
     await checkMessageQueue();
   }
 
-  /** @param {string} userToken @param {Date} [expiryDate] */
-  static async setUserToken(userToken, expiryDate) {
+  static async setUserToken(
+    userToken: string,
+    expiryDate?: Date,
+  ): Promise<void> {
     if (this.config.isPreviewSession) return;
     setUserToken(userToken, expiryDate);
     stopSSEListener(true);
     await startQueueListener();
   }
 
-  static setUserLocale(userLocale) {
+  static setUserLocale(userLocale: string): void {
     setUserLocale(userLocale);
   }
 
-  static setCustomAttribute(key, value) {
+  static setCustomAttribute(key: string, value: unknown): boolean {
     return setCustomAttribute(key, value);
   }
 
-  static clearCustomAttributes() {
+  static clearCustomAttributes(): void {
     clearCustomAttributes();
   }
 
-  static removeCustomAttribute(key) {
+  static removeCustomAttribute(key: string): boolean {
     return removeCustomAttribute(key);
   }
 
-  static async clearUserToken() {
+  static async clearUserToken(): Promise<void> {
     if (this.config.isPreviewSession) return;
     clearUserToken();
     if (this.config.useAnonymousSession) {
@@ -141,26 +136,33 @@ export default class {
     await startQueueListener();
   }
 
-  static async dismissMessage(instanceId) {
-    var message = fetchMessageByInstanceId(instanceId);
+  static async dismissMessage(instanceId: string): Promise<void> {
+    const message = fetchMessageByInstanceId(instanceId);
+    if (!message) return;
     await hideMessage(message);
     await removePersistentMessage(message);
     await logBroadcastDismissedLocally(message);
     await checkMessageQueue();
   }
 
-  static async embedMessage(message, elementId) {
-    var messageResponse = embedMessage(message, elementId);
-    return messageResponse ? messageResponse.instanceId : null;
+  static async embedMessage(
+    message: GistMessage,
+    elementId: string,
+  ): Promise<string | null> {
+    const messageResponse = embedMessage(message, elementId);
+    return messageResponse?.instanceId ?? null;
   }
 
-  static async showMessage(message) {
-    var messageResponse = await showMessage(message);
-    return messageResponse ? messageResponse.instanceId : null;
+  static async showMessage(message: GistMessage): Promise<string | null> {
+    const messageResponse = await showMessage(message);
+    return messageResponse?.instanceId ?? null;
   }
 
-  static updateMessageDisplaySettings(instanceId, displaySettings) {
-    var message = fetchMessageByInstanceId(instanceId);
+  static updateMessageDisplaySettings(
+    instanceId: string,
+    displaySettings: DisplaySettings,
+  ): boolean {
+    const message = fetchMessageByInstanceId(instanceId);
     if (message) {
       message.displaySettings = displaySettings;
       sendDisplaySettingsToIframe(message);
@@ -171,50 +173,53 @@ export default class {
 
   // Actions
 
-  static messageShown(message) {
+  static messageShown(message: GistMessage): void {
     log(`Message shown: ${message.messageId}`);
     this.events.dispatch("messageShown", message);
   }
 
-  static messageDismissed(message) {
+  static messageDismissed(message: GistMessage | null): void {
     if (message !== null) {
       log(`Message dismissed: ${message.messageId}`);
       this.events.dispatch("messageDismissed", message);
     }
   }
 
-  static messageError(message) {
+  static messageError(message: GistMessage): void {
     log(`Message error: ${message.messageId}`);
     this.events.dispatch("messageError", message);
   }
 
-  static messageAction(message, action, name) {
+  static messageAction(
+    message: GistMessage,
+    action: string,
+    name: string,
+  ): void {
     log(
       `Message action: ${message.currentRoute}, ${action} with name ${name} on ${message.instanceId}`,
     );
-    this.events.dispatch("messageAction", {
-      message: message,
-      action: action,
-      name: name,
-    });
+    this.events.dispatch("messageAction", { message, action, name });
   }
 
   // Inbox Messages
 
-  static async getInboxUnopenedCount() {
+  static async getInboxUnopenedCount(): Promise<number> {
     const messages = await getInboxMessagesFromLocalStore();
     return messages.filter((msg) => !msg.opened).length;
   }
 
-  static async getInboxMessages() {
+  static async getInboxMessages(): Promise<InboxMessage[]> {
     return await getInboxMessagesFromLocalStore();
   }
 
-  static async updateInboxMessageOpenState(queueId, opened) {
+  static async updateInboxMessageOpenState(
+    queueId: string,
+    opened: boolean,
+  ): Promise<void> {
     return await updateInboxMessageOpenState(queueId, opened);
   }
 
-  static async removeInboxMessage(queueId) {
+  static async removeInboxMessage(queueId: string): Promise<void> {
     return await removeInboxMessage(queueId);
   }
 }
