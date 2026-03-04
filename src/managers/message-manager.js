@@ -33,6 +33,7 @@ import {
   applyDisplaySettings
 } from '../utilities/message-utils';
 import { updatePreviewBarMessage, updatePreviewBarStep, clearPreviewBarMessage } from './preview-bar-manager';
+import { PREVIEW_PARAM_ID, PREVIEW_SETTINGS_PARAM } from '../utilities/preview-mode';
 
 export async function showMessage(message) {
   if (Gist.isDocumentVisible) {
@@ -156,7 +157,8 @@ async function resetOverlayState(hideFirst, message) {
 
 function exitPreviewSession() {
   const url = new URL(window.location.href);
-  url.searchParams.delete('cioPreviewId');
+  url.searchParams.delete(PREVIEW_PARAM_ID);
+  url.searchParams.delete(PREVIEW_SETTINGS_PARAM);
   window.location.replace(url.toString());
 }
 

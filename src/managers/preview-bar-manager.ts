@@ -3,6 +3,7 @@ import { DisplaySettings, GistMessage, StepDisplayConfig } from "../types";
 import { applyMessageStepChange, hideMessageVisually } from "./message-manager";
 import { sendDisplaySettingsToIframe } from "./message-component-manager";
 import { hasDisplayChanged } from "../utilities/message-utils";
+import { log } from "../utilities/log";
 import { PREVIEW_BAR_CSS } from "./preview-bar-styles";
 
 const STORAGE_KEY = "gist.previewBar.collapsed";
@@ -35,6 +36,8 @@ let currentStepName: string | null = null;
 let isCollapsed = false;
 let pickerActive = false;
 let pickerCleanup: (() => void) | null = null;
+let pendingInitialStepName: string | null = null;
+let pendingInitialDisplayType: string | null = null;
 
 // ─── DOM helper ───────────────────────────────────────────────────────────────
 
@@ -341,6 +344,13 @@ function startElementPicker(target: HTMLInputElement) {
   document.body.appendChild(overlay);
 }
 
+function activatePickerIfNeeded(): void {
+  const displayType = currentSettings.displayType;
+  if (displayType !== "inline" && displayType !== "tooltip") return;
+  const input = document.querySelector<HTMLInputElement>("#gist-preview-bar .gist-pb-input[type='text']");
+  if (input) startElementPicker(input);
+}
+
 // ─── Bar rendering ────────────────────────────────────────────────────────────
 
 function renderBar() {
@@ -457,6 +467,46 @@ export function updatePreviewBarMessage(message: GistMessage): void {
   } else if (fullSettings && typeof fullSettings === "object" && !Array.isArray(fullSettings)) {
     currentSettings = { ...(fullSettings as DisplaySettings) };
   }
+
+  if (pendingInitialStepName || pendingInitialDisplayType) {
+    const hasPendingStep = !!pendingInitialStepName;
+    const hasPendingType = !!pendingInitialDisplayType;
+    const savedStep = pendingInitialStepName;
+    const savedType = pendingInitialDisplayType;
+    pendingInitialStepName = null;
+    pendingInitialDisplayType = null;
+
+    if (hasPendingStep) {
+      const targetStep = currentSteps.find((s) => s.stepName === savedStep);
+      if (!targetStep) {
+        log(`Preview bar: step "${savedStep}" not found, ignoring initial step/display override`);
+        renderBar();
+        return;
+      }
+      currentStepName = targetStep.stepName;
+      currentSettings = { ...targetStep.displaySettings };
+    }
+
+    if (hasPendingType) {
+      if (!hasPendingStep) {
+        log(`Preview bar: display type "${savedType}" provided without a step, ignoring`);
+        renderBar();
+        return;
+      }
+      currentSettings = { ...currentSettings, displayType: savedType as DisplaySettings["displayType"] };
+    }
+
+    renderBar();
+
+    const msg = Gist.currentMessages.find((m: GistMessage) => m.instanceId === currentInstanceId);
+    if (msg && isReadyToApply(currentSettings)) {
+      applyMessageStepChange(msg, currentStepName, currentSettings);
+    } else {
+      activatePickerIfNeeded();
+    }
+    return;
+  }
+
   renderBar();
 }
 
@@ -482,6 +532,14 @@ export function clearPreviewBarMessage(): void {
   currentSettings = {};
   currentStepName = null;
   renderBar();
+}
+
+export function setPreviewBarInitialStep(
+  stepName: string | null,
+  displayType: string | null,
+): void {
+  pendingInitialStepName = stepName;
+  pendingInitialDisplayType = displayType;
 }
 
 export function destroyPreviewBar(): void {

@@ -46,6 +46,10 @@ import {
   updatePreviewBarStep,
   clearPreviewBarMessage,
 } from "./preview-bar-manager";
+import {
+  PREVIEW_PARAM_ID,
+  PREVIEW_SETTINGS_PARAM,
+} from "../utilities/preview-mode";
 import type { GistMessage, DisplaySettings, MessageProperties } from "../types";
 
 interface GistEventData {
@@ -194,7 +198,8 @@ async function resetOverlayState(
 
 function exitPreviewSession(): void {
   const url = new URL(window.location.href);
-  url.searchParams.delete("cioPreviewId");
+  url.searchParams.delete(PREVIEW_PARAM_ID);
+  url.searchParams.delete(PREVIEW_SETTINGS_PARAM);
   window.location.replace(url.toString());
 }
 
