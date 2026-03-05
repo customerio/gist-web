@@ -5,6 +5,8 @@ import { sendDisplaySettingsToIframe } from "./message-component-manager";
 import { hasDisplayChanged } from "../utilities/message-utils";
 import { log } from "../utilities/log";
 import { PREVIEW_BAR_CSS } from "./preview-bar-styles";
+import { savePreviewDisplaySettings } from "../services/preview-service";
+import { PREVIEW_PARAM_ID } from "../utilities/preview-mode";
 
 const STORAGE_KEY = "gist.previewBar.collapsed";
 const STYLE_ID = "gist-pb-styles";
@@ -125,6 +127,20 @@ function emitSettings(settings: DisplaySettings) {
       applyMessageStepChange(message, currentStepName, settings);
     }
   }
+  persistDisplaySettings();
+}
+
+function persistDisplaySettings(): void {
+  const params = new URLSearchParams(window.location.search);
+  const cioPreviewId = params.get(PREVIEW_PARAM_ID);
+  if (!cioPreviewId) return;
+  savePreviewDisplaySettings(cioPreviewId, currentSteps).then((response) => {
+    if (response && response.status === 404 && currentInstanceId) {
+      Gist.dismissMessage(currentInstanceId);
+    }
+  }).catch(() =>
+    log("Failed to persist preview display settings"),
+  );
 }
 
 // ─── Control builders ─────────────────────────────────────────────────────────
@@ -427,11 +443,12 @@ function renderBar() {
 
   controlsRow.appendChild(el("div", { className: "gist-pb-spacer" }));
 
-  const saveBtn = el("button", { className: "gist-pb-save-btn", textContent: "Save changes" });
-  saveBtn.addEventListener("click", () => {
-    console.log("[Gist Preview] Display settings:", JSON.stringify(currentSettings, null, 2));
+  const endBtn = el("button", { className: "gist-pb-save-btn", textContent: "End session" });
+  endBtn.addEventListener("click", async () => {
+    if (!currentInstanceId) return;
+    await Gist.dismissMessage(currentInstanceId);
   });
-  controlsRow.appendChild(saveBtn);
+  controlsRow.appendChild(endBtn);
 
   bar.appendChild(controlsRow);
 }
