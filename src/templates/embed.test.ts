@@ -17,6 +17,8 @@ function makeProps(
     routeRule: "",
     position: "",
     hasPosition: false,
+    tooltipPosition: "",
+    hasTooltipPosition: false,
     shouldScale: false,
     campaignId: null,
     messageWidth: 414,

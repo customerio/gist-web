@@ -16,6 +16,7 @@ export interface GistMessage {
   instanceId?: string;
   overlay?: boolean;
   elementId?: string | null;
+  tooltipPosition?: string;
   firstLoad?: boolean;
   shouldScale?: boolean;
   shouldResizeHeight?: boolean;
@@ -64,6 +65,8 @@ export interface ResolvedMessageProperties {
   routeRule: string;
   position: string;
   hasPosition: boolean;
+  tooltipPosition: string;
+  hasTooltipPosition: boolean;
   shouldScale: boolean;
   campaignId: string | null;
   messageWidth: number;
