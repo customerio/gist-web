@@ -34,6 +34,7 @@ export interface DisplaySettings {
   modalPosition?: string;
   overlayPosition?: string;
   elementSelector?: string;
+  tooltipPosition?: string;
   maxWidth?: number;
   overlayColor?: string;
   dismissOutsideClick?: boolean;

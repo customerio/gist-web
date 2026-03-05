@@ -63,6 +63,9 @@ export function mapOverlayPositionToElementId(overlayPosition: string | undefine
 export function getCurrentDisplayType(
   message: GistMessage
 ): 'modal' | 'overlay' | 'inline' | 'tooltip' {
+  if (message.tooltipPosition) {
+    return 'tooltip';
+  }
   if (message.overlay) {
     return 'modal';
   } else if (message.elementId && positions.includes(message.elementId)) {
@@ -124,6 +127,15 @@ export function hasDisplayChanged(
       }
       break;
     }
+    case 'tooltip': {
+      if (currentMessage.tooltipPosition !== displaySettings.tooltipPosition) {
+        return true;
+      }
+      if (currentMessage.elementId !== displaySettings.elementSelector) {
+        return true;
+      }
+      break;
+    }
   }
 
   if (displaySettings.maxWidth !== undefined) {
@@ -160,6 +172,14 @@ export function applyDisplaySettings(message: GistMessage, displaySettings: Disp
     message.overlay = false;
     message.elementId = displaySettings.elementSelector;
     message.properties.gist.elementId = displaySettings.elementSelector;
+    message.position = null;
+    message.properties.gist.position = null;
+  } else if (displaySettings.displayType === 'tooltip') {
+    message.overlay = false;
+    message.elementId = displaySettings.elementSelector;
+    message.properties.gist.elementId = displaySettings.elementSelector;
+    message.tooltipPosition = displaySettings.tooltipPosition;
+    message.properties.gist.tooltipPosition = displaySettings.tooltipPosition;
     message.position = null;
     message.properties.gist.position = null;
   }
