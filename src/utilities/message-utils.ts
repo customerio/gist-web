@@ -161,6 +161,8 @@ export function applyDisplaySettings(message: GistMessage, displaySettings: Disp
     message.properties.gist.elementId = null;
     message.position = displaySettings.modalPosition || 'center';
     message.properties.gist.position = displaySettings.modalPosition || 'center';
+    message.tooltipPosition = undefined;
+    message.properties.gist.tooltipPosition = undefined;
   } else if (displaySettings.displayType === 'overlay') {
     message.overlay = false;
     const elementId = mapOverlayPositionToElementId(displaySettings.overlayPosition);
@@ -168,12 +170,16 @@ export function applyDisplaySettings(message: GistMessage, displaySettings: Disp
     message.properties.gist.elementId = elementId;
     message.position = null;
     message.properties.gist.position = null;
+    message.tooltipPosition = undefined;
+    message.properties.gist.tooltipPosition = undefined;
   } else if (displaySettings.displayType === 'inline') {
     message.overlay = false;
     message.elementId = displaySettings.elementSelector;
     message.properties.gist.elementId = displaySettings.elementSelector;
     message.position = null;
     message.properties.gist.position = null;
+    message.tooltipPosition = undefined;
+    message.properties.gist.tooltipPosition = undefined;
   } else if (displaySettings.displayType === 'tooltip') {
     message.overlay = false;
     message.elementId = displaySettings.elementSelector;
