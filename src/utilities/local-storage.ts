@@ -1,7 +1,7 @@
-import { log } from "./log";
+import { log } from './log';
 
 const maxExpiryDays = 365;
-const isPersistingSessionLocalStoreName = "gist.web.isPersistingSession";
+const isPersistingSessionLocalStoreName = 'gist.web.isPersistingSession';
 
 interface StoredItem {
   value: unknown;
@@ -12,11 +12,7 @@ export function shouldPersistSession(persisted: boolean | string): void {
   sessionStorage.setItem(isPersistingSessionLocalStoreName, String(persisted));
 }
 
-export function setKeyToLocalStore(
-  key: string,
-  value: unknown,
-  ttl: Date | null = null,
-): void {
+export function setKeyToLocalStore(key: string, value: unknown, ttl: Date | null = null): void {
   let expiryDate = ttl;
   if (!expiryDate) {
     expiryDate = new Date();
@@ -45,14 +41,12 @@ export function clearExpiredFromLocalStore(): void {
 }
 
 export function isSessionBeingPersisted(): boolean {
-  const currentValue = sessionStorage.getItem(
-    isPersistingSessionLocalStoreName,
-  );
+  const currentValue = sessionStorage.getItem(isPersistingSessionLocalStoreName);
   if (currentValue === null) {
-    sessionStorage.setItem(isPersistingSessionLocalStoreName, "true");
+    sessionStorage.setItem(isPersistingSessionLocalStoreName, 'true');
     return true;
   }
-  return currentValue === "true";
+  return currentValue === 'true';
 }
 
 function getStorage(): Storage {
@@ -73,17 +67,12 @@ function checkKeyForExpiry(key: string | null): unknown | null {
     const expiryTime = new Date(item.expiry);
 
     const isBroadcastOrUserKey =
-      (key.startsWith("gist.web.message.broadcasts") &&
-        !key.endsWith("shouldShow") &&
-        !key.endsWith("numberOfTimesShown")) ||
-      (key.startsWith("gist.web.message.user") &&
-        !key.endsWith("seen") &&
-        !key.endsWith("state"));
+      (key.startsWith('gist.web.message.broadcasts') &&
+        !key.endsWith('shouldShow') &&
+        !key.endsWith('numberOfTimesShown')) ||
+      (key.startsWith('gist.web.message.user') && !key.endsWith('seen') && !key.endsWith('state'));
     const sixtyMinutesFromNow = new Date(now.getTime() + 61 * 60 * 1000);
-    if (
-      isBroadcastOrUserKey &&
-      expiryTime.getTime() > sixtyMinutesFromNow.getTime()
-    ) {
+    if (isBroadcastOrUserKey && expiryTime.getTime() > sixtyMinutesFromNow.getTime()) {
       clearKeyFromLocalStore(key);
       return null;
     }

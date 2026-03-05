@@ -1,11 +1,11 @@
-import { log } from "../utilities/log";
+import { log } from '../utilities/log';
 import {
   setKeyToLocalStore,
   getKeyFromLocalStore,
   clearKeyFromLocalStore,
-} from "../utilities/local-storage";
+} from '../utilities/local-storage';
 
-const customAttributesLocalStoreName = "gist.web.customAttributes";
+const customAttributesLocalStoreName = 'gist.web.customAttributes';
 const defaultExpiryInDays = 30;
 
 let customAttributesMap: Map<string, unknown> = new Map();
@@ -14,9 +14,7 @@ function loadCustomAttributesFromStorage(): void {
   const storedAttributes = getKeyFromLocalStore(customAttributesLocalStoreName);
   if (storedAttributes) {
     try {
-      customAttributesMap = new Map(
-        storedAttributes as Iterable<[string, unknown]>,
-      );
+      customAttributesMap = new Map(storedAttributes as Iterable<[string, unknown]>);
     } catch {
       customAttributesMap = new Map();
     }
@@ -29,20 +27,16 @@ function saveCustomAttributesToStorage(): void {
   const attributesArray = Array.from(customAttributesMap.entries());
   const expiryDate = new Date();
   expiryDate.setDate(expiryDate.getDate() + defaultExpiryInDays);
-  setKeyToLocalStore(
-    customAttributesLocalStoreName,
-    attributesArray,
-    expiryDate,
-  );
+  setKeyToLocalStore(customAttributesLocalStoreName, attributesArray, expiryDate);
   log(
-    `Saved ${customAttributesMap.size} custom attributes to storage with TTL of ${defaultExpiryInDays} days`,
+    `Saved ${customAttributesMap.size} custom attributes to storage with TTL of ${defaultExpiryInDays} days`
   );
 }
 
 loadCustomAttributesFromStorage();
 
 export function setCustomAttribute(key: string, value: unknown): boolean {
-  if (!key || typeof key !== "string") {
+  if (!key || typeof key !== 'string') {
     log(`Invalid key for custom attribute: ${key}`);
     return false;
   }
@@ -53,7 +47,7 @@ export function setCustomAttribute(key: string, value: unknown): boolean {
 }
 
 export function getCustomAttribute(key: string): unknown | null {
-  if (!key || typeof key !== "string") {
+  if (!key || typeof key !== 'string') {
     log(`Invalid key for custom attribute: ${key}`);
     return null;
   }
@@ -71,7 +65,7 @@ export function clearCustomAttributes(): void {
 }
 
 export function removeCustomAttribute(key: string): boolean {
-  if (!key || typeof key !== "string") {
+  if (!key || typeof key !== 'string') {
     log(`Invalid key for custom attribute: ${key}`);
     return false;
   }

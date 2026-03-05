@@ -14,7 +14,12 @@
     "watch:server": "http-server",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepare": "husky",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"src/**/*.{ts,js,json,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,js,json,md}\""
   },
   "types": "./dist/types/index.d.ts",
   "browser": "dist/gist.min.js",
@@ -29,10 +34,15 @@
     "@eslint/js": "^9.13.0",
     "@types/uuid": "^10.0.0",
     "eslint": "^9.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
     "globals": "^15.11.0",
     "http-server": "^14.1.1",
+    "husky": "^9.1.7",
     "jsdom": "^26.1.0",
+    "lint-staged": "^16.3.2",
     "npm-run-all": "^4.1.5",
+    "prettier": "^3.8.1",
     "ts-loader": "^9.5.4",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.0",
@@ -60,5 +70,14 @@
   "bugs": {
     "url": "https://github.com/customerio/gist-web/issues"
   },
-  "homepage": "https://github.com/customerio/gist-web"
+  "homepage": "https://github.com/customerio/gist-web",
+  "lint-staged": {
+    "*.{ts,js}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
+  }
 }

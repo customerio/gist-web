@@ -1,66 +1,62 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  checkMessageQueue,
-  stopSSEListener,
-  pullMessagesFromQueue,
-} from "./queue-manager";
-import { getEligibleBroadcasts } from "./message-broadcast-manager";
-import { getMessagesFromLocalStore } from "./message-user-queue-manager";
-import { showMessage } from "./message-manager";
-import { settings } from "../services/settings";
-import type { GistMessage } from "../types";
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { checkMessageQueue, stopSSEListener, pullMessagesFromQueue } from './queue-manager';
+import { getEligibleBroadcasts } from './message-broadcast-manager';
+import { getMessagesFromLocalStore } from './message-user-queue-manager';
+import { showMessage } from './message-manager';
+import { settings } from '../services/settings';
+import type { GistMessage } from '../types';
 
-vi.mock("../utilities/log", () => ({ log: vi.fn() }));
-vi.mock("./user-manager", () => ({
-  getUserToken: vi.fn(() => "test-token"),
+vi.mock('../utilities/log', () => ({ log: vi.fn() }));
+vi.mock('./user-manager', () => ({
+  getUserToken: vi.fn(() => 'test-token'),
   isAnonymousUser: vi.fn(() => false),
 }));
-vi.mock("../services/queue-service", () => ({
+vi.mock('../services/queue-service', () => ({
   getUserQueue: vi.fn(),
   getQueueSSEEndpoint: vi.fn(() => null),
-  userQueueNextPullCheckLocalStoreName: "gist.web.userQueueNextPullCheck",
+  userQueueNextPullCheckLocalStoreName: 'gist.web.userQueueNextPullCheck',
 }));
-vi.mock("./message-manager", () => ({
+vi.mock('./message-manager', () => ({
   showMessage: vi.fn(() => Promise.resolve(null)),
   embedMessage: vi.fn(() => null),
 }));
-vi.mock("./gist-properties-manager", () => ({
+vi.mock('./gist-properties-manager', () => ({
   resolveMessageProperties: vi.fn(() => ({
     isEmbedded: false,
-    elementId: "",
+    elementId: '',
     hasRouteRule: false,
-    routeRule: "",
-    position: "",
+    routeRule: '',
+    position: '',
     hasPosition: false,
     shouldScale: false,
     campaignId: null,
     messageWidth: 414,
-    overlayColor: "#00000033",
+    overlayColor: '#00000033',
     persistent: false,
     exitClick: false,
     hasCustomWidth: false,
   })),
 }));
-vi.mock("../utilities/local-storage", () => ({
+vi.mock('../utilities/local-storage', () => ({
   clearKeyFromLocalStore: vi.fn(),
   getKeyFromLocalStore: vi.fn(() => null),
 }));
-vi.mock("./message-broadcast-manager", () => ({
+vi.mock('./message-broadcast-manager', () => ({
   updateBroadcastsLocalStore: vi.fn(),
   getEligibleBroadcasts: vi.fn(() => Promise.resolve([])),
   isShowAlwaysBroadcast: vi.fn(() => false),
 }));
-vi.mock("./message-user-queue-manager", () => ({
+vi.mock('./message-user-queue-manager', () => ({
   updateQueueLocalStore: vi.fn(),
   getMessagesFromLocalStore: vi.fn(() => Promise.resolve([])),
   isMessageLoading: vi.fn(() => Promise.resolve(false)),
   setMessageLoading: vi.fn(),
   getSavedMessageState: vi.fn(() => Promise.resolve(null)),
 }));
-vi.mock("./inbox-message-manager", () => ({
+vi.mock('./inbox-message-manager', () => ({
   updateInboxMessagesLocalStore: vi.fn(),
 }));
-vi.mock("../services/settings", () => ({
+vi.mock('../services/settings', () => ({
   settings: {
     hasActiveSSEConnection: vi.fn(() => false),
     isSSEConnectionManagedBySDK: vi.fn(() => false),
@@ -70,23 +66,23 @@ vi.mock("../services/settings", () => ({
     setUseSSEFlag: vi.fn(),
     setSSEHeartbeat: vi.fn(),
     getSSEHeartbeat: vi.fn(() => 30),
-    RENDERER_HOST: "https://renderer.test",
+    RENDERER_HOST: 'https://renderer.test',
     ENGINE_API_ENDPOINT: {
-      prod: "https://api.test",
-      dev: "https://api.test",
-      local: "http://localhost",
+      prod: 'https://api.test',
+      dev: 'https://api.test',
+      local: 'http://localhost',
     },
     GIST_VIEW_ENDPOINT: {
-      prod: "https://view.test",
-      dev: "https://view.test",
-      local: "http://localhost",
+      prod: 'https://view.test',
+      dev: 'https://view.test',
+      local: 'http://localhost',
     },
   },
 }));
-vi.mock("../utilities/message-utils", () => ({
+vi.mock('../utilities/message-utils', () => ({
   applyDisplaySettings: vi.fn(),
 }));
-vi.mock("../gist", () => ({
+vi.mock('../gist', () => ({
   default: {
     currentRoute: null,
     isDocumentVisible: true,
@@ -95,21 +91,21 @@ vi.mock("../gist", () => ({
   },
 }));
 
-describe("queue-manager", () => {
+describe('queue-manager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe("checkMessageQueue", () => {
-    it("processes messages from broadcasts and local store", async () => {
+  describe('checkMessageQueue', () => {
+    it('processes messages from broadcasts and local store', async () => {
       const broadcastMsg: GistMessage & { priority: number } = {
-        messageId: "b1",
-        queueId: "q1",
+        messageId: 'b1',
+        queueId: 'q1',
         priority: 1,
       };
       const userMsg: GistMessage & { priority: number } = {
-        messageId: "u1",
-        queueId: "q2",
+        messageId: 'u1',
+        queueId: 'q2',
         priority: 2,
       };
       vi.mocked(getEligibleBroadcasts).mockResolvedValue([broadcastMsg]);
@@ -123,18 +119,18 @@ describe("queue-manager", () => {
     });
   });
 
-  describe("stopSSEListener", () => {
-    it("cleans up SSE state when connection exists", async () => {
+  describe('stopSSEListener', () => {
+    it('cleans up SSE state when connection exists', async () => {
       const mockClose = vi.fn();
       vi.stubGlobal(
-        "EventSource",
+        'EventSource',
         class MockEventSource {
           close = mockClose;
           addEventListener = vi.fn();
-        },
+        }
       );
-      const { getQueueSSEEndpoint } = await import("../services/queue-service");
-      vi.mocked(getQueueSSEEndpoint).mockReturnValue("https://sse.test/");
+      const { getQueueSSEEndpoint } = await import('../services/queue-service');
+      vi.mocked(getQueueSSEEndpoint).mockReturnValue('https://sse.test/');
       vi.mocked(settings.useSSE).mockReturnValue(true);
 
       await pullMessagesFromQueue();
@@ -144,7 +140,7 @@ describe("queue-manager", () => {
       expect(mockClose).toHaveBeenCalled();
     });
 
-    it("with disconnectGlobally removes active connection", () => {
+    it('with disconnectGlobally removes active connection', () => {
       stopSSEListener(true);
 
       expect(settings.removeActiveSSEConnection).toHaveBeenCalled();

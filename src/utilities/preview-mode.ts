@@ -2,19 +2,19 @@ import Gist from '../gist';
 import { log } from './log';
 import { shouldPersistSession, isSessionBeingPersisted } from './local-storage';
 
-const previewParamId = "cioPreviewId";
+const previewParamId = 'cioPreviewId';
 
 export function setupPreview(): boolean {
-    const cioPreviewId = fetchPreviewId();
-    if (cioPreviewId) {
-        shouldPersistSession(false);
-        Gist.setUserToken(cioPreviewId);
-        log(`Preview mode enabled with user token: ${cioPreviewId}`);
-    }
-    return !isSessionBeingPersisted();
+  const cioPreviewId = fetchPreviewId();
+  if (cioPreviewId) {
+    shouldPersistSession(false);
+    Gist.setUserToken(cioPreviewId);
+    log(`Preview mode enabled with user token: ${cioPreviewId}`);
+  }
+  return !isSessionBeingPersisted();
 }
 
 function fetchPreviewId(): string | null {
-    const params = new URLSearchParams(window.location.search);
-    return params.get(previewParamId);
+  const params = new URLSearchParams(window.location.search);
+  return params.get(previewParamId);
 }

@@ -1,15 +1,15 @@
 module.exports = {
-  entry: "./src/index.ts",
+  entry: './src/index.ts',
   resolve: {
-    extensions: [".ts", ".js"],
+    extensions: ['.ts', '.js'],
   },
   module: {
     rules: [
       {
         test: /\.ts$/,
         use: {
-          loader: "ts-loader",
-          options: { configFile: "tsconfig.webpack.json" },
+          loader: 'ts-loader',
+          options: { configFile: 'tsconfig.webpack.json' },
         },
         exclude: /node_modules/,
       },
@@ -19,10 +19,10 @@ module.exports = {
     poll: 1000,
   },
   output: {
-    library: "Gist",
-    libraryTarget: "umd",
-    libraryExport: "default",
-    filename: "gist.js",
-    globalObject: "this",
+    library: 'Gist',
+    libraryTarget: 'umd',
+    libraryExport: 'default',
+    filename: 'gist.js',
+    globalObject: 'this',
   },
 };
