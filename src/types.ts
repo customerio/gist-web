@@ -1,4 +1,4 @@
-export type GistEnv = "prod" | "dev" | "local";
+export type GistEnv = 'prod' | 'dev' | 'local';
 
 export interface GistConfig {
   siteId: string;
@@ -30,7 +30,7 @@ export interface GistMessage {
 }
 
 export interface DisplaySettings {
-  displayType?: "modal" | "overlay" | "inline" | "tooltip";
+  displayType?: 'modal' | 'overlay' | 'inline' | 'tooltip';
   modalPosition?: string;
   overlayPosition?: string;
   elementSelector?: string;

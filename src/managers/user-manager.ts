@@ -1,15 +1,15 @@
-import { v4 as uuidv4 } from "uuid";
-import { log } from "../utilities/log";
+import { v4 as uuidv4 } from 'uuid';
+import { log } from '../utilities/log';
 import {
   setKeyToLocalStore,
   getKeyFromLocalStore,
   clearKeyFromLocalStore,
-} from "../utilities/local-storage";
-import { userQueueNextPullCheckLocalStoreName } from "../services/queue-service";
+} from '../utilities/local-storage';
+import { userQueueNextPullCheckLocalStoreName } from '../services/queue-service';
 
-const userTokenLocalStoreName = "gist.web.userToken";
-const usingGuestUserTokenLocalStoreName = "gist.web.usingGuestUserToken";
-const guestUserTokenLocalStoreName = "gist.web.guestUserToken";
+const userTokenLocalStoreName = 'gist.web.userToken';
+const usingGuestUserTokenLocalStoreName = 'gist.web.usingGuestUserToken';
+const guestUserTokenLocalStoreName = 'gist.web.guestUserToken';
 const defaultExpiryInDays = 30;
 
 export function isUsingGuestUserToken(): boolean {
@@ -38,15 +38,11 @@ export function setUserToken(userToken: string, expiryDate?: Date): void {
 export function useGuestSession(): void {
   // Guest sessions should never override existing sessions
   if (getUserToken() === null) {
-    let guestUserToken = getKeyFromLocalStore(guestUserTokenLocalStoreName) as
-      | string
-      | null;
+    let guestUserToken = getKeyFromLocalStore(guestUserTokenLocalStoreName) as string | null;
     if (guestUserToken == null) {
       guestUserToken = uuidv4();
       setKeyToLocalStore(guestUserTokenLocalStoreName, guestUserToken);
-      log(
-        `Set guest user token "${guestUserToken}" with expiry date set to 1 year from today`,
-      );
+      log(`Set guest user token "${guestUserToken}" with expiry date set to 1 year from today`);
     }
 
     setKeyToLocalStore(userTokenLocalStoreName, guestUserToken);
@@ -83,10 +79,8 @@ export function clearUserToken(): void {
 async function hashString(message: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(message);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
+  const hashHex = hashArray.map((byte) => byte.toString(16).padStart(2, '0')).join('');
   return hashHex;
 }

@@ -1,40 +1,36 @@
-import EventEmitter from "./utilities/event-emitter";
-import { log } from "./utilities/log";
-import { clearExpiredFromLocalStore } from "./utilities/local-storage";
+import EventEmitter from './utilities/event-emitter';
+import { log } from './utilities/log';
+import { clearExpiredFromLocalStore } from './utilities/local-storage';
 import {
   startQueueListener,
   checkMessageQueue,
   checkCurrentMessagesAfterRouteChange,
   stopSSEListener,
-} from "./managers/queue-manager";
-import {
-  setUserToken,
-  clearUserToken,
-  useGuestSession,
-} from "./managers/user-manager";
+} from './managers/queue-manager';
+import { setUserToken, clearUserToken, useGuestSession } from './managers/user-manager';
 import {
   showMessage,
   embedMessage,
   hideMessage,
   removePersistentMessage,
   logBroadcastDismissedLocally,
-} from "./managers/message-manager";
-import { fetchMessageByInstanceId } from "./utilities/message-utils";
-import { sendDisplaySettingsToIframe } from "./managers/message-component-manager";
-import { setUserLocale } from "./managers/locale-manager";
+} from './managers/message-manager';
+import { fetchMessageByInstanceId } from './utilities/message-utils';
+import { sendDisplaySettingsToIframe } from './managers/message-component-manager';
+import { setUserLocale } from './managers/locale-manager';
 import {
   setCustomAttribute,
   clearCustomAttributes,
   removeCustomAttribute,
-} from "./managers/custom-attribute-manager";
-import { setupPreview } from "./utilities/preview-mode";
+} from './managers/custom-attribute-manager';
+import { setupPreview } from './utilities/preview-mode';
 import {
   getInboxMessagesFromLocalStore,
   updateInboxMessageOpenState,
   removeInboxMessage,
-} from "./managers/inbox-message-manager";
-import type { GistConfig, GistMessage, DisplaySettings } from "./types";
-import type { InboxMessage } from "./managers/inbox-message-manager";
+} from './managers/inbox-message-manager';
+import type { GistConfig, GistMessage, DisplaySettings } from './types';
+import type { InboxMessage } from './managers/inbox-message-manager';
 
 export default class Gist {
   static events: EventEmitter;
@@ -47,7 +43,7 @@ export default class Gist {
 
   static async setup(config: GistConfig): Promise<void> {
     if (this.initialized) {
-      log("Gist SDK already initialized, skipping setup.");
+      log('Gist SDK already initialized, skipping setup.');
       return;
     }
     this.initialized = true;
@@ -56,7 +52,7 @@ export default class Gist {
       useAnonymousSession: config.useAnonymousSession ?? false,
       siteId: config.siteId,
       dataCenter: config.dataCenter,
-      env: config.env ?? "prod",
+      env: config.env ?? 'prod',
       logging: config.logging ?? false,
       experiments: config.experiments ?? false,
     };
@@ -72,7 +68,7 @@ export default class Gist {
     if (
       !this.config.isPreviewSession &&
       this.config.useAnonymousSession &&
-      !new URLSearchParams(location.search).has("ajs_uid")
+      !new URLSearchParams(location.search).has('ajs_uid')
     ) {
       useGuestSession();
     }
@@ -80,16 +76,16 @@ export default class Gist {
     await startQueueListener();
 
     document.addEventListener(
-      "visibilitychange",
+      'visibilitychange',
       async () => {
-        if (document.visibilityState === "hidden") {
+        if (document.visibilityState === 'hidden') {
           this.isDocumentVisible = false;
         } else {
           this.isDocumentVisible = true;
           await checkMessageQueue();
         }
       },
-      false,
+      false
     );
   }
 
@@ -100,10 +96,7 @@ export default class Gist {
     await checkMessageQueue();
   }
 
-  static async setUserToken(
-    userToken: string,
-    expiryDate?: Date,
-  ): Promise<void> {
+  static async setUserToken(userToken: string, expiryDate?: Date): Promise<void> {
     if (this.config.isPreviewSession) return;
     setUserToken(userToken, expiryDate);
     stopSSEListener(true);
@@ -145,10 +138,7 @@ export default class Gist {
     await checkMessageQueue();
   }
 
-  static async embedMessage(
-    message: GistMessage,
-    elementId: string,
-  ): Promise<string | null> {
+  static async embedMessage(message: GistMessage, elementId: string): Promise<string | null> {
     const messageResponse = embedMessage(message, elementId);
     return messageResponse?.instanceId ?? null;
   }
@@ -160,7 +150,7 @@ export default class Gist {
 
   static updateMessageDisplaySettings(
     instanceId: string,
-    displaySettings: DisplaySettings,
+    displaySettings: DisplaySettings
   ): boolean {
     const message = fetchMessageByInstanceId(instanceId);
     if (message) {
@@ -175,30 +165,26 @@ export default class Gist {
 
   static messageShown(message: GistMessage): void {
     log(`Message shown: ${message.messageId}`);
-    this.events.dispatch("messageShown", message);
+    this.events.dispatch('messageShown', message);
   }
 
   static messageDismissed(message: GistMessage | null): void {
     if (message !== null) {
       log(`Message dismissed: ${message.messageId}`);
-      this.events.dispatch("messageDismissed", message);
+      this.events.dispatch('messageDismissed', message);
     }
   }
 
   static messageError(message: GistMessage): void {
     log(`Message error: ${message.messageId}`);
-    this.events.dispatch("messageError", message);
+    this.events.dispatch('messageError', message);
   }
 
-  static messageAction(
-    message: GistMessage,
-    action: string,
-    name: string,
-  ): void {
+  static messageAction(message: GistMessage, action: string, name: string): void {
     log(
-      `Message action: ${message.currentRoute}, ${action} with name ${name} on ${message.instanceId}`,
+      `Message action: ${message.currentRoute}, ${action} with name ${name} on ${message.instanceId}`
     );
-    this.events.dispatch("messageAction", { message, action, name });
+    this.events.dispatch('messageAction', { message, action, name });
   }
 
   // Inbox Messages
@@ -212,10 +198,7 @@ export default class Gist {
     return await getInboxMessagesFromLocalStore();
   }
 
-  static async updateInboxMessageOpenState(
-    queueId: string,
-    opened: boolean,
-  ): Promise<void> {
+  static async updateInboxMessageOpenState(queueId: string, opened: boolean): Promise<void> {
     return await updateInboxMessageOpenState(queueId, opened);
   }
 

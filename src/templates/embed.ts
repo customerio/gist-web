@@ -1,9 +1,9 @@
-import type { ResolvedMessageProperties } from "../types";
+import type { ResolvedMessageProperties } from '../types';
 
 export function embedHTMLTemplate(
   elementId: string,
   messageProperties: ResolvedMessageProperties,
-  url: string,
+  url: string
 ): string {
   let maxWidthBreakpoint = 800;
   if (messageProperties.messageWidth > maxWidthBreakpoint) {

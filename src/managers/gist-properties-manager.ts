@@ -1,21 +1,19 @@
-import type { GistMessage, ResolvedMessageProperties } from "../types";
+import type { GistMessage, ResolvedMessageProperties } from '../types';
 
-export function resolveMessageProperties(
-  message: GistMessage,
-): ResolvedMessageProperties {
+export function resolveMessageProperties(message: GistMessage): ResolvedMessageProperties {
   const defaults: ResolvedMessageProperties = {
     isEmbedded: false,
-    elementId: "",
+    elementId: '',
     hasRouteRule: false,
-    routeRule: "",
-    position: "",
+    routeRule: '',
+    position: '',
     hasPosition: false,
-    tooltipPosition: "",
+    tooltipPosition: '',
     hasTooltipPosition: false,
     shouldScale: false,
     campaignId: null,
     messageWidth: 414,
-    overlayColor: "#00000033",
+    overlayColor: '#00000033',
     persistent: false,
     exitClick: false,
     hasCustomWidth: false,
@@ -26,12 +24,12 @@ export function resolveMessageProperties(
 
   return {
     isEmbedded: !!gist.elementId,
-    elementId: gist.elementId || "",
+    elementId: gist.elementId || '',
     hasRouteRule: !!gist.routeRuleWeb,
-    routeRule: gist.routeRuleWeb || "",
-    position: gist.position || "",
+    routeRule: gist.routeRuleWeb || '',
+    position: gist.position || '',
     hasPosition: !!gist.position,
-    tooltipPosition: gist.tooltipPosition || "",
+    tooltipPosition: gist.tooltipPosition || '',
     hasTooltipPosition: !!gist.tooltipPosition,
     shouldScale: !!gist.scale,
     campaignId: gist.campaignId ?? null,
