@@ -177,6 +177,11 @@ describe('mapOverlayPositionToElementId', () => {
 });
 
 describe('getCurrentDisplayType', () => {
+  it("returns 'tooltip' when tooltipPosition is set", () => {
+    const msg = makeMessage({ tooltipPosition: 'top' });
+    expect(getCurrentDisplayType(msg)).toBe('tooltip');
+  });
+
   it("returns 'modal' when overlay is true", () => {
     const msg = makeMessage({ overlay: true });
     expect(getCurrentDisplayType(msg)).toBe('modal');
@@ -294,6 +299,38 @@ describe('hasDisplayChanged', () => {
     ).toBe(true);
   });
 
+  it('returns true when tooltip position changes', () => {
+    const msg = makeMessage({ tooltipPosition: 'top', elementId: 'my-element' });
+    expect(
+      hasDisplayChanged(msg, {
+        displayType: 'tooltip',
+        tooltipPosition: 'bottom',
+      })
+    ).toBe(true);
+  });
+
+  it('returns true when tooltip elementSelector changes', () => {
+    const msg = makeMessage({ tooltipPosition: 'top', elementId: 'my-element' });
+    expect(
+      hasDisplayChanged(msg, {
+        displayType: 'tooltip',
+        tooltipPosition: 'top',
+        elementSelector: 'other-element',
+      })
+    ).toBe(true);
+  });
+
+  it('returns false when nothing changed for tooltip', () => {
+    const msg = makeMessage({ tooltipPosition: 'top', elementId: 'my-element' });
+    expect(
+      hasDisplayChanged(msg, {
+        displayType: 'tooltip',
+        tooltipPosition: 'top',
+        elementSelector: 'my-element',
+      })
+    ).toBe(false);
+  });
+
   it('returns true when maxWidth changes', () => {
     const msg = makeMessage({
       overlay: true,
@@ -334,6 +371,21 @@ describe('applyDisplaySettings', () => {
 
     expect(msg.overlay).toBe(false);
     expect(msg.elementId).toBe('my-container');
+    expect(msg.position).toBeNull();
+  });
+
+  it('sets custom elementId and tooltipPosition for tooltip type', () => {
+    const msg = makeMessage({ overlay: true });
+    applyDisplaySettings(msg, {
+      displayType: 'tooltip',
+      elementSelector: 'my-element',
+      tooltipPosition: 'top',
+    });
+
+    expect(msg.overlay).toBe(false);
+    expect(msg.elementId).toBe('my-element');
+    expect(msg.tooltipPosition).toBe('top');
+    expect(msg.properties?.gist?.tooltipPosition).toBe('top');
     expect(msg.position).toBeNull();
   });
 
