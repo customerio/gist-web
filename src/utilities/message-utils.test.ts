@@ -389,6 +389,33 @@ describe('applyDisplaySettings', () => {
     expect(msg.position).toBeNull();
   });
 
+  it('clears tooltipPosition when switching from tooltip to modal', () => {
+    const msg = makeMessage({ tooltipPosition: 'top', elementId: 'my-element' });
+    applyDisplaySettings(msg, { displayType: 'modal' });
+
+    expect(msg.tooltipPosition).toBeUndefined();
+    expect(msg.properties?.gist?.tooltipPosition).toBeUndefined();
+    expect(getCurrentDisplayType(msg)).toBe('modal');
+  });
+
+  it('clears tooltipPosition when switching from tooltip to overlay', () => {
+    const msg = makeMessage({ tooltipPosition: 'top', elementId: 'my-element' });
+    applyDisplaySettings(msg, { displayType: 'overlay', overlayPosition: 'topCenter' });
+
+    expect(msg.tooltipPosition).toBeUndefined();
+    expect(msg.properties?.gist?.tooltipPosition).toBeUndefined();
+    expect(getCurrentDisplayType(msg)).toBe('overlay');
+  });
+
+  it('clears tooltipPosition when switching from tooltip to inline', () => {
+    const msg = makeMessage({ tooltipPosition: 'top', elementId: 'my-element' });
+    applyDisplaySettings(msg, { displayType: 'inline', elementSelector: 'my-container' });
+
+    expect(msg.tooltipPosition).toBeUndefined();
+    expect(msg.properties?.gist?.tooltipPosition).toBeUndefined();
+    expect(getCurrentDisplayType(msg)).toBe('inline');
+  });
+
   it('clears custom width for wide overlay positions', () => {
     const msg = makeMessage({
       overlay: false,
