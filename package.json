@@ -73,8 +73,7 @@
   "homepage": "https://github.com/customerio/gist-web",
   "lint-staged": {
     "*.{ts,js}": [
-      "eslint --fix",
-      "prettier --write"
+      "eslint --fix"
     ],
     "*.{json,md}": [
       "prettier --write"
