@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/customerio-gist-web.svg?style=flat-square)](https://www.npmjs.com/package/customerio-gist-web)
 [![GitHub Actions](https://img.shields.io/github/actions/workflow/status/customerio/gist-web/release_version.yml?branch=develop&style=flat-square)](https://github.com/customerio/gist-web/actions)
 [![npm downloads](https://img.shields.io/npm/dm/customerio-gist-web.svg?style=flat-square)](https://www.npmjs.com/package/customerio-gist-web)
-[![License](https://img.shields.io/github/license/customerio/gist-web.svg?style=flat-square)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 
 > Build beautiful in-app flows with no code and deliver them instantly to your app/website. [Customer.io](https://customer.io)
 
