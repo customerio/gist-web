@@ -10,6 +10,8 @@ export function resolveMessageProperties(
     routeRule: "",
     position: "",
     hasPosition: false,
+    tooltipPosition: "",
+    hasTooltipPosition: false,
     shouldScale: false,
     campaignId: null,
     messageWidth: 414,
@@ -29,6 +31,8 @@ export function resolveMessageProperties(
     routeRule: gist.routeRuleWeb || "",
     position: gist.position || "",
     hasPosition: !!gist.position,
+    tooltipPosition: gist.tooltipPosition || "",
+    hasTooltipPosition: !!gist.tooltipPosition,
     shouldScale: !!gist.scale,
     campaignId: gist.campaignId ?? null,
     messageWidth:

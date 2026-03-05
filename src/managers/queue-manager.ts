@@ -112,8 +112,13 @@ async function handleMessage(message: GistMessage): Promise<boolean> {
       return false;
     }
   }
+
   if (messageProperties.hasPosition) {
     message.position = messageProperties.position;
+  }
+
+  if (messageProperties.hasTooltipPosition) {
+    message.tooltipPosition = messageProperties.tooltipPosition;
   }
 
   if (messageProperties.persistent || isShowAlwaysBroadcast(message)) {

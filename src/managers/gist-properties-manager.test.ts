@@ -9,6 +9,8 @@ const defaults = {
   routeRule: "",
   position: "",
   hasPosition: false,
+  tooltipPosition: "",
+  hasTooltipPosition: false,
   shouldScale: false,
   campaignId: null,
   messageWidth: 414,
@@ -45,6 +47,15 @@ describe("resolveMessageProperties", () => {
     };
     expect(resolveMessageProperties(message).hasRouteRule).toBe(true);
     expect(resolveMessageProperties(message).routeRule).toBe("/dashboard");
+  });
+
+  it("hasTooltipPosition is true and tooltipPosition is set when gist.tooltipPosition is set", () => {
+    const message: GistMessage = {
+      messageId: "test",
+      properties: { gist: { tooltipPosition: "top" } },
+    };
+    expect(resolveMessageProperties(message).hasTooltipPosition).toBe(true);
+    expect(resolveMessageProperties(message).tooltipPosition).toBe("top");
   });
 
   it("shouldScale is true when gist.scale is truthy", () => {
