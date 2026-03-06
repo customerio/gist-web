@@ -1,3 +1,14 @@
+const CHEVRON_PATH =
+  'M3.54223 5.33301L7.7089 9.33301L11.8756 5.33301L12.6121 6.04011L7.7089 10.7472L2.80566 6.04011L3.54223 5.33301Z';
+
+export function chevronSvg(fill: string): string {
+  return `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="${CHEVRON_PATH}" fill="${fill}"/></svg>`;
+}
+
+function chevronDataUri(fill: string): string {
+  return `url("data:image/svg+xml,${encodeURIComponent(chevronSvg(fill))}")`;
+}
+
 export const PREVIEW_BAR_CSS = `
   #gist-preview-bar {
     position: fixed; bottom: 0; left: 0; right: 0;
@@ -35,7 +46,7 @@ export const PREVIEW_BAR_CSS = `
     height: 32px; padding: 0 32px 0 8px;
     border: 1px solid #d1d5db; border-radius: 6px;
     font-size: 13px; font-family: system-ui, -apple-system, sans-serif;
-    background: white url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M3.54223 5.33301L7.7089 9.33301L11.8756 5.33301L12.6121 6.04011L7.7089 10.7472L2.80566 6.04011L3.54223 5.33301Z' fill='%233F4E50'/%3E%3C/svg%3E") no-repeat right 2px center;
+    background: white ${chevronDataUri('#3F4E50')} no-repeat right 2px center;
     color: #3F4E50; cursor: pointer; outline: none;
     appearance: none; min-width: 120px;
   }
