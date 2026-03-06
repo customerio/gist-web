@@ -1,21 +1,17 @@
-import Gist from "../gist";
-import { UserNetworkInstance } from "./network";
+import Gist from '../gist';
+import { UserNetworkInstance } from './network';
 import {
   getKeyFromLocalStore,
   setKeyToLocalStore,
   clearKeyFromLocalStore,
-} from "../utilities/local-storage";
-import { log } from "../utilities/log";
-import {
-  isUsingGuestUserToken,
-  getEncodedUserToken,
-  getUserToken,
-} from "../managers/user-manager";
-import { getUserLocale } from "../managers/locale-manager";
-import { settings } from "./settings";
-import { v4 as uuidv4 } from "uuid";
-import { getNetworkErrorResponse } from "./network";
-import type { NetworkResponse } from "./network";
+} from '../utilities/local-storage';
+import { log } from '../utilities/log';
+import { isUsingGuestUserToken, getEncodedUserToken, getUserToken } from '../managers/user-manager';
+import { getUserLocale } from '../managers/locale-manager';
+import { settings } from './settings';
+import { v4 as uuidv4 } from 'uuid';
+import { getNetworkErrorResponse } from './network';
+import type { NetworkResponse } from './network';
 
 const defaultPollingDelayInSeconds = 600;
 const sessionExpiryMs = 30 * 60 * 1000;
@@ -24,9 +20,8 @@ const msPerSecond = 1000;
 let currentPollingDelayInSeconds = defaultPollingDelayInSeconds;
 let checkInProgress = false;
 
-export const userQueueNextPullCheckLocalStoreName =
-  "gist.web.userQueueNextPullCheck";
-export const sessionIdLocalStoreName = "gist.web.sessionId";
+export const userQueueNextPullCheckLocalStoreName = 'gist.web.userQueueNextPullCheck';
+export const sessionIdLocalStoreName = 'gist.web.sessionId';
 
 export async function getUserQueue(): Promise<NetworkResponse | undefined> {
   const existingUserToken = getUserToken();
@@ -35,13 +30,13 @@ export async function getUserQueue(): Promise<NetworkResponse | undefined> {
     if (!checkInProgress) {
       checkInProgress = true;
       const headers: Record<string, string> = {
-        "X-Gist-User-Anonymous": String(isUsingGuestUserToken()),
-        "Content-Language": String(getUserLocale()),
+        'X-Gist-User-Anonymous': String(isUsingGuestUserToken()),
+        'Content-Language': String(getUserLocale()),
       };
       response = await UserNetworkInstance().post(
         `/api/v4/users?sessionId=${getSessionId()}`,
         {},
-        { headers },
+        { headers }
       );
     }
   } catch (error) {
@@ -56,7 +51,7 @@ export async function getUserQueue(): Promise<NetworkResponse | undefined> {
   }
 
   if (existingUserToken !== getUserToken()) {
-    log("User token changed, clearing queue next pull check.");
+    log('User token changed, clearing queue next pull check.');
     clearKeyFromLocalStore(userQueueNextPullCheckLocalStoreName);
     return;
   }
@@ -67,50 +62,46 @@ export async function getUserQueue(): Promise<NetworkResponse | undefined> {
 }
 
 function setQueueUseSSE(response?: NetworkResponse): void {
-  const useSSE = response?.headers?.["x-cio-use-sse"]?.toLowerCase() === "true";
+  const useSSE = response?.headers?.['x-cio-use-sse']?.toLowerCase() === 'true';
   settings.setUseSSEFlag(useSSE);
 }
 
 function getSessionId(): string {
-  let sessionId = getKeyFromLocalStore(sessionIdLocalStoreName) as
-    | string
-    | null;
+  let sessionId = getKeyFromLocalStore(sessionIdLocalStoreName) as string | null;
   if (!sessionId) {
     sessionId = uuidv4();
   }
   setKeyToLocalStore(
     sessionIdLocalStoreName,
     sessionId,
-    new Date(new Date().getTime() + sessionExpiryMs),
+    new Date(new Date().getTime() + sessionExpiryMs)
   );
   return String(sessionId);
 }
 
 function scheduleNextQueuePull(response?: NetworkResponse): void {
   if (response?.headers) {
-    const pollingInterval = response.headers["x-gist-queue-polling-interval"];
+    const pollingInterval = response.headers['x-gist-queue-polling-interval'];
     if (pollingInterval && Number(pollingInterval) > 0) {
       currentPollingDelayInSeconds = Number(pollingInterval);
     }
   }
-  const expiryDate = new Date(
-    new Date().getTime() + currentPollingDelayInSeconds * msPerSecond,
-  );
+  const expiryDate = new Date(new Date().getTime() + currentPollingDelayInSeconds * msPerSecond);
   setKeyToLocalStore(
     userQueueNextPullCheckLocalStoreName,
     currentPollingDelayInSeconds,
-    expiryDate,
+    expiryDate
   );
 }
 
 export function getQueueSSEEndpoint(): string | null {
   const encodedUserToken = getEncodedUserToken();
   if (encodedUserToken === null) {
-    log("No user token available for SSE endpoint.");
+    log('No user token available for SSE endpoint.');
     return null;
   }
   return (
-    settings.GIST_QUEUE_REALTIME_API_ENDPOINT[Gist.config.env ?? "prod"] +
+    settings.GIST_QUEUE_REALTIME_API_ENDPOINT[Gist.config.env ?? 'prod'] +
     `/api/v3/sse?userToken=${encodedUserToken}&siteId=${Gist.config.siteId}&sessionId=${getSessionId()}`
   );
 }

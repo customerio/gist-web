@@ -1,4 +1,4 @@
-export type GistEnv = "prod" | "dev" | "local";
+export type GistEnv = 'prod' | 'dev' | 'local';
 
 export interface GistConfig {
   siteId: string;
@@ -16,6 +16,7 @@ export interface GistMessage {
   instanceId?: string;
   overlay?: boolean;
   elementId?: string | null;
+  tooltipPosition?: string;
   firstLoad?: boolean;
   shouldScale?: boolean;
   shouldResizeHeight?: boolean;
@@ -29,10 +30,11 @@ export interface GistMessage {
 }
 
 export interface DisplaySettings {
-  displayType?: "modal" | "overlay" | "inline" | "tooltip";
+  displayType?: 'modal' | 'overlay' | 'inline' | 'tooltip';
   modalPosition?: string;
   overlayPosition?: string;
   elementSelector?: string;
+  tooltipPosition?: string;
   maxWidth?: number;
   overlayColor?: string;
   dismissOutsideClick?: boolean;
@@ -69,6 +71,8 @@ export interface ResolvedMessageProperties {
   routeRule: string;
   position: string;
   hasPosition: boolean;
+  tooltipPosition: string;
+  hasTooltipPosition: boolean;
   shouldScale: boolean;
   campaignId: string | null;
   messageWidth: number;

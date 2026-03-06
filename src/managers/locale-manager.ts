@@ -1,9 +1,6 @@
-import { log } from "../utilities/log";
-import {
-  setKeyToLocalStore,
-  getKeyFromLocalStore,
-} from "../utilities/local-storage";
-const userLocaleLocalStoreName = "gist.web.userLocale";
+import { log } from '../utilities/log';
+import { setKeyToLocalStore, getKeyFromLocalStore } from '../utilities/local-storage';
+const userLocaleLocalStoreName = 'gist.web.userLocale';
 
 export function getUserLocale(): string {
   const stored = getKeyFromLocalStore(userLocaleLocalStoreName);
