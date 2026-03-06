@@ -1,23 +1,25 @@
 import type { GistMessage, ResolvedMessageProperties } from '../types';
 
+export const MESSAGE_PROPERTY_DEFAULTS: ResolvedMessageProperties = {
+  isEmbedded: false,
+  elementId: '',
+  hasRouteRule: false,
+  routeRule: '',
+  position: '',
+  hasPosition: false,
+  tooltipPosition: '',
+  hasTooltipPosition: false,
+  shouldScale: false,
+  campaignId: null,
+  messageWidth: 414,
+  overlayColor: '#00000033',
+  persistent: false,
+  exitClick: false,
+  hasCustomWidth: false,
+};
+
 export function resolveMessageProperties(message: GistMessage): ResolvedMessageProperties {
-  const defaults: ResolvedMessageProperties = {
-    isEmbedded: false,
-    elementId: '',
-    hasRouteRule: false,
-    routeRule: '',
-    position: '',
-    hasPosition: false,
-    tooltipPosition: '',
-    hasTooltipPosition: false,
-    shouldScale: false,
-    campaignId: null,
-    messageWidth: 414,
-    overlayColor: '#00000033',
-    persistent: false,
-    exitClick: false,
-    hasCustomWidth: false,
-  };
+  const defaults = MESSAGE_PROPERTY_DEFAULTS;
 
   const gist = message?.properties?.gist;
   if (!gist) return defaults;

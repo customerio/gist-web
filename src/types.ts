@@ -40,6 +40,11 @@ export interface DisplaySettings {
   dismissOutsideClick?: boolean;
 }
 
+export interface StepDisplayConfig {
+  stepName: string;
+  displaySettings: DisplaySettings;
+}
+
 export interface MessageProperties {
   gist?: GistProperties;
   [key: string]: unknown;
