@@ -17,6 +17,7 @@ function makeProps(overrides: Partial<ResolvedMessageProperties> = {}): Resolved
     hasPosition: false,
     tooltipPosition: '',
     hasTooltipPosition: false,
+    tooltipArrowColor: '#fff',
     shouldScale: false,
     campaignId: null,
     messageWidth: 414,
