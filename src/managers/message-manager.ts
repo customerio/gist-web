@@ -286,9 +286,9 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
             const gistAction = actionUrl.href.replace('gist://', '').split('?')[0];
             switch (gistAction) {
               case 'close':
-                await hideMessage(currentMessage);
                 await removePersistentMessage(currentMessage);
                 await logBroadcastDismissedLocally(currentMessage);
+                await hideMessage(currentMessage);
                 await checkMessageQueue();
                 break;
               case 'showMessage': {
