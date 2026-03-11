@@ -57,6 +57,7 @@ export interface GistProperties {
   overlayColor?: string;
   exitClick?: boolean;
   tooltipPosition?: string;
+  tooltipArrowColor?: string;
   routeRuleWeb?: string;
   scale?: boolean;
   campaignId?: string | null;
@@ -73,6 +74,7 @@ export interface ResolvedMessageProperties {
   hasPosition: boolean;
   tooltipPosition: string;
   hasTooltipPosition: boolean;
+  tooltipArrowColor: string;
   shouldScale: boolean;
   campaignId: string | null;
   messageWidth: number;

@@ -11,6 +11,7 @@ const defaults = {
   hasPosition: false,
   tooltipPosition: '',
   hasTooltipPosition: false,
+  tooltipArrowColor: '#fff',
   shouldScale: false,
   campaignId: null,
   messageWidth: 414,
@@ -56,6 +57,20 @@ describe('resolveMessageProperties', () => {
     };
     expect(resolveMessageProperties(message).hasTooltipPosition).toBe(true);
     expect(resolveMessageProperties(message).tooltipPosition).toBe('top');
+  });
+
+  it('tooltipArrowColor falls back to #fff when not set', () => {
+    const message: GistMessage = {
+      messageId: 'test',
+      properties: { gist: {} },
+    };
+    expect(resolveMessageProperties(message).tooltipArrowColor).toBe('#fff');
+
+    const messageWithColor: GistMessage = {
+      messageId: 'test',
+      properties: { gist: { tooltipArrowColor: '#003780' } },
+    };
+    expect(resolveMessageProperties(messageWithColor).tooltipArrowColor).toBe('#003780');
   });
 
   it('shouldScale is true when gist.scale is truthy', () => {

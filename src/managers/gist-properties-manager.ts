@@ -9,6 +9,7 @@ export const MESSAGE_PROPERTY_DEFAULTS: ResolvedMessageProperties = {
   hasPosition: false,
   tooltipPosition: '',
   hasTooltipPosition: false,
+  tooltipArrowColor: '#fff',
   shouldScale: false,
   campaignId: null,
   messageWidth: 414,
@@ -33,6 +34,7 @@ export function resolveMessageProperties(message: GistMessage): ResolvedMessageP
     hasPosition: !!gist.position,
     tooltipPosition: gist.tooltipPosition || '',
     hasTooltipPosition: !!gist.tooltipPosition,
+    tooltipArrowColor: gist.tooltipArrowColor || defaults.tooltipArrowColor,
     shouldScale: !!gist.scale,
     campaignId: gist.campaignId ?? null,
     messageWidth:
