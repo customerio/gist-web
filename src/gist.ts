@@ -132,9 +132,9 @@ export default class Gist {
   static async dismissMessage(instanceId: string): Promise<void> {
     const message = fetchMessageByInstanceId(instanceId);
     if (!message) return;
-    await hideMessage(message);
     await removePersistentMessage(message);
     await logBroadcastDismissedLocally(message);
+    await hideMessage(message);
     await checkMessageQueue();
   }
 
