@@ -3,8 +3,10 @@ import { log } from '../utilities/log';
 import { resolveMessageProperties } from './gist-properties-manager';
 import { embedHTMLTemplate } from '../templates/embed';
 import { messageHTMLTemplate } from '../templates/message';
+import { tooltipHTMLTemplate } from '../templates/tooltip';
 import { positions } from './page-component-manager';
 import { wideOverlayPositions } from '../utilities/message-utils';
+import { positionTooltip, type TooltipPosition } from './tooltip-position-manager';
 import type { GistMessage, ResolvedMessageProperties } from '../types';
 
 interface MessageOptions {
@@ -211,6 +213,80 @@ export function removeOverlayComponent(): void {
   const mainMessageElement = document.querySelector('#gist-embed-message');
   if (mainMessageElement) {
     mainMessageElement.parentNode?.removeChild(mainMessageElement);
+  }
+}
+
+const tooltipCleanupMap = new Map<string, () => void>();
+
+export function loadTooltipComponent(
+  url: string,
+  message: GistMessage,
+  options: MessageOptions,
+  stepName: string | null = null
+): void {
+  const instanceId = message.instanceId ?? '';
+  const messageElementId = getMessageElementId(instanceId);
+  const messageProperties = resolveMessageProperties(message);
+
+  const existingCleanup = tooltipCleanupMap.get(instanceId);
+  if (existingCleanup) {
+    existingCleanup();
+    tooltipCleanupMap.delete(instanceId);
+  }
+
+  document.querySelectorAll(`#gist-tooltip-${instanceId}`).forEach((el) => {
+    el.parentNode?.removeChild(el);
+  });
+
+  const wrapper = document.createElement('div');
+  wrapper.id = `gist-tooltip-${instanceId}`;
+  wrapper.innerHTML = tooltipHTMLTemplate(messageElementId, messageProperties, url);
+  document.body.appendChild(wrapper);
+
+  attachIframeLoadEvent(messageElementId, options, stepName);
+}
+
+export function showTooltipComponent(message: GistMessage): void {
+  const instanceId = message.instanceId ?? '';
+  const messageProperties = resolveMessageProperties(message);
+  const wrapperId = `gist-tooltip-${instanceId}`;
+  const wrapper = safelyFetchElement(wrapperId);
+  if (!wrapper) {
+    log(`Tooltip wrapper not found for instance ${instanceId}`);
+    return;
+  }
+
+  const iframe = wrapper.querySelector('.gist-tooltip-frame') as HTMLElement | null;
+  if (iframe) {
+    iframe.classList.add('gist-visible');
+  }
+
+  const selector = message.properties?.gist?.elementId as string | undefined;
+  if (!selector) {
+    log(`No target selector for tooltip ${instanceId}`);
+    return;
+  }
+
+  const position = (messageProperties.tooltipPosition || 'bottom') as TooltipPosition;
+  const cleanup = positionTooltip(wrapper, selector, position);
+  if (cleanup) {
+    tooltipCleanupMap.set(instanceId, cleanup);
+  }
+}
+
+export function hideTooltipComponent(message: GistMessage): void {
+  const instanceId = message.instanceId ?? '';
+
+  const existingCleanup = tooltipCleanupMap.get(instanceId);
+  if (existingCleanup) {
+    existingCleanup();
+    tooltipCleanupMap.delete(instanceId);
+  }
+
+  const wrapperId = `gist-tooltip-${instanceId}`;
+  const wrapper = safelyFetchElement(wrapperId);
+  if (wrapper) {
+    wrapper.parentNode?.removeChild(wrapper);
   }
 }
 
