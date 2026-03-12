@@ -235,9 +235,15 @@ describe('message-component-manager', () => {
     function setupTooltipWrapper(instanceId: string): HTMLElement {
       const wrapper = document.createElement('div');
       wrapper.id = `gist-tooltip-${instanceId}`;
+      const tooltip = document.createElement('div');
+      tooltip.id = 'gist-tooltip';
+      const container = document.createElement('div');
+      container.id = 'gist-tooltip-container';
       const iframe = document.createElement('iframe');
       iframe.className = 'gist-tooltip-frame';
-      wrapper.appendChild(iframe);
+      container.appendChild(iframe);
+      tooltip.appendChild(container);
+      wrapper.appendChild(tooltip);
       document.body.appendChild(wrapper);
       return wrapper;
     }
@@ -285,8 +291,8 @@ describe('message-component-manager', () => {
 
       showTooltipComponent(message);
 
-      const wrapper = document.getElementById('gist-tooltip-inst-1');
-      expect(positionTooltip).toHaveBeenCalledWith(wrapper, '#target-el', 'top');
+      const tooltipElement = document.getElementById('gist-tooltip');
+      expect(positionTooltip).toHaveBeenCalledWith(tooltipElement, '#target-el', 'top');
     });
 
     it('defaults tooltip position to bottom when not specified', () => {
@@ -362,9 +368,15 @@ describe('message-component-manager', () => {
     it('calls the position cleanup function when one exists', () => {
       const wrapper = document.createElement('div');
       wrapper.id = 'gist-tooltip-inst-1';
+      const tooltip = document.createElement('div');
+      tooltip.id = 'gist-tooltip';
+      const container = document.createElement('div');
+      container.id = 'gist-tooltip-container';
       const iframe = document.createElement('iframe');
       iframe.className = 'gist-tooltip-frame';
-      wrapper.appendChild(iframe);
+      container.appendChild(iframe);
+      tooltip.appendChild(container);
+      wrapper.appendChild(tooltip);
       document.body.appendChild(wrapper);
 
       const mockCleanup = vi.fn();

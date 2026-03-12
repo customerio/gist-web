@@ -267,8 +267,20 @@ export function showTooltipComponent(message: GistMessage): void {
     return;
   }
 
+  const existingCleanup = tooltipCleanupMap.get(instanceId);
+  if (existingCleanup) {
+    existingCleanup();
+    tooltipCleanupMap.delete(instanceId);
+  }
+
+  const tooltipElement = wrapper.querySelector('#gist-tooltip') as HTMLElement | null;
+  if (!tooltipElement) {
+    log(`Tooltip inner element not found for instance ${instanceId}`);
+    return;
+  }
+
   const position = (messageProperties.tooltipPosition || 'bottom') as TooltipPosition;
-  const cleanup = positionTooltip(wrapper, selector, position);
+  const cleanup = positionTooltip(tooltipElement, selector, position);
   if (cleanup) {
     tooltipCleanupMap.set(instanceId, cleanup);
   }
