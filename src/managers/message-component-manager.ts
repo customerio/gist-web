@@ -256,11 +256,6 @@ export function showTooltipComponent(message: GistMessage): void {
     return;
   }
 
-  const iframe = wrapper.querySelector('.gist-tooltip-frame') as HTMLElement | null;
-  if (iframe) {
-    iframe.classList.add('gist-visible');
-  }
-
   const selector = message.properties?.gist?.elementId as string | undefined;
   if (!selector) {
     log(`No target selector for tooltip ${instanceId}`);
@@ -283,6 +278,11 @@ export function showTooltipComponent(message: GistMessage): void {
   const cleanup = positionTooltip(tooltipElement, selector, position);
   if (cleanup) {
     tooltipCleanupMap.set(instanceId, cleanup);
+  }
+
+  const iframe = wrapper.querySelector('.gist-tooltip-frame') as HTMLElement | null;
+  if (iframe) {
+    iframe.classList.add('gist-visible');
   }
 }
 

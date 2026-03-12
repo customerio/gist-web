@@ -351,6 +351,9 @@ describe('message-component-manager', () => {
 
       expect(log).toHaveBeenCalledWith('No target selector for tooltip inst-1');
       expect(positionTooltip).not.toHaveBeenCalled();
+
+      const iframe = document.querySelector('.gist-tooltip-frame');
+      expect(iframe?.classList.contains('gist-visible')).toBe(false);
     });
   });
 
