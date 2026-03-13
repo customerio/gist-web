@@ -333,11 +333,8 @@ function component(url: string, message: GistMessage): string {
 
 function safelyFetchElement(elementId: string): HTMLElement | null {
   try {
-    const element = document.querySelector(`#${elementId}`);
-    if (element instanceof HTMLElement) {
-      return element;
-    }
-    return null;
+    const element = document.getElementById(elementId) ?? document.querySelector(elementId);
+    return (element as HTMLElement) || null;
   } catch {
     return null;
   }
