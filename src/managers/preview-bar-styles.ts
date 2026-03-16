@@ -14,6 +14,7 @@ export const PREVIEW_BAR_CSS = `
     position: fixed; bottom: 0; left: 0; right: 0;
     z-index: 99999999999;
     font-family: system-ui, -apple-system, sans-serif;
+    pointer-events: none;
   }
   .gist-pb-toggle-row {
     display: flex; justify-content: center;
@@ -29,11 +30,14 @@ export const PREVIEW_BAR_CSS = `
     font-family: system-ui, -apple-system, sans-serif;
     color: white; cursor: pointer;
     display: flex; align-items: center; gap: 6px;
+    pointer-events: auto;
   }
   .gist-pb-controls-row {
-    background: #ffffff;
+    background: #F8F9F9;
+    box-shadow: 1px 2px 2px #34344605, 3px 3px 8px #34344614;
     display: flex; flex-wrap: wrap; align-items: center;
     gap: 12px; padding: 10px 16px 12px;
+    pointer-events: auto;
   }
   .gist-pb-label-group { display: flex; flex-direction: column; gap: 4px; }
   .gist-pb-label-group--grow { flex: 1; }
