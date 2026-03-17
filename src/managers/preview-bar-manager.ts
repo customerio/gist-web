@@ -2,7 +2,11 @@ import Gist from '../gist';
 import { DisplaySettings, GistMessage, StepDisplayConfig } from '../types';
 import { applyMessageStepChange, hideMessageVisually } from './message-manager';
 import { sendDisplaySettingsToIframe } from './message-component-manager';
-import { hasDisplayChanged } from '../utilities/message-utils';
+import {
+  hasDisplayChanged,
+  wideOverlayPositions,
+  mapOverlayPositionToElementId,
+} from '../utilities/message-utils';
 import { log } from '../utilities/log';
 import { PREVIEW_BAR_CSS, chevronSvg } from './preview-bar-styles';
 import { savePreviewDisplaySettings } from '../services/preview-service';
@@ -116,6 +120,13 @@ function isReadyToApply(settings: DisplaySettings): boolean {
 // ─── Emit settings ────────────────────────────────────────────────────────────
 
 function emitSettings(settings: DisplaySettings) {
+  if (
+    settings.displayType === 'overlay' &&
+    wideOverlayPositions.includes(mapOverlayPositionToElementId(settings.overlayPosition))
+  ) {
+    const { maxWidth: _ignored, ...rest } = settings;
+    settings = rest;
+  }
   currentSettings = settings;
   // Update the step in the full displaySettings array (shared reference with message.displaySettings)
   if (currentStepName) {
@@ -207,11 +218,16 @@ function buildOverlayControls(settings: DisplaySettings, row: HTMLElement) {
   );
   row.appendChild(labelGroup('Position', posSelect));
 
-  const maxWidthInput = createInput('number', settings.maxWidth ?? 414, '80px');
-  maxWidthInput.addEventListener('change', () =>
-    emitSettings({ ...currentSettings, maxWidth: parseInt(maxWidthInput.value) || 414 })
+  const isWidePosition = wideOverlayPositions.includes(
+    mapOverlayPositionToElementId(settings.overlayPosition)
   );
-  row.appendChild(labelGroup('Max Width', maxWidthInput));
+  if (!isWidePosition) {
+    const maxWidthInput = createInput('number', settings.maxWidth ?? 414, '80px');
+    maxWidthInput.addEventListener('change', () =>
+      emitSettings({ ...currentSettings, maxWidth: parseInt(maxWidthInput.value) || 414 })
+    );
+    row.appendChild(labelGroup('Max Width', maxWidthInput));
+  }
 }
 
 function buildInlineControls(settings: DisplaySettings, row: HTMLElement) {

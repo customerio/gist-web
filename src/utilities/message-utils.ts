@@ -142,9 +142,15 @@ export function hasDisplayChanged(
     }
   }
 
-  const newMaxWidth = displaySettings.maxWidth ?? MESSAGE_PROPERTY_DEFAULTS.messageWidth;
-  if (resolvedProps.messageWidth !== newMaxWidth) {
-    return true;
+  const isWideOverlay =
+    newDisplayType === 'overlay' &&
+    wideOverlayPositions.includes(mapOverlayPositionToElementId(displaySettings.overlayPosition));
+
+  if (!isWideOverlay) {
+    const newMaxWidth = displaySettings.maxWidth ?? MESSAGE_PROPERTY_DEFAULTS.messageWidth;
+    if (resolvedProps.messageWidth !== newMaxWidth) {
+      return true;
+    }
   }
 
   return false;
