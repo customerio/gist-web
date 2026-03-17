@@ -187,7 +187,7 @@ function exitPreviewSession(): void {
   const url = new URL(window.location.href);
   url.searchParams.delete(PREVIEW_PARAM_ID);
   url.searchParams.delete(PREVIEW_SETTINGS_PARAM);
-  window.location.replace(url.toString());
+  history.replaceState(null, '', url.toString());
 }
 
 function loadMessageComponent(

@@ -118,6 +118,22 @@ export const PREVIEW_BAR_CSS = `
   .gist-pb-checkbox { cursor: pointer; width: 14px; height: 14px; }
   .gist-pb-pick-highlight { outline: 2px solid #3b82f6 !important; }
   #gist-preview-bar.gist-pb-hidden { display: none; }
+  .gist-pb-ended-row {
+    justify-content: center; align-items: center; gap: 10px; padding: 12px 16px;
+    flex-wrap: nowrap;
+  }
+  .gist-pb-ended-icon {
+    display: flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #08272B; color: white;
+    font-size: 13px; font-weight: 700; flex-shrink: 0;
+  }
+  .gist-pb-ended-text {
+    margin: 0; font-size: 13px; color: #3F4E50;
+    font-family: system-ui, -apple-system, sans-serif;
+    min-width: 0;
+  }
+  .gist-pb-ended-text strong { color: #08272B; }
   @media (max-width: 1024px) {
     .gist-pb-controls-row { gap: 8px; }
     .gist-pb-label-group { flex: 1 1 100%; }

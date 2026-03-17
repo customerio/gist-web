@@ -40,6 +40,9 @@ let currentSteps: StepDisplayConfig[] = [];
 let currentSettings: DisplaySettings = {};
 let currentStepName: string | null = null;
 let isCollapsed = false;
+let isSessionEnded = false;
+let sessionEndedCountdown = 5;
+let sessionEndedTimer: ReturnType<typeof setInterval> | null = null;
 let pickerActive = false;
 let pickerCleanup: (() => void) | null = null;
 let pendingInitialStepName: string | null = null;
@@ -432,9 +435,20 @@ function activatePickerIfNeeded(): void {
 function renderBar() {
   const bar = document.getElementById(BAR_ID);
   if (!bar) return;
-  bar.classList.toggle('gist-pb-hidden', !currentInstanceId);
+  bar.classList.toggle('gist-pb-hidden', !currentInstanceId && !isSessionEnded);
   bar.innerHTML = '';
-  if (!currentInstanceId) return;
+  if (!currentInstanceId) {
+    if (isSessionEnded) {
+      const endedRow = el('div', { className: 'gist-pb-controls-row gist-pb-ended-row' });
+      const icon = el('span', { className: 'gist-pb-ended-icon', textContent: '✓' });
+      const text = el('p', { className: 'gist-pb-ended-text' });
+      text.innerHTML = `<strong>Preview session ended.</strong> Close this tab and navigate back to the message editor. Refreshing in ${sessionEndedCountdown}s\u2026`;
+      endedRow.appendChild(icon);
+      endedRow.appendChild(text);
+      bar.appendChild(endedRow);
+    }
+    return;
+  }
 
   const toggleRowClass = `gist-pb-toggle-row${isCollapsed ? ' gist-pb-toggle-row--collapsed' : ''}`;
   const toggleRow = el('div', { className: toggleRowClass });
@@ -550,6 +564,7 @@ export function initPreviewBar(): void {
 }
 
 export function updatePreviewBarMessage(message: GistMessage): void {
+  isSessionEnded = false;
   currentInstanceId = message.instanceId ?? null;
   const fullSettings = message.displaySettings as unknown;
   if (Array.isArray(fullSettings) && fullSettings.length > 0) {
@@ -628,7 +643,21 @@ export function clearPreviewBarMessage(): void {
   currentSteps = [];
   currentSettings = {};
   currentStepName = null;
+  isSessionEnded = true;
+  sessionEndedCountdown = 5;
   renderBar();
+
+  if (sessionEndedTimer) clearInterval(sessionEndedTimer);
+  sessionEndedTimer = setInterval(() => {
+    sessionEndedCountdown -= 1;
+    if (sessionEndedCountdown <= 0) {
+      clearInterval(sessionEndedTimer!);
+      sessionEndedTimer = null;
+      window.location.reload();
+    } else {
+      renderBar();
+    }
+  }, 1000);
 }
 
 export function setPreviewBarInitialStep(
@@ -641,10 +670,16 @@ export function setPreviewBarInitialStep(
 
 export function destroyPreviewBar(): void {
   if (pickerCleanup) pickerCleanup();
+  if (sessionEndedTimer) {
+    clearInterval(sessionEndedTimer);
+    sessionEndedTimer = null;
+  }
   document.getElementById(BAR_ID)?.remove();
   document.getElementById(STYLE_ID)?.remove();
   currentInstanceId = null;
   currentSteps = [];
   currentSettings = {};
   currentStepName = null;
+  isSessionEnded = false;
+  sessionEndedCountdown = 5;
 }
