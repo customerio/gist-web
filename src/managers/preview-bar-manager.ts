@@ -305,7 +305,7 @@ function buildOverlayColorControl(settings: DisplaySettings): HTMLElement {
 
 // ─── Element picker ───────────────────────────────────────────────────────────
 
-function buildUniqueSelector(element: HTMLElement): string {
+function buildUniqueSelector(element: HTMLElement): string | null {
   if (element.id) {
     const escaped = CSS.escape(element.id);
     if (document.querySelectorAll(`#${escaped}`).length === 1) return element.id;
@@ -336,7 +336,9 @@ function buildUniqueSelector(element: HTMLElement): string {
     const parent = current.parentElement;
     if (parent) {
       const siblings = Array.from(parent.children).filter((c) => c.tagName === current!.tagName);
-      if (siblings.length > 1) part += `:nth-of-type(${siblings.indexOf(current) + 1})`;
+      // Always include nth-of-type so each step is positionally unambiguous within its parent.
+      const index = siblings.indexOf(current);
+      part += `:nth-of-type(${index + 1})`;
     }
 
     parts.unshift(part);
@@ -349,7 +351,18 @@ function buildUniqueSelector(element: HTMLElement): string {
     current = current.parentElement;
   }
 
-  return parts.join(' > ');
+  const selector = parts.join(' > ');
+
+  try {
+    if (document.querySelectorAll(selector).length !== 1) {
+      log(`buildUniqueSelector: could not produce a unique selector for element`);
+      return null;
+    }
+  } catch {
+    return null;
+  }
+
+  return selector;
 }
 
 function startElementPicker(target: HTMLInputElement) {
@@ -396,10 +409,31 @@ function startElementPicker(target: HTMLInputElement) {
     const under = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
     overlay.style.pointerEvents = 'all';
     if (under && under !== overlay) {
+      // Remove the highlight class before building the selector — otherwise the transient
+      // class name gets baked into the selector string and immediately becomes invalid.
       under.classList.remove('gist-pb-pick-highlight');
-      const selector = buildUniqueSelector(under);
+      const previewBar = document.getElementById(BAR_ID);
+      const selector = previewBar?.contains(under) ? null : buildUniqueSelector(under);
+      if (selector === null) {
+        under.classList.add('gist-pb-pick-error');
+        setTimeout(() => {
+          under.classList.remove('gist-pb-pick-error');
+          under.classList.add('gist-pb-pick-highlight');
+        }, 800);
+        return;
+      }
       target.value = selector;
-      emitSettings({ ...currentSettings, elementSelector: selector });
+      const updatedSettings = { ...currentSettings, elementSelector: selector };
+      // emitSettings only reloads when hasDisplayChanged is true (i.e. the selector actually
+      // changed). If the user re-selected the same element, hasDisplayChanged is false and
+      // emitSettings won't reload — but the message was hidden when the picker opened, so we
+      // need to reload it ourselves. Compute this before emitSettings can mutate the message.
+      const reloadHandledByEmit =
+        msg != null && isReadyToApply(updatedSettings) && hasDisplayChanged(msg, updatedSettings);
+      emitSettings(updatedSettings);
+      if (msg && !reloadHandledByEmit) {
+        applyMessageStepChange(msg, currentStepName, updatedSettings);
+      }
     }
     cleanup();
   };
