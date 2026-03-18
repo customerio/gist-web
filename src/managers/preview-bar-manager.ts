@@ -47,6 +47,10 @@ let pickerActive = false;
 let pickerCleanup: (() => void) | null = null;
 let pendingInitialStepName: string | null = null;
 let pendingInitialDisplayType: string | null = null;
+// Stores the original innerHTML of each element before the message first occupied it,
+// keyed by CSS selector. Only captured once per selector so re-visits always restore
+// to the true pre-message state.
+const originalElementContent = new Map<string, string>();
 
 // ─── DOM helper ───────────────────────────────────────────────────────────────
 
@@ -236,9 +240,15 @@ function buildOverlayControls(settings: DisplaySettings, row: HTMLElement) {
 function buildInlineControls(settings: DisplaySettings, row: HTMLElement) {
   const selectorInput = createInput('text', settings.elementSelector || '', '260px');
   selectorInput.placeholder = 'Element ID or selector';
-  selectorInput.addEventListener('change', () =>
-    emitSettings({ ...currentSettings, elementSelector: selectorInput.value })
-  );
+  selectorInput.addEventListener('change', () => {
+    const newSelector = selectorInput.value.trim();
+    const prevSelector = currentSettings.elementSelector;
+    if (newSelector) captureElementContent(newSelector);
+    emitSettings({ ...currentSettings, elementSelector: newSelector });
+    if (prevSelector && prevSelector !== newSelector) {
+      restoreElementContent(prevSelector);
+    }
+  });
 
   const selectBtn = el('button', {
     className: 'gist-pb-select-elem-btn',
@@ -301,6 +311,45 @@ function buildOverlayColorControl(settings: DisplaySettings): HTMLElement {
   controlRow.appendChild(pctLabel);
 
   return labelGroup('Overlay Color', controlRow);
+}
+
+// ─── Element content preservation ────────────────────────────────────────────
+
+function fetchElementBySelector(selector: string): HTMLElement | null {
+  if (!selector) return null;
+  try {
+    return (document.getElementById(selector) ??
+      document.querySelector(selector)) as HTMLElement | null;
+  } catch {
+    return null;
+  }
+}
+
+/** Snapshot an element's innerHTML the first time the picker targets it. */
+function captureElementContent(selector: string): void {
+  if (!selector || originalElementContent.has(selector)) return;
+  const element = fetchElementBySelector(selector);
+  if (element) {
+    originalElementContent.set(selector, element.innerHTML);
+  }
+}
+
+/** Restore the original innerHTML to an element the message previously occupied. */
+function restoreElementContent(selector: string): void {
+  const original = originalElementContent.get(selector);
+  if (original === undefined) return;
+  const element = fetchElementBySelector(selector);
+  if (element) {
+    element.innerHTML = original;
+  }
+}
+
+/** Restore every captured element and clear the cache (call on session end). */
+function restoreAllCapturedElements(): void {
+  for (const selector of originalElementContent.keys()) {
+    restoreElementContent(selector);
+  }
+  originalElementContent.clear();
 }
 
 // ─── Element picker ───────────────────────────────────────────────────────────
@@ -373,6 +422,11 @@ function startElementPicker(target: HTMLInputElement) {
   const msg =
     Gist.currentMessages.find((m: GistMessage) => m.instanceId === currentInstanceId) ?? null;
   if (msg) hideMessageVisually(msg);
+  // hideEmbedComponent ran synchronously above — restore the element's original content
+  // so the page looks normal while the user is choosing a new target.
+  if (currentSettings.elementSelector) {
+    restoreElementContent(currentSettings.elementSelector);
+  }
 
   const overlay = el('div', { className: 'gist-pb-picker-overlay' });
   let highlighted: HTMLElement | null = null;
@@ -423,6 +477,11 @@ function startElementPicker(target: HTMLInputElement) {
         return;
       }
       target.value = selector;
+      // Snapshot the new element's content before the message occupies it.
+      // captureElementContent is a no-op if we've seen this selector before,
+      // so the map always holds the true pre-message state.
+      captureElementContent(selector);
+      const prevSelector = currentSettings.elementSelector;
       const updatedSettings = { ...currentSettings, elementSelector: selector };
       // emitSettings only reloads when hasDisplayChanged is true (i.e. the selector actually
       // changed). If the user re-selected the same element, hasDisplayChanged is false and
@@ -431,6 +490,11 @@ function startElementPicker(target: HTMLInputElement) {
       const reloadHandledByEmit =
         msg != null && isReadyToApply(updatedSettings) && hasDisplayChanged(msg, updatedSettings);
       emitSettings(updatedSettings);
+      // hideEmbedComponent(prevSelector) ran synchronously inside emitSettings, so the old
+      // element is now empty — safe to restore its original content.
+      if (prevSelector && prevSelector !== selector) {
+        restoreElementContent(prevSelector);
+      }
       if (msg && !reloadHandledByEmit) {
         applyMessageStepChange(msg, currentStepName, updatedSettings);
       }
@@ -514,8 +578,9 @@ function renderBar() {
         const msg = Gist.currentMessages.find(
           (m: GistMessage) => m.instanceId === currentInstanceId
         );
-        if (msg && isReadyToApply(step.displaySettings))
+        if (msg && isReadyToApply(step.displaySettings)) {
           applyMessageStepChange(msg, step.stepName, step.displaySettings);
+        }
         renderBar();
       }
     });
@@ -533,6 +598,8 @@ function renderBar() {
   );
   displayTypeSelect.addEventListener('change', () => {
     const newType = displayTypeSelect.value as DisplaySettings['displayType'];
+    const prevType = currentSettings.displayType;
+    const prevSelector = currentSettings.elementSelector;
     const updated: DisplaySettings = { ...currentSettings, displayType: newType };
     if (newType === 'modal') {
       updated.modalPosition = updated.modalPosition || 'center';
@@ -548,6 +615,15 @@ function renderBar() {
     }
     currentSettings = updated;
     emitSettings(currentSettings);
+    // Restore the element we just vacated when switching away from inline/tooltip.
+    if (
+      (prevType === 'inline' || prevType === 'tooltip') &&
+      prevSelector &&
+      newType !== 'inline' &&
+      newType !== 'tooltip'
+    ) {
+      restoreElementContent(prevSelector);
+    }
     renderBar();
   });
   controlsRow.appendChild(labelGroup('Display Type', displayTypeSelect));
@@ -659,11 +735,13 @@ export function updatePreviewBarMessage(message: GistMessage): void {
 export function updatePreviewBarStep(stepName: string, displaySettings: DisplaySettings): void {
   currentStepName = stepName;
   const step = currentSteps.find((s) => s.stepName === stepName);
+
   if (step) {
     currentSettings = { ...step.displaySettings };
   } else if (displaySettings) {
     currentSettings = { ...displaySettings };
   }
+
   renderBar();
 }
 
@@ -673,6 +751,9 @@ export function getPreviewBarStepSettings(stepName: string): DisplaySettings | n
 }
 
 export function clearPreviewBarMessage(): void {
+  // hideEmbedComponent was already called by the message manager before this runs,
+  // so the occupied element is empty — safe to restore all original content now.
+  restoreAllCapturedElements();
   currentInstanceId = null;
   currentSteps = [];
   currentSettings = {};
@@ -708,6 +789,7 @@ export function destroyPreviewBar(): void {
     clearInterval(sessionEndedTimer);
     sessionEndedTimer = null;
   }
+  restoreAllCapturedElements();
   document.getElementById(BAR_ID)?.remove();
   document.getElementById(STYLE_ID)?.remove();
   currentInstanceId = null;
