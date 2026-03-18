@@ -603,10 +603,12 @@ function renderBar() {
     const updated: DisplaySettings = { ...currentSettings, displayType: newType };
     if (newType === 'modal') {
       updated.modalPosition = updated.modalPosition || 'center';
+      updated.maxWidth = updated.maxWidth ?? 414;
       delete updated.overlayPosition;
       delete updated.elementSelector;
     } else if (newType === 'overlay') {
       updated.overlayPosition = updated.overlayPosition || 'topCenter';
+      updated.maxWidth = updated.maxWidth ?? 414;
       delete updated.modalPosition;
       delete updated.elementSelector;
     } else if (newType === 'inline') {
