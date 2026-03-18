@@ -14,12 +14,20 @@ vi.mock('./local-storage', () => ({
   isSessionBeingPersisted: vi.fn(),
 }));
 
+vi.mock('../managers/preview-bar-manager', () => ({
+  initPreviewBar: vi.fn(),
+  setPreviewBarInitialStep: vi.fn(),
+}));
+
 import Gist from '../gist';
 import { shouldPersistSession, isSessionBeingPersisted } from './local-storage';
+import { initPreviewBar, setPreviewBarInitialStep } from '../managers/preview-bar-manager';
 
 const mockSetUserToken = vi.mocked(Gist.setUserToken);
 const mockShouldPersistSession = vi.mocked(shouldPersistSession);
 const mockIsSessionBeingPersisted = vi.mocked(isSessionBeingPersisted);
+const mockInitPreviewBar = vi.mocked(initPreviewBar);
+const mockSetPreviewBarInitialStep = vi.mocked(setPreviewBarInitialStep);
 
 function setSearchParams(params: string) {
   Object.defineProperty(window, 'location', {
@@ -79,5 +87,62 @@ describe('setupPreview', () => {
     setupPreview();
 
     expect(mockSetUserToken).not.toHaveBeenCalled();
+  });
+
+  it('initializes the preview bar when preview mode is active', () => {
+    setSearchParams('?cioPreviewId=token-abc');
+    mockIsSessionBeingPersisted.mockReturnValue(false);
+
+    setupPreview();
+
+    expect(mockInitPreviewBar).toHaveBeenCalled();
+  });
+
+  it('does not initialize preview bar when no preview param', () => {
+    setSearchParams('');
+    mockIsSessionBeingPersisted.mockReturnValue(true);
+
+    setupPreview();
+
+    expect(mockInitPreviewBar).not.toHaveBeenCalled();
+  });
+
+  it('parses cioPreviewSettings and sets initial step', () => {
+    const settings = { stepName: 'step-2', displayType: 'modal' };
+    const encoded = btoa(JSON.stringify(settings));
+    setSearchParams(`?cioPreviewId=token-abc&cioPreviewSettings=${encoded}`);
+    mockIsSessionBeingPersisted.mockReturnValue(false);
+
+    setupPreview();
+
+    expect(mockSetPreviewBarInitialStep).toHaveBeenCalledWith('step-2', 'modal');
+  });
+
+  it('does not call setPreviewBarInitialStep when settings param is absent', () => {
+    setSearchParams('?cioPreviewId=token-abc');
+    mockIsSessionBeingPersisted.mockReturnValue(false);
+
+    setupPreview();
+
+    expect(mockSetPreviewBarInitialStep).not.toHaveBeenCalled();
+  });
+
+  it('does not call setPreviewBarInitialStep when decoded settings have no stepName or displayType', () => {
+    const settings = { other: 'value' };
+    const encoded = btoa(JSON.stringify(settings));
+    setSearchParams(`?cioPreviewId=token-abc&cioPreviewSettings=${encoded}`);
+    mockIsSessionBeingPersisted.mockReturnValue(false);
+
+    setupPreview();
+
+    expect(mockSetPreviewBarInitialStep).not.toHaveBeenCalled();
+  });
+
+  it('handles malformed cioPreviewSettings gracefully', () => {
+    setSearchParams('?cioPreviewId=token-abc&cioPreviewSettings=not-valid-base64!!!');
+    mockIsSessionBeingPersisted.mockReturnValue(false);
+
+    expect(() => setupPreview()).not.toThrow();
+    expect(mockSetPreviewBarInitialStep).not.toHaveBeenCalled();
   });
 });

@@ -3,7 +3,12 @@ import { showMessage, embedMessage, hideMessage } from './message-manager';
 import type { GistMessage } from '../types';
 
 const mockGist = vi.hoisted(() => ({
-  config: { env: 'prod' as const, siteId: 'test-site', dataCenter: 'us' },
+  config: {
+    env: 'prod' as const,
+    siteId: 'test-site',
+    dataCenter: 'us',
+    isPreviewSession: false,
+  },
   overlayInstanceId: null as string | null,
   currentMessages: [] as GistMessage[],
   isDocumentVisible: true,
@@ -97,6 +102,15 @@ vi.mock('../utilities/message-utils', () => ({
   hasDisplayChanged: vi.fn(() => false),
   applyDisplaySettings: vi.fn(),
 }));
+vi.mock('./preview-bar-manager', () => ({
+  updatePreviewBarMessage: vi.fn(),
+  updatePreviewBarStep: vi.fn(),
+  clearPreviewBarMessage: vi.fn(),
+}));
+vi.mock('../utilities/preview-mode', () => ({
+  PREVIEW_PARAM_ID: 'cioPreviewId',
+  PREVIEW_SETTINGS_PARAM: 'cioPreviewSettings',
+}));
 
 vi.mock('../gist', () => ({ default: mockGist }));
 
@@ -106,6 +120,7 @@ describe('message-manager', () => {
     mockGist.overlayInstanceId = null;
     mockGist.currentMessages = [];
     mockGist.isDocumentVisible = true;
+    mockGist.config.isPreviewSession = false;
   });
 
   it('embedMessage assigns instanceId, sets overlay: false, stores elementId', () => {
@@ -189,5 +204,128 @@ describe('message-manager', () => {
     expect(hideOverlayComponent).toHaveBeenCalled();
     expect(removeMessageByInstanceId).toHaveBeenCalledWith('inst-1');
     expect(mockGist.overlayInstanceId).toBeNull();
+  });
+
+  describe('handleGistEvents preview bar integration', () => {
+    async function setupAndDispatchRouteLoaded(message: GistMessage, isPreviewSession: boolean) {
+      const { fetchMessageByInstanceId } = await import('../utilities/message-utils');
+      const { updatePreviewBarMessage } = await import('./preview-bar-manager');
+
+      vi.mocked(fetchMessageByInstanceId).mockReturnValue(message);
+      mockGist.config.isPreviewSession = isPreviewSession;
+
+      await showMessage(message);
+
+      const event = new MessageEvent('message', {
+        data: {
+          gist: {
+            method: 'routeLoaded',
+            instanceId: message.instanceId,
+            parameters: { route: '/step-1' },
+          },
+        },
+        origin: 'https://renderer.test',
+      });
+      window.dispatchEvent(event);
+      await vi.dynamicImportSettled();
+
+      return { updatePreviewBarMessage };
+    }
+
+    it('calls updatePreviewBarMessage when isPreviewSession and livePreview are both true', async () => {
+      const message: GistMessage = {
+        messageId: 'msg-1',
+        firstLoad: true,
+        properties: { gist: { livePreview: true } },
+      };
+
+      const { updatePreviewBarMessage } = await setupAndDispatchRouteLoaded(message, true);
+
+      expect(updatePreviewBarMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ messageId: 'msg-1' })
+      );
+    });
+
+    it('does not call updatePreviewBarMessage when livePreview is missing', async () => {
+      const message: GistMessage = {
+        messageId: 'msg-1',
+        firstLoad: true,
+        properties: { gist: {} },
+      };
+
+      const { updatePreviewBarMessage } = await setupAndDispatchRouteLoaded(message, true);
+
+      expect(updatePreviewBarMessage).not.toHaveBeenCalled();
+    });
+
+    it('does not call updatePreviewBarMessage when isPreviewSession is false', async () => {
+      const message: GistMessage = {
+        messageId: 'msg-1',
+        firstLoad: true,
+        properties: { gist: { livePreview: true } },
+      };
+
+      const { updatePreviewBarMessage } = await setupAndDispatchRouteLoaded(message, false);
+
+      expect(updatePreviewBarMessage).not.toHaveBeenCalled();
+    });
+
+    it('calls updatePreviewBarStep on changeMessageStep when isPreviewSession and livePreview', async () => {
+      const { fetchMessageByInstanceId } = await import('../utilities/message-utils');
+      const { updatePreviewBarStep } = await import('./preview-bar-manager');
+
+      const message: GistMessage = {
+        messageId: 'msg-1',
+        properties: { gist: { livePreview: true } },
+      };
+      mockGist.config.isPreviewSession = true;
+
+      await showMessage(message);
+      vi.mocked(fetchMessageByInstanceId).mockReturnValue(message);
+
+      const event = new MessageEvent('message', {
+        data: {
+          gist: {
+            method: 'changeMessageStep',
+            instanceId: message.instanceId,
+            parameters: { messageStepName: 'step-2', displaySettings: undefined },
+          },
+        },
+        origin: 'https://renderer.test',
+      });
+      window.dispatchEvent(event);
+      await vi.dynamicImportSettled();
+
+      expect(updatePreviewBarStep).toHaveBeenCalledWith('step-2', undefined);
+    });
+
+    it('does not call updatePreviewBarStep when livePreview is missing', async () => {
+      const { fetchMessageByInstanceId } = await import('../utilities/message-utils');
+      const { updatePreviewBarStep } = await import('./preview-bar-manager');
+
+      const message: GistMessage = {
+        messageId: 'msg-1',
+        properties: { gist: {} },
+      };
+      mockGist.config.isPreviewSession = true;
+
+      await showMessage(message);
+      vi.mocked(fetchMessageByInstanceId).mockReturnValue(message);
+
+      const event = new MessageEvent('message', {
+        data: {
+          gist: {
+            method: 'changeMessageStep',
+            instanceId: message.instanceId,
+            parameters: { messageStepName: 'step-2', displaySettings: undefined },
+          },
+        },
+        origin: 'https://renderer.test',
+      });
+      window.dispatchEvent(event);
+      await vi.dynamicImportSettled();
+
+      expect(updatePreviewBarStep).not.toHaveBeenCalled();
+    });
   });
 });

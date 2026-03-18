@@ -41,6 +41,12 @@ import {
   hasDisplayChanged,
   applyDisplaySettings,
 } from '../utilities/message-utils';
+import {
+  updatePreviewBarMessage,
+  updatePreviewBarStep,
+  clearPreviewBarMessage,
+} from './preview-bar-manager';
+import { PREVIEW_PARAM_ID, PREVIEW_SETTINGS_PARAM } from '../utilities/preview-mode';
 import type { GistMessage, DisplaySettings, MessageProperties } from '../types';
 
 interface GistEventData {
@@ -149,6 +155,10 @@ function resetEmbedState(message: GistMessage): void {
   if (message.elementId) {
     hideEmbedComponent(message.elementId);
   }
+  if (Gist.config.isPreviewSession) {
+    clearPreviewBarMessage();
+    exitPreviewSession();
+  }
 }
 
 async function resetOverlayState(hideFirst: boolean, message: GistMessage): Promise<void> {
@@ -167,6 +177,17 @@ async function resetOverlayState(hideFirst: boolean, message: GistMessage): Prom
     removeMessageByInstanceId(message.instanceId);
   }
   Gist.overlayInstanceId = null;
+  if (Gist.config.isPreviewSession) {
+    clearPreviewBarMessage();
+    exitPreviewSession();
+  }
+}
+
+function exitPreviewSession(): void {
+  const url = new URL(window.location.href);
+  url.searchParams.delete(PREVIEW_PARAM_ID);
+  url.searchParams.delete(PREVIEW_SETTINGS_PARAM);
+  history.replaceState(null, '', url.toString());
 }
 
 function loadMessageComponent(
@@ -247,6 +268,9 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
         } else if (currentMessage.displaySettings) {
           log(`SDK already has display settings state, sending it to iframe`);
           sendDisplaySettingsToIframe(currentMessage);
+        }
+        if (Gist.config.isPreviewSession && currentMessage.properties?.gist?.livePreview) {
+          updatePreviewBarMessage(currentMessage);
         }
         if (currentMessage.firstLoad || currentMessage.isDisplayChange) {
           if (currentMessage.overlay) {
@@ -332,6 +356,14 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
       case 'changeMessageStep': {
         const displaySettings = data.gist.parameters.displaySettings as DisplaySettings | undefined;
         const messageStepName = data.gist.parameters.messageStepName as string | undefined;
+
+        if (
+          Gist.config.isPreviewSession &&
+          messageStepName &&
+          currentMessage.properties?.gist?.livePreview
+        ) {
+          updatePreviewBarStep(messageStepName, displaySettings!);
+        }
 
         if (messageProperties.persistent || isShowAlwaysBroadcast(currentMessage)) {
           await saveMessageState(currentMessage.queueId ?? '', messageStepName, displaySettings);
@@ -425,12 +457,24 @@ async function reloadMessageWithNewDisplay(
   loadMessageComponent(message, elementId, stepName);
 }
 
-async function hideMessageVisually(message: GistMessage): Promise<void> {
+export async function hideMessageVisually(message: GistMessage): Promise<void> {
   if (message.overlay) {
     await hideOverlayComponent();
   } else if (message.elementId) {
     hideEmbedComponent(message.elementId);
   }
+}
+
+export async function applyMessageStepChange(
+  message: GistMessage,
+  stepName: string | null | undefined,
+  displaySettings: DisplaySettings | undefined
+): Promise<void> {
+  if (displaySettings && hasDisplayChanged(message, displaySettings)) {
+    await hideMessageVisually(message);
+    applyDisplaySettings(message, displaySettings);
+  }
+  await reloadMessageWithNewDisplay(message, stepName ?? null);
 }
 
 async function logUserMessageViewLocally(message: GistMessage): Promise<void> {
