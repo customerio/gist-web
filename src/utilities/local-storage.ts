@@ -40,6 +40,14 @@ export function clearExpiredFromLocalStore(): void {
   }
 }
 
+export function clearSessionPersistenceFlag(): void {
+  try {
+    sessionStorage.removeItem(isPersistingSessionLocalStoreName);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function isSessionBeingPersisted(): boolean {
   const currentValue = sessionStorage.getItem(isPersistingSessionLocalStoreName);
   if (currentValue === null) {

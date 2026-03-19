@@ -1,6 +1,11 @@
 import Gist from '../gist';
 import { log } from './log';
-import { shouldPersistSession, isSessionBeingPersisted } from './local-storage';
+import {
+  shouldPersistSession,
+  isSessionBeingPersisted,
+  clearSessionPersistenceFlag,
+} from './local-storage';
+import { clearUserToken } from '../managers/user-manager';
 import { initPreviewBar, setPreviewBarInitialStep } from '../managers/preview-bar-manager';
 
 export const PREVIEW_PARAM_ID = 'cioPreviewId';
@@ -30,4 +35,11 @@ export function setupPreview(): boolean {
     }
   }
   return !isSessionBeingPersisted();
+}
+
+export function teardownPreview(): void {
+  // Clear the preview token from sessionStorage while getStorage() still points there,
+  // then reset the persistence flag so the next page load uses localStorage.
+  clearUserToken();
+  clearSessionPersistenceFlag();
 }
