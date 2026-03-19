@@ -17,3 +17,16 @@ export async function savePreviewDisplaySettings(
     return getNetworkErrorResponse(error);
   }
 }
+
+export async function deletePreviewSession(
+  cioPreviewId: string
+): Promise<NetworkResponse | undefined> {
+  try {
+    const response = await UserNetworkInstance()(`/api/v1/preview/${cioPreviewId}`, {
+      method: 'DELETE',
+    });
+    return response;
+  } catch (error) {
+    return getNetworkErrorResponse(error);
+  }
+}
