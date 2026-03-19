@@ -9,7 +9,7 @@ import {
 } from '../utilities/message-utils';
 import { log } from '../utilities/log';
 import { PREVIEW_BAR_CSS, chevronSvg } from './preview-bar-styles';
-import { savePreviewDisplaySettings } from '../services/preview-service';
+import { savePreviewDisplaySettings, deletePreviewSession } from '../services/preview-service';
 import { PREVIEW_PARAM_ID } from '../utilities/preview-mode';
 
 const STORAGE_KEY = 'gist.previewBar.collapsed';
@@ -762,6 +762,13 @@ export function clearPreviewBarMessage(): void {
   currentStepName = null;
   isSessionEnded = true;
   sessionEndedCountdown = 5;
+
+  const params = new URLSearchParams(window.location.search);
+  const cioPreviewId = params.get(PREVIEW_PARAM_ID);
+  if (cioPreviewId) {
+    deletePreviewSession(cioPreviewId).catch(() => log('Failed to delete preview session'));
+  }
+
   renderBar();
 
   if (sessionEndedTimer) clearInterval(sessionEndedTimer);
