@@ -10,7 +10,7 @@ import {
 import { log } from '../utilities/log';
 import { PREVIEW_BAR_CSS, chevronSvg } from './preview-bar-styles';
 import { savePreviewDisplaySettings, deletePreviewSession } from '../services/preview-service';
-import { PREVIEW_PARAM_ID } from '../utilities/preview-mode';
+import { PREVIEW_PARAM_ID, teardownPreview } from '../utilities/preview-mode';
 
 const STORAGE_KEY = 'gist.previewBar.collapsed';
 const STYLE_ID = 'gist-pb-styles';
@@ -777,6 +777,7 @@ export function clearPreviewBarMessage(): void {
     if (sessionEndedCountdown <= 0) {
       clearInterval(sessionEndedTimer!);
       sessionEndedTimer = null;
+      teardownPreview();
       window.location.reload();
     } else {
       renderBar();
