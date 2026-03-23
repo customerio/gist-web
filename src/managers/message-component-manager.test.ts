@@ -248,7 +248,8 @@ describe('message-component-manager', () => {
       return wrapper;
     }
 
-    it('adds gist-visible class to the tooltip container', () => {
+    it('adds gist-visible class to the tooltip container and returns true when positioned', () => {
+      vi.mocked(positionTooltip).mockReturnValue({ cleanup: vi.fn(), reposition: vi.fn() });
       setupTooltipWrapper('inst-1');
       const message: GistMessage = {
         messageId: 'msg-1',
@@ -256,8 +257,9 @@ describe('message-component-manager', () => {
         properties: { gist: { elementId: '#target-el' } },
       };
 
-      showTooltipComponent(message);
+      const result = showTooltipComponent(message);
 
+      expect(result).toBe(true);
       const container = document.querySelector('.gist-tooltip-container');
       expect(container?.classList.contains('gist-visible')).toBe(true);
     });
@@ -327,28 +329,70 @@ describe('message-component-manager', () => {
       expect(positionTooltip).toHaveBeenCalledWith(expect.any(HTMLElement), '#target-el', 'bottom');
     });
 
-    it('logs and returns early when wrapper is not found', () => {
+    it('returns false when positionTooltip returns null (target not found)', () => {
+      setupTooltipWrapper('inst-1');
+      vi.mocked(positionTooltip).mockReturnValue(null);
+
       const message: GistMessage = {
         messageId: 'msg-1',
         instanceId: 'inst-1',
         properties: { gist: { elementId: '#target-el' } },
       };
 
-      showTooltipComponent(message);
+      const result = showTooltipComponent(message);
 
+      expect(result).toBe(false);
+      const container = document.querySelector('.gist-tooltip-container');
+      expect(container?.classList.contains('gist-visible')).toBe(false);
+    });
+
+    it('returns false and cleans up when tooltip is hidden via display:none (no viewport fit)', () => {
+      setupTooltipWrapper('inst-1');
+      const mockCleanup = vi.fn();
+
+      vi.mocked(positionTooltip).mockImplementation((el) => {
+        (el as HTMLElement).style.display = 'none';
+        return { cleanup: mockCleanup, reposition: vi.fn() };
+      });
+
+      const message: GistMessage = {
+        messageId: 'msg-1',
+        instanceId: 'inst-1',
+        properties: { gist: { elementId: '#target-el' } },
+      };
+
+      const result = showTooltipComponent(message);
+
+      expect(result).toBe(false);
+      expect(mockCleanup).toHaveBeenCalled();
+      const container = document.querySelector('.gist-tooltip-container');
+      expect(container?.classList.contains('gist-visible')).toBe(false);
+    });
+
+    it('logs and returns false when wrapper is not found', () => {
+      const message: GistMessage = {
+        messageId: 'msg-1',
+        instanceId: 'inst-1',
+        properties: { gist: { elementId: '#target-el' } },
+      };
+
+      const result = showTooltipComponent(message);
+
+      expect(result).toBe(false);
       expect(log).toHaveBeenCalledWith('Tooltip wrapper not found for instance inst-1');
       expect(positionTooltip).not.toHaveBeenCalled();
     });
 
-    it('logs and returns early when no target selector is provided', () => {
+    it('logs and returns false when no target selector is provided', () => {
       setupTooltipWrapper('inst-1');
       const message: GistMessage = {
         messageId: 'msg-1',
         instanceId: 'inst-1',
       };
 
-      showTooltipComponent(message);
+      const result = showTooltipComponent(message);
 
+      expect(result).toBe(false);
       expect(log).toHaveBeenCalledWith('No target selector for tooltip inst-1');
       expect(positionTooltip).not.toHaveBeenCalled();
 

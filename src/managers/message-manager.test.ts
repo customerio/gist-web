@@ -55,7 +55,7 @@ vi.mock('./message-component-manager', () => ({
   changeOverlayTitle: vi.fn(),
   sendDisplaySettingsToIframe: vi.fn(),
   loadTooltipComponent: vi.fn(),
-  showTooltipComponent: vi.fn(),
+  showTooltipComponent: vi.fn(() => true),
   hideTooltipComponent: vi.fn(),
 }));
 vi.mock('./gist-properties-manager', () => ({
@@ -617,6 +617,47 @@ describe('message-manager', () => {
       it('emits messageShown on first tooltip routeLoaded', async () => {
         await setupTooltipAndDispatch('routeLoaded');
         expect(mockGist.messageShown).toHaveBeenCalled();
+      });
+
+      it('does not emit messageShown when showTooltipComponent returns false', async () => {
+        const { fetchMessageByInstanceId, getCurrentDisplayType } =
+          await import('../utilities/message-utils');
+        const { resolveMessageProperties } = await import('./gist-properties-manager');
+        const mocks = await import('./message-component-manager');
+
+        vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties('#target-btn'));
+        vi.mocked(mocks.showTooltipComponent).mockReturnValue(false);
+        addTargetElement('#target-btn');
+
+        const message: GistMessage = {
+          messageId: 'tooltip-no-fit',
+          tooltipPosition: 'bottom',
+          elementId: '#target-btn',
+          firstLoad: true,
+          properties: { gist: { elementId: '#target-btn', tooltipPosition: 'bottom' } },
+        };
+
+        vi.mocked(getCurrentDisplayType).mockReturnValue('tooltip');
+        await showMessage(message);
+        vi.mocked(fetchMessageByInstanceId).mockReturnValue(message);
+
+        const event = new MessageEvent('message', {
+          data: {
+            gist: {
+              method: 'routeLoaded',
+              instanceId: message.instanceId,
+              parameters: { route: '/step-1' },
+            },
+          },
+          origin: 'https://renderer.test',
+        });
+        window.dispatchEvent(event);
+        await vi.dynamicImportSettled();
+
+        expect(mocks.showTooltipComponent).toHaveBeenCalled();
+        expect(mockGist.messageShown).not.toHaveBeenCalled();
+        expect(mockGist.messageError).toHaveBeenCalledWith(message);
+        expect(mocks.hideTooltipComponent).toHaveBeenCalledWith(message);
       });
 
       it('calls resizeTooltipComponent on sizeChanged for tooltip messages', async () => {

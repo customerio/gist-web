@@ -393,7 +393,15 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
               resetTooltipState(currentMessage);
               break;
             }
-            showTooltipComponent(currentMessage);
+            const tooltipVisible = showTooltipComponent(currentMessage);
+            if (!tooltipVisible) {
+              log(
+                `Tooltip positioning failed for "${targetSelector}", emitting error and cleaning up`
+              );
+              Gist.messageError(currentMessage);
+              resetTooltipState(currentMessage);
+              break;
+            }
           } else if (currentMessage.overlay) {
             showOverlayComponent(currentMessage);
           } else {

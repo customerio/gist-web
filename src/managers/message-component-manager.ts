@@ -251,21 +251,21 @@ export function loadTooltipComponent(
   attachIframeLoadEvent(messageElementId, options, stepName);
 }
 
-export function showTooltipComponent(message: GistMessage): void {
+export function showTooltipComponent(message: GistMessage): boolean {
   const instanceId = message.instanceId ?? '';
   const messageProperties = resolveMessageProperties(message);
   const wrapperId = `gist-tooltip-${instanceId}`;
   const wrapper = safelyFetchElement(wrapperId);
   if (!wrapper) {
     log(`Tooltip wrapper not found for instance ${instanceId}`);
-    return;
+    return false;
   }
 
   const selector =
     (message.properties?.gist?.elementId as string | undefined) || message.elementId || undefined;
   if (!selector) {
     log(`No target selector for tooltip ${instanceId}`);
-    return;
+    return false;
   }
 
   const existingHandle = tooltipHandleMap.get(instanceId);
@@ -277,23 +277,32 @@ export function showTooltipComponent(message: GistMessage): void {
   const tooltipElement = wrapper.querySelector('.gist-tooltip-inner') as HTMLElement | null;
   if (!tooltipElement) {
     log(`Tooltip inner element not found for instance ${instanceId}`);
-    return;
+    return false;
   }
 
   const position = (messageProperties.tooltipPosition || 'bottom') as TooltipPosition;
   const handle = positionTooltip(tooltipElement, selector, position);
   if (handle) {
-    tooltipHandleMap.set(instanceId, handle);
+    const isVisible = tooltipElement.style.display !== 'none';
+    if (isVisible) {
+      tooltipHandleMap.set(instanceId, handle);
 
-    const container = wrapper.querySelector('.gist-tooltip-container') as HTMLElement | null;
-    if (container) {
-      container.classList.add('gist-visible');
+      const container = wrapper.querySelector('.gist-tooltip-container') as HTMLElement | null;
+      if (container) {
+        container.classList.add('gist-visible');
+      }
+      return true;
     }
-  } else {
+    handle.cleanup();
     log(
-      `Failed to position tooltip for instance ${instanceId}, target "${selector}" may not exist or no position fits the viewport`
+      `Tooltip for instance ${instanceId} could not be positioned within the viewport, target "${selector}" may be off-screen`
     );
+    return false;
   }
+  log(
+    `Failed to position tooltip for instance ${instanceId}, target "${selector}" may not exist or no position fits the viewport`
+  );
+  return false;
 }
 
 export function hideTooltipComponent(message: GistMessage): void {
