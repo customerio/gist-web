@@ -222,13 +222,6 @@ export function removeOverlayComponent(): void {
 
 const tooltipHandleMap = new Map<string, TooltipHandle>();
 
-export function clearAllTooltipHandles(): void {
-  for (const handle of tooltipHandleMap.values()) {
-    handle.cleanup();
-  }
-  tooltipHandleMap.clear();
-}
-
 export function loadTooltipComponent(
   url: string,
   message: GistMessage,

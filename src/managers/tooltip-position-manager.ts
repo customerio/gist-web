@@ -210,10 +210,10 @@ function updateArrow(tooltipElement: HTMLElement, result: PositionResult): void 
 
   if (result.arrowOffset !== null) {
     if (result.position === 'top' || result.position === 'bottom') {
-      arrowEl.style.left = `calc(50% + ${-result.arrowOffset}px)`;
+      arrowEl.style.left = `calc(50% + ${result.arrowOffset}px)`;
       arrowEl.style.removeProperty('top');
     } else {
-      arrowEl.style.top = `calc(50% + ${-result.arrowOffset}px)`;
+      arrowEl.style.top = `calc(50% + ${result.arrowOffset}px)`;
       arrowEl.style.removeProperty('left');
     }
   } else {

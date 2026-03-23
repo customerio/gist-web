@@ -9,7 +9,6 @@ import {
   loadTooltipComponent,
   showTooltipComponent,
   hideTooltipComponent,
-  clearAllTooltipHandles,
 } from './message-component-manager';
 import { log } from '../utilities/log';
 import { resolveMessageProperties } from './gist-properties-manager';
@@ -422,75 +421,6 @@ describe('message-component-manager', () => {
       expect(() => {
         hideTooltipComponent({ messageId: 'msg-1', instanceId: 'inst-1' });
       }).not.toThrow();
-    });
-  });
-
-  describe('clearAllTooltipHandles', () => {
-    function setupTooltipWithHandle(instanceId: string): ReturnType<typeof vi.fn> {
-      const wrapper = document.createElement('div');
-      wrapper.id = `gist-tooltip-${instanceId}`;
-      const tooltip = document.createElement('div');
-      tooltip.className = 'gist-tooltip-inner';
-      const container = document.createElement('div');
-      container.className = 'gist-tooltip-container';
-      const iframe = document.createElement('iframe');
-      iframe.className = 'gist-tooltip-frame';
-      container.appendChild(iframe);
-      tooltip.appendChild(container);
-      wrapper.appendChild(tooltip);
-      document.body.appendChild(wrapper);
-
-      const mockCleanup = vi.fn();
-      vi.mocked(positionTooltip).mockReturnValue({ cleanup: mockCleanup, reposition: vi.fn() });
-      vi.mocked(resolveMessageProperties).mockReturnValue({
-        isEmbedded: false,
-        elementId: '',
-        hasRouteRule: false,
-        routeRule: '',
-        position: '',
-        hasPosition: false,
-        tooltipPosition: 'bottom',
-        hasTooltipPosition: true,
-        tooltipArrowColor: '#fff',
-        shouldScale: false,
-        campaignId: null,
-        messageWidth: 414,
-        overlayColor: '#00000033',
-        persistent: false,
-        exitClick: false,
-        hasCustomWidth: false,
-      });
-
-      showTooltipComponent({
-        messageId: `msg-${instanceId}`,
-        instanceId,
-        properties: { gist: { elementId: '#target-el' } },
-      });
-
-      return mockCleanup;
-    }
-
-    it('cleans up all active tooltip handles', () => {
-      const cleanup1 = setupTooltipWithHandle('inst-a');
-      const cleanup2 = setupTooltipWithHandle('inst-b');
-
-      clearAllTooltipHandles();
-
-      expect(cleanup1).toHaveBeenCalled();
-      expect(cleanup2).toHaveBeenCalled();
-    });
-
-    it('is safe to call when no tooltips are active', () => {
-      expect(() => clearAllTooltipHandles()).not.toThrow();
-    });
-
-    it('prevents double cleanup when hideTooltipComponent is called after clear', () => {
-      const cleanup = setupTooltipWithHandle('inst-c');
-
-      clearAllTooltipHandles();
-      hideTooltipComponent({ messageId: 'msg-inst-c', instanceId: 'inst-c' });
-
-      expect(cleanup).toHaveBeenCalledTimes(1);
     });
   });
 });
