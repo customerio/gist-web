@@ -9,6 +9,7 @@ import {
   loadTooltipComponent,
   showTooltipComponent,
   hideTooltipComponent,
+  clearAllTooltipHandles,
 } from './message-component-manager';
 import { log } from '../utilities/log';
 import { resolveMessageProperties } from './gist-properties-manager';
@@ -465,6 +466,72 @@ describe('message-component-manager', () => {
       expect(() => {
         hideTooltipComponent({ messageId: 'msg-1', instanceId: 'inst-1' });
       }).not.toThrow();
+    });
+  });
+
+  describe('clearAllTooltipHandles', () => {
+    function setupTooltipWrapper(instanceId: string): HTMLElement {
+      const wrapper = document.createElement('div');
+      wrapper.id = `gist-tooltip-${instanceId}`;
+      const tooltip = document.createElement('div');
+      tooltip.className = 'gist-tooltip-inner';
+      const container = document.createElement('div');
+      container.className = 'gist-tooltip-container';
+      const iframe = document.createElement('iframe');
+      iframe.className = 'gist-tooltip-frame';
+      container.appendChild(iframe);
+      tooltip.appendChild(container);
+      wrapper.appendChild(tooltip);
+      document.body.appendChild(wrapper);
+      return wrapper;
+    }
+
+    it('calls cleanup on all tracked tooltip handles', () => {
+      const cleanup1 = vi.fn();
+      const cleanup2 = vi.fn();
+      vi.mocked(positionTooltip)
+        .mockReturnValueOnce({ cleanup: cleanup1, reposition: vi.fn() })
+        .mockReturnValueOnce({ cleanup: cleanup2, reposition: vi.fn() });
+
+      setupTooltipWrapper('inst-1');
+      setupTooltipWrapper('inst-2');
+
+      showTooltipComponent({
+        messageId: 'msg-1',
+        instanceId: 'inst-1',
+        properties: { gist: { elementId: '#target-1' } },
+      });
+      showTooltipComponent({
+        messageId: 'msg-2',
+        instanceId: 'inst-2',
+        properties: { gist: { elementId: '#target-2' } },
+      });
+
+      clearAllTooltipHandles();
+
+      expect(cleanup1).toHaveBeenCalledTimes(1);
+      expect(cleanup2).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not throw when no handles are tracked', () => {
+      expect(() => clearAllTooltipHandles()).not.toThrow();
+    });
+
+    it('clears the map so subsequent hideTooltipComponent does not double-cleanup', () => {
+      const mockCleanup = vi.fn();
+      vi.mocked(positionTooltip).mockReturnValue({ cleanup: mockCleanup, reposition: vi.fn() });
+
+      setupTooltipWrapper('inst-1');
+      showTooltipComponent({
+        messageId: 'msg-1',
+        instanceId: 'inst-1',
+        properties: { gist: { elementId: '#target-1' } },
+      });
+
+      clearAllTooltipHandles();
+      hideTooltipComponent({ messageId: 'msg-1', instanceId: 'inst-1' });
+
+      expect(mockCleanup).toHaveBeenCalledTimes(1);
     });
   });
 });

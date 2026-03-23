@@ -321,6 +321,11 @@ export function hideTooltipComponent(message: GistMessage): void {
   }
 }
 
+export function clearAllTooltipHandles(): void {
+  tooltipHandleMap.forEach((handle) => handle.cleanup());
+  tooltipHandleMap.clear();
+}
+
 export function resizeTooltipComponent(
   message: GistMessage,
   size: { width: number; height: number }

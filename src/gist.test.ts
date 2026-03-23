@@ -38,6 +38,7 @@ vi.mock('./utilities/message-utils', () => ({
 }));
 vi.mock('./managers/message-component-manager', () => ({
   sendDisplaySettingsToIframe: vi.fn(),
+  clearAllTooltipHandles: vi.fn(),
 }));
 vi.mock('./managers/locale-manager', () => ({
   setUserLocale: vi.fn(),
@@ -73,7 +74,10 @@ import {
   logBroadcastDismissedLocally,
 } from './managers/message-manager';
 import { fetchMessageByInstanceId } from './utilities/message-utils';
-import { sendDisplaySettingsToIframe } from './managers/message-component-manager';
+import {
+  sendDisplaySettingsToIframe,
+  clearAllTooltipHandles,
+} from './managers/message-component-manager';
 import { setUserLocale } from './managers/locale-manager';
 import {
   setCustomAttribute,
@@ -217,6 +221,11 @@ describe('Gist', () => {
       expect(Gist.currentMessages).toEqual([]);
     });
 
+    it('clears all tooltip handles during setup', async () => {
+      await Gist.setup(baseConfig());
+      expect(clearAllTooltipHandles).toHaveBeenCalled();
+    });
+
     it('sets isDocumentVisible to true', async () => {
       await Gist.setup(baseConfig());
       expect(Gist.isDocumentVisible).toBe(true);
@@ -301,6 +310,15 @@ describe('Gist', () => {
 
       expect(clearUserToken).toHaveBeenCalled();
       expect(useGuestSession).not.toHaveBeenCalled();
+    });
+
+    it('clears all tooltip handles before clearing the user token', async () => {
+      await Gist.setup(baseConfig());
+      vi.mocked(clearAllTooltipHandles).mockClear();
+
+      await Gist.clearUserToken();
+
+      expect(clearAllTooltipHandles).toHaveBeenCalled();
     });
   });
 
