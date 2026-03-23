@@ -234,7 +234,7 @@ describe('tooltip-position-manager', () => {
         expect(tooltip.style.display).toBe('none');
       });
 
-      it('hides tooltip when left position stops fitting and no fallback fits either', () => {
+      it('flips from left to right and clamps cross-axis when target is near top-left corner', () => {
         Object.defineProperty(window, 'innerWidth', { value: 400, configurable: true });
         Object.defineProperty(window, 'innerHeight', { value: 300, configurable: true });
 
@@ -249,7 +249,81 @@ describe('tooltip-position-manager', () => {
         const tooltip = createTooltip({ width: 200, height: 100 });
         handle = positionTooltip(tooltip, '#target', 'left');
 
-        expect(tooltip.style.display).toBe('none');
+        expect(handle).not.toBeNull();
+        expect(tooltip.style.display).not.toBe('none');
+        // left doesn't fit primary axis, flips to right: left = 90 + 16 = 106
+        expect(parseFloat(tooltip.style.left)).toBe(106);
+        // cross-axis top = 10 + (40-100)/2 = -20, clamped to VIEWPORT_PADDING = 4
+        expect(parseFloat(tooltip.style.top)).toBe(4);
+      });
+
+      it('clamps cross-axis left when bottom tooltip overflows left of viewport', () => {
+        // Target near left edge: tooltip (width 280) centered on target at left=20
+        // would compute left = 20 + (60-280)/2 = -90, which overflows left.
+        // Previously this was rejected outright; now it should clamp to VIEWPORT_PADDING.
+        createTarget({ top: 100, bottom: 140, left: 20, right: 80, width: 60, height: 40 });
+        const tooltip = createTooltip({ width: 280, height: 50 });
+        handle = positionTooltip(tooltip, '#target', 'bottom');
+
+        expect(handle).not.toBeNull();
+        expect(tooltip.style.display).not.toBe('none');
+        expect(parseFloat(tooltip.style.left)).toBe(4); // VIEWPORT_PADDING
+      });
+
+      it('clamps cross-axis right when bottom tooltip overflows right of viewport', () => {
+        // Target near right edge: tooltip (width 280) centered on target at left=900
+        // would compute left = 900 + (60-280)/2 = 790, right edge = 1070 > 1024
+        createTarget({ top: 100, bottom: 140, left: 900, right: 960, width: 60, height: 40 });
+        const tooltip = createTooltip({ width: 280, height: 50 });
+        handle = positionTooltip(tooltip, '#target', 'bottom');
+
+        expect(handle).not.toBeNull();
+        expect(tooltip.style.display).not.toBe('none');
+        // maxLeft = 1024 - 280 - 4 = 740
+        expect(parseFloat(tooltip.style.left)).toBe(740);
+      });
+
+      it('clamps cross-axis top when right tooltip overflows top of viewport', () => {
+        // Target near top edge: tooltip (height 120) centered on target at top=20
+        // would compute top = 20 + (40-120)/2 = -20, which overflows top.
+        createTarget({ top: 20, bottom: 60, left: 100, right: 160, width: 60, height: 40 });
+        const tooltip = createTooltip({ width: 120, height: 120 });
+        handle = positionTooltip(tooltip, '#target', 'right');
+
+        expect(handle).not.toBeNull();
+        expect(tooltip.style.display).not.toBe('none');
+        expect(parseFloat(tooltip.style.top)).toBe(4); // VIEWPORT_PADDING
+      });
+
+      it('clamps cross-axis bottom when left tooltip overflows bottom of viewport', () => {
+        // Target near bottom edge: tooltip (height 120) centered on target at top=700
+        // would compute top = 700 + (40-120)/2 = 660, bottom edge = 780 > 768
+        createTarget({ top: 700, bottom: 740, left: 300, right: 360, width: 60, height: 40 });
+        const tooltip = createTooltip({ width: 120, height: 120 });
+        handle = positionTooltip(tooltip, '#target', 'left');
+
+        expect(handle).not.toBeNull();
+        expect(tooltip.style.display).not.toBe('none');
+        // maxTop = 768 - 120 - 4 = 644
+        expect(parseFloat(tooltip.style.top)).toBe(644);
+      });
+
+      it('tracks arrow offset when cross-axis is clamped', () => {
+        // Arrow element should get an offset when the tooltip is shifted
+        const arrowEl = document.createElement('div');
+        arrowEl.className = 'gist-tooltip-arrow';
+
+        createTarget({ top: 100, bottom: 140, left: 20, right: 80, width: 60, height: 40 });
+        const tooltip = createTooltip({ width: 280, height: 50 });
+        tooltip.appendChild(arrowEl);
+        handle = positionTooltip(tooltip, '#target', 'bottom');
+
+        expect(handle).not.toBeNull();
+        // Centered left = 20 + (60-280)/2 = -90. Clamped to 4.
+        // arrowOffset = -90 - 4 = -94, but capped by maxArrowShift = 280/2 - 16 - 4 = 120
+        // So arrowOffset = -94 (within bounds)
+        expect(arrowEl.style.left).not.toBe('50%');
+        expect(arrowEl.style.left).toContain('calc(50%');
       });
 
       it('re-shows tooltip when a valid position becomes available after being hidden', () => {

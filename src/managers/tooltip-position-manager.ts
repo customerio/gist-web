@@ -97,13 +97,22 @@ function isTargetVisible(targetRect: DOMRect, scrollAncestors: Element[]): boole
   return true;
 }
 
-function fitsInViewport(coords: { top: number; left: number }, tooltipRect: DOMRect): boolean {
-  return (
-    coords.top >= 0 &&
-    coords.left >= 0 &&
-    coords.top + tooltipRect.height <= window.innerHeight &&
-    coords.left + tooltipRect.width <= window.innerWidth
-  );
+function fitsPrimaryAxis(
+  coords: { top: number; left: number },
+  tooltipRect: DOMRect,
+  position: TooltipPosition
+): boolean {
+  if (position === 'top' || position === 'bottom') {
+    return coords.top >= 0 && coords.top + tooltipRect.height <= window.innerHeight;
+  }
+  return coords.left >= 0 && coords.left + tooltipRect.width <= window.innerWidth;
+}
+
+function fitsCrossAxis(tooltipRect: DOMRect, position: TooltipPosition): boolean {
+  if (position === 'top' || position === 'bottom') {
+    return tooltipRect.width + VIEWPORT_PADDING * 2 <= window.innerWidth;
+  }
+  return tooltipRect.height + VIEWPORT_PADDING * 2 <= window.innerHeight;
 }
 
 interface PositionResult {
@@ -160,31 +169,33 @@ function clampCrossAxis(
   return { top, left, position, arrowOffset };
 }
 
+function tryPosition(
+  tooltipRect: DOMRect,
+  targetRect: DOMRect,
+  position: TooltipPosition
+): PositionResult | null {
+  const coords = calculatePosition(tooltipRect, targetRect, position);
+  if (!fitsPrimaryAxis(coords, tooltipRect, position)) return null;
+  if (!fitsCrossAxis(tooltipRect, position)) return null;
+  return clampCrossAxis(coords, tooltipRect, position);
+}
+
 function findBestPosition(
   tooltipRect: DOMRect,
   targetRect: DOMRect,
   preferred: TooltipPosition
 ): PositionResult | null {
-  const preferredCoords = calculatePosition(tooltipRect, targetRect, preferred);
+  const preferredResult = tryPosition(tooltipRect, targetRect, preferred);
+  if (preferredResult) return preferredResult;
 
-  if (fitsInViewport(preferredCoords, tooltipRect)) {
-    return clampCrossAxis(preferredCoords, tooltipRect, preferred);
-  }
-
-  // Try the simple flip first (backward compat)
   const flipped = getFlippedPosition(preferred);
-  const flippedCoords = calculatePosition(tooltipRect, targetRect, flipped);
-  if (fitsInViewport(flippedCoords, tooltipRect)) {
-    return clampCrossAxis(flippedCoords, tooltipRect, flipped);
-  }
+  const flippedResult = tryPosition(tooltipRect, targetRect, flipped);
+  if (flippedResult) return flippedResult;
 
-  // Try remaining positions
   for (const fallback of FALLBACK_ORDER[preferred]) {
     if (fallback === flipped) continue;
-    const coords = calculatePosition(tooltipRect, targetRect, fallback);
-    if (fitsInViewport(coords, tooltipRect)) {
-      return clampCrossAxis(coords, tooltipRect, fallback);
-    }
+    const result = tryPosition(tooltipRect, targetRect, fallback);
+    if (result) return result;
   }
 
   return null;
