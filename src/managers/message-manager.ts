@@ -138,6 +138,7 @@ function showTooltipMessage(
     log(
       `Tooltip already showing on target "${targetSelector}" (instance ${existingTooltip.instanceId}), dismissing it first`
     );
+    Gist.messageDismissed(existingTooltip);
     hideTooltipComponent(existingTooltip);
     if (existingTooltip.instanceId) {
       removeMessageByInstanceId(existingTooltip.instanceId);
@@ -372,12 +373,19 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
           const displayType = getCurrentDisplayType(currentMessage);
 
           if (displayType === 'tooltip') {
-            // Check that the target element still exists before showing
             const targetSelector =
               (currentMessage.properties?.gist?.elementId as string | undefined) ||
               currentMessage.elementId ||
               undefined;
-            if (!targetSelector || !document.querySelector(targetSelector)) {
+            let targetFound = false;
+            try {
+              targetFound = !!targetSelector && !!document.querySelector(targetSelector);
+            } catch {
+              log(
+                `Invalid tooltip target selector "${targetSelector}" for message ${currentMessage.messageId}`
+              );
+            }
+            if (!targetFound) {
               log(
                 `Tooltip target not found for "${targetSelector}", emitting error and skipping display`
               );

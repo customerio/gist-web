@@ -513,6 +513,7 @@ describe('message-manager', () => {
 
       await showMessage(message);
 
+      expect(mockGist.messageDismissed).toHaveBeenCalledWith(existing);
       expect(hideTooltipComponent).toHaveBeenCalledWith(existing);
       expect(removeMessageByInstanceId).toHaveBeenCalledWith('old-inst');
     });
@@ -669,6 +670,47 @@ describe('message-manager', () => {
         await vi.dynamicImportSettled();
 
         expect(mockGist.messageError).toHaveBeenCalledWith(message);
+      });
+
+      it('gracefully handles invalid selector in routeLoaded instead of throwing', async () => {
+        const { fetchMessageByInstanceId, getCurrentDisplayType } =
+          await import('../utilities/message-utils');
+        const { resolveMessageProperties } = await import('./gist-properties-manager');
+        const mocks = await import('./message-component-manager');
+
+        vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties('#valid-target'));
+        addTargetElement('#valid-target');
+
+        const message: GistMessage = {
+          messageId: 'tooltip-invalid-sel',
+          tooltipPosition: 'bottom',
+          elementId: '#valid-target',
+          firstLoad: true,
+          properties: { gist: { elementId: '#valid-target', tooltipPosition: 'bottom' } },
+        };
+
+        vi.mocked(getCurrentDisplayType).mockReturnValue('tooltip');
+        await showMessage(message);
+        vi.mocked(fetchMessageByInstanceId).mockReturnValue(message);
+
+        message.firstLoad = true;
+        message.properties = { gist: { elementId: '[invalid!', tooltipPosition: 'bottom' } };
+
+        const event = new MessageEvent('message', {
+          data: {
+            gist: {
+              method: 'routeLoaded',
+              instanceId: message.instanceId,
+              parameters: { route: '/step-1' },
+            },
+          },
+          origin: 'https://renderer.test',
+        });
+        window.dispatchEvent(event);
+        await vi.dynamicImportSettled();
+
+        expect(mockGist.messageError).toHaveBeenCalledWith(message);
+        expect(mocks.showTooltipComponent).not.toHaveBeenCalled();
       });
     });
   });
