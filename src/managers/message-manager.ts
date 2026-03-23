@@ -388,6 +388,8 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
                 `Tooltip target not found for "${targetSelector}", emitting error and skipping display`
               );
               Gist.messageError(currentMessage);
+              currentMessage.firstLoad = false;
+              currentMessage.isDisplayChange = false;
               resetTooltipState(currentMessage);
               break;
             }
@@ -397,6 +399,8 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
                 `Tooltip positioning failed for "${targetSelector}", emitting error and cleaning up`
               );
               Gist.messageError(currentMessage);
+              currentMessage.firstLoad = false;
+              currentMessage.isDisplayChange = false;
               resetTooltipState(currentMessage);
               break;
             }

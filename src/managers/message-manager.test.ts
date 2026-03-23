@@ -658,6 +658,7 @@ describe('message-manager', () => {
         expect(mockGist.messageShown).not.toHaveBeenCalled();
         expect(mockGist.messageError).toHaveBeenCalledWith(message);
         expect(mocks.hideTooltipComponent).toHaveBeenCalledWith(message);
+        expect(message.firstLoad).toBe(false);
       });
 
       it('calls resizeTooltipComponent on sizeChanged for tooltip messages', async () => {
@@ -711,6 +712,7 @@ describe('message-manager', () => {
         await vi.dynamicImportSettled();
 
         expect(mockGist.messageError).toHaveBeenCalledWith(message);
+        expect(message.firstLoad).toBe(false);
       });
 
       it('gracefully handles invalid selector in routeLoaded instead of throwing', async () => {
@@ -752,6 +754,7 @@ describe('message-manager', () => {
 
         expect(mockGist.messageError).toHaveBeenCalledWith(message);
         expect(mocks.showTooltipComponent).not.toHaveBeenCalled();
+        expect(message.firstLoad).toBe(false);
       });
     });
   });
