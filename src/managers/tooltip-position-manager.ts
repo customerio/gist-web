@@ -62,16 +62,6 @@ function calculatePosition(
   }
 }
 
-function getFlippedPosition(position: TooltipPosition): TooltipPosition {
-  const flips: Record<TooltipPosition, TooltipPosition> = {
-    top: 'bottom',
-    bottom: 'top',
-    left: 'right',
-    right: 'left',
-  };
-  return flips[position];
-}
-
 function isTargetVisible(targetRect: DOMRect, scrollAncestors: Element[]): boolean {
   if (
     targetRect.bottom <= 0 ||
@@ -188,12 +178,7 @@ function findBestPosition(
   const preferredResult = tryPosition(tooltipRect, targetRect, preferred);
   if (preferredResult) return preferredResult;
 
-  const flipped = getFlippedPosition(preferred);
-  const flippedResult = tryPosition(tooltipRect, targetRect, flipped);
-  if (flippedResult) return flippedResult;
-
   for (const fallback of FALLBACK_ORDER[preferred]) {
-    if (fallback === flipped) continue;
     const result = tryPosition(tooltipRect, targetRect, fallback);
     if (result) return result;
   }
