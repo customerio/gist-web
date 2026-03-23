@@ -108,7 +108,7 @@ function showTooltipMessage(
   message: GistMessage,
   properties: ReturnType<typeof resolveMessageProperties>
 ): GistMessage | null {
-  const targetSelector = message.elementId || properties.elementId;
+  const targetSelector = properties.elementId || message.elementId;
   if (!targetSelector) {
     log(`No target selector specified for tooltip message ${message.messageId}`);
     Gist.messageError(message);
@@ -152,9 +152,7 @@ function showTooltipMessage(
   message.shouldScale = false;
   message.renderStartTime = new Date().getTime();
 
-  if (!message.elementId && properties.elementId) {
-    message.elementId = properties.elementId;
-  }
+  message.elementId = targetSelector;
 
   Gist.currentMessages.push(message);
 
