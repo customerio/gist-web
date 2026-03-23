@@ -513,6 +513,29 @@ describe('message-component-manager', () => {
       expect(cleanup2).toHaveBeenCalledTimes(1);
     });
 
+    it('removes all tooltip wrapper DOM elements', () => {
+      setupTooltipWrapper('inst-1');
+      setupTooltipWrapper('inst-2');
+
+      expect(document.getElementById('gist-tooltip-inst-1')).not.toBeNull();
+      expect(document.getElementById('gist-tooltip-inst-2')).not.toBeNull();
+
+      clearAllTooltipHandles();
+
+      expect(document.getElementById('gist-tooltip-inst-1')).toBeNull();
+      expect(document.getElementById('gist-tooltip-inst-2')).toBeNull();
+    });
+
+    it('removes untracked tooltip wrappers that have no handle in the map', () => {
+      setupTooltipWrapper('orphan-1');
+
+      expect(document.getElementById('gist-tooltip-orphan-1')).not.toBeNull();
+
+      clearAllTooltipHandles();
+
+      expect(document.getElementById('gist-tooltip-orphan-1')).toBeNull();
+    });
+
     it('does not throw when no handles are tracked', () => {
       expect(() => clearAllTooltipHandles()).not.toThrow();
     });

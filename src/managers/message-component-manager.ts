@@ -324,6 +324,10 @@ export function hideTooltipComponent(message: GistMessage): void {
 export function clearAllTooltipHandles(): void {
   tooltipHandleMap.forEach((handle) => handle.cleanup());
   tooltipHandleMap.clear();
+
+  document.querySelectorAll('[id^="gist-tooltip-"]').forEach((el) => {
+    el.parentNode?.removeChild(el);
+  });
 }
 
 export function resizeTooltipComponent(
