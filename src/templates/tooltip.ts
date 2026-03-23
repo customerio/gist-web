@@ -20,7 +20,8 @@ function getArrowClass(tooltipPosition: string): string {
 export function tooltipHTMLTemplate(
   elementId: string,
   messageProperties: ResolvedMessageProperties,
-  url: string
+  url: string,
+  wrapperId: string = ''
 ): string {
   let maxWidthBreakpoint = 600;
   if (messageProperties.messageWidth > maxWidthBreakpoint) {
@@ -29,38 +30,39 @@ export function tooltipHTMLTemplate(
 
   const arrowColor = messageProperties.tooltipArrowColor;
   const arrowClass = getArrowClass(messageProperties.tooltipPosition);
+  const scope = wrapperId ? `#${wrapperId} ` : '';
 
   const template = `
-    <div id="gist-tooltip">
+    <div class="gist-tooltip-inner">
         <style>
-            #gist-tooltip {
+            ${scope}.gist-tooltip-inner {
                 position: absolute;
             }
-            #gist-tooltip-container {
+            ${scope}.gist-tooltip-container {
                 position: relative;
                 z-index: 9999999;
                 opacity: 0;
                 transition: opacity 0.3s ease-in-out;
             }
-            #gist-tooltip-container.gist-visible {
+            ${scope}.gist-tooltip-container.gist-visible {
                 opacity: 1;
             }
-            .gist-tooltip-frame-clip {
+            ${scope}.gist-tooltip-frame-clip {
                 overflow: hidden;
             }
-            .gist-tooltip-frame {
+            ${scope}.gist-tooltip-frame {
                 display: block;
                 width: ${messageProperties.messageWidth}px;
                 border: none;
                 transition: height 0.1s ease-in-out;
             }
-            .gist-tooltip-arrow {
+            ${scope}.gist-tooltip-arrow {
                 width: 0;
                 height: 0;
                 position: absolute;
                 z-index: 1;
             }
-            .gist-tooltip-arrow.gist-arrow-bottom {
+            ${scope}.gist-tooltip-arrow.gist-arrow-bottom {
                 bottom: 0;
                 left: 50%;
                 transform: translateX(-50%) translateY(100%);
@@ -68,7 +70,7 @@ export function tooltipHTMLTemplate(
                 border-right: ${ARROW_SIZE}px solid transparent;
                 border-top: ${ARROW_SIZE}px solid ${arrowColor};
             }
-            .gist-tooltip-arrow.gist-arrow-top {
+            ${scope}.gist-tooltip-arrow.gist-arrow-top {
                 top: 0;
                 left: 50%;
                 transform: translateX(-50%) translateY(-100%);
@@ -76,7 +78,7 @@ export function tooltipHTMLTemplate(
                 border-right: ${ARROW_SIZE}px solid transparent;
                 border-bottom: ${ARROW_SIZE}px solid ${arrowColor};
             }
-            .gist-tooltip-arrow.gist-arrow-right {
+            ${scope}.gist-tooltip-arrow.gist-arrow-right {
                 right: 0;
                 top: 50%;
                 transform: translateY(-50%) translateX(100%);
@@ -84,7 +86,7 @@ export function tooltipHTMLTemplate(
                 border-bottom: ${ARROW_SIZE}px solid transparent;
                 border-left: ${ARROW_SIZE}px solid ${arrowColor};
             }
-            .gist-tooltip-arrow.gist-arrow-left {
+            ${scope}.gist-tooltip-arrow.gist-arrow-left {
                 left: 0;
                 top: 50%;
                 transform: translateY(-50%) translateX(-100%);
@@ -93,12 +95,12 @@ export function tooltipHTMLTemplate(
                 border-right: ${ARROW_SIZE}px solid ${arrowColor};
             }
             @media (max-width: ${maxWidthBreakpoint}px) {
-                .gist-tooltip-frame {
+                ${scope}.gist-tooltip-frame {
                     max-width: 100%;
                 }
             }
         </style>
-        <div id="gist-tooltip-container">
+        <div class="gist-tooltip-container">
             <div class="gist-tooltip-arrow ${arrowClass}"></div>
             <div class="gist-tooltip-frame-clip">
                 <iframe id="${elementId}" class="gist-tooltip-frame" src="${url}"></iframe>

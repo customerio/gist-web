@@ -222,6 +222,13 @@ export function removeOverlayComponent(): void {
 
 const tooltipHandleMap = new Map<string, TooltipHandle>();
 
+export function clearAllTooltipHandles(): void {
+  for (const handle of tooltipHandleMap.values()) {
+    handle.cleanup();
+  }
+  tooltipHandleMap.clear();
+}
+
 export function loadTooltipComponent(
   url: string,
   message: GistMessage,
@@ -242,9 +249,10 @@ export function loadTooltipComponent(
     el.parentNode?.removeChild(el);
   });
 
+  const wrapperId = `gist-tooltip-${instanceId}`;
   const wrapper = document.createElement('div');
-  wrapper.id = `gist-tooltip-${instanceId}`;
-  wrapper.innerHTML = tooltipHTMLTemplate(messageElementId, messageProperties, url);
+  wrapper.id = wrapperId;
+  wrapper.innerHTML = tooltipHTMLTemplate(messageElementId, messageProperties, url, wrapperId);
   document.body.appendChild(wrapper);
 
   attachIframeLoadEvent(messageElementId, options, stepName);
@@ -273,7 +281,7 @@ export function showTooltipComponent(message: GistMessage): void {
     tooltipHandleMap.delete(instanceId);
   }
 
-  const tooltipElement = wrapper.querySelector('#gist-tooltip') as HTMLElement | null;
+  const tooltipElement = wrapper.querySelector('.gist-tooltip-inner') as HTMLElement | null;
   if (!tooltipElement) {
     log(`Tooltip inner element not found for instance ${instanceId}`);
     return;
@@ -284,12 +292,14 @@ export function showTooltipComponent(message: GistMessage): void {
   if (handle) {
     tooltipHandleMap.set(instanceId, handle);
 
-    const container = wrapper.querySelector('#gist-tooltip-container') as HTMLElement | null;
+    const container = wrapper.querySelector('.gist-tooltip-container') as HTMLElement | null;
     if (container) {
       container.classList.add('gist-visible');
     }
   } else {
-    log(`Failed to position tooltip for instance ${instanceId}, target may not exist`);
+    log(
+      `Failed to position tooltip for instance ${instanceId}, target "${selector}" may not exist or no position fits the viewport`
+    );
   }
 }
 

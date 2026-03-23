@@ -39,11 +39,11 @@ describe('tooltipHTMLTemplate', () => {
     expect(iframe?.getAttribute('src')).toBe('https://example.com/tooltip');
   });
 
-  it('contains the gist-tooltip wrapper div', () => {
+  it('contains the gist-tooltip-inner wrapper div', () => {
     const html = tooltipHTMLTemplate('el', makeProps(), 'https://example.com');
     const doc = parseHTML(html);
 
-    const wrapper = doc.querySelector('#gist-tooltip');
+    const wrapper = doc.querySelector('.gist-tooltip-inner');
     expect(wrapper).not.toBeNull();
   });
 
@@ -51,7 +51,7 @@ describe('tooltipHTMLTemplate', () => {
     const html = tooltipHTMLTemplate('el', makeProps(), 'https://example.com');
     const doc = parseHTML(html);
 
-    const container = doc.querySelector('#gist-tooltip-container');
+    const container = doc.querySelector('.gist-tooltip-container');
     expect(container).not.toBeNull();
   });
 
@@ -185,7 +185,54 @@ describe('tooltipHTMLTemplate', () => {
   it('uses position: absolute on the wrapper', () => {
     const html = tooltipHTMLTemplate('el', makeProps(), 'https://example.com');
 
-    expect(html).toContain('#gist-tooltip');
+    expect(html).toContain('.gist-tooltip-inner');
     expect(html).toContain('position: absolute');
+  });
+
+  it('scopes CSS rules under wrapperId when provided', () => {
+    const html = tooltipHTMLTemplate(
+      'el',
+      makeProps({ messageWidth: 300, tooltipArrowColor: '#f00', tooltipPosition: 'top' }),
+      'https://example.com',
+      'gist-tooltip-abc123'
+    );
+
+    expect(html).toContain('#gist-tooltip-abc123 .gist-tooltip-inner');
+    expect(html).toContain('#gist-tooltip-abc123 .gist-tooltip-container');
+    expect(html).toContain('#gist-tooltip-abc123 .gist-tooltip-frame');
+    expect(html).toContain('#gist-tooltip-abc123 .gist-tooltip-arrow');
+  });
+
+  it('does not add scope prefix when wrapperId is omitted', () => {
+    const html = tooltipHTMLTemplate('el', makeProps(), 'https://example.com');
+
+    expect(html).not.toMatch(/#gist-tooltip-/);
+    expect(html).toMatch(/^\s+\.gist-tooltip-inner\s*\{/m);
+  });
+
+  it('isolates styles between two tooltips with different configs', () => {
+    const htmlA = tooltipHTMLTemplate(
+      'el-a',
+      makeProps({ messageWidth: 280, tooltipArrowColor: '#0057c4', tooltipPosition: 'bottom' }),
+      'https://example.com',
+      'gist-tooltip-aaa'
+    );
+    const htmlB = tooltipHTMLTemplate(
+      'el-b',
+      makeProps({ messageWidth: 400, tooltipArrowColor: '#ff0000', tooltipPosition: 'top' }),
+      'https://example.com',
+      'gist-tooltip-bbb'
+    );
+
+    expect(htmlA).toContain('#gist-tooltip-aaa .gist-tooltip-frame');
+    expect(htmlA).toContain('width: 280px');
+    expect(htmlA).toContain('#0057c4');
+
+    expect(htmlB).toContain('#gist-tooltip-bbb .gist-tooltip-frame');
+    expect(htmlB).toContain('width: 400px');
+    expect(htmlB).toContain('#ff0000');
+
+    expect(htmlA).not.toContain('gist-tooltip-bbb');
+    expect(htmlB).not.toContain('gist-tooltip-aaa');
   });
 });

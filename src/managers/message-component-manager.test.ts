@@ -9,6 +9,7 @@ import {
   loadTooltipComponent,
   showTooltipComponent,
   hideTooltipComponent,
+  clearAllTooltipHandles,
 } from './message-component-manager';
 import { log } from '../utilities/log';
 import { resolveMessageProperties } from './gist-properties-manager';
@@ -52,8 +53,8 @@ vi.mock('../templates/message', () => ({
 }));
 vi.mock('../templates/tooltip', () => ({
   tooltipHTMLTemplate: vi.fn(
-    (_id: string, _props: unknown, url: string) =>
-      `<div id="gist-tooltip"><div id="gist-tooltip-container"><iframe id="${_id}" class="gist-tooltip-frame" src="${url}"></iframe></div></div>`
+    (_id: string, _props: unknown, url: string, _wrapperId?: string) =>
+      `<div class="gist-tooltip-inner"><div class="gist-tooltip-container"><iframe id="${_id}" class="gist-tooltip-frame" src="${url}"></iframe></div></div>`
   ),
 }));
 vi.mock('./page-component-manager', () => ({
@@ -236,9 +237,9 @@ describe('message-component-manager', () => {
       const wrapper = document.createElement('div');
       wrapper.id = `gist-tooltip-${instanceId}`;
       const tooltip = document.createElement('div');
-      tooltip.id = 'gist-tooltip';
+      tooltip.className = 'gist-tooltip-inner';
       const container = document.createElement('div');
-      container.id = 'gist-tooltip-container';
+      container.className = 'gist-tooltip-container';
       const iframe = document.createElement('iframe');
       iframe.className = 'gist-tooltip-frame';
       container.appendChild(iframe);
@@ -258,7 +259,7 @@ describe('message-component-manager', () => {
 
       showTooltipComponent(message);
 
-      const container = document.querySelector('#gist-tooltip-container');
+      const container = document.querySelector('.gist-tooltip-container');
       expect(container?.classList.contains('gist-visible')).toBe(true);
     });
 
@@ -291,7 +292,7 @@ describe('message-component-manager', () => {
 
       showTooltipComponent(message);
 
-      const tooltipElement = document.getElementById('gist-tooltip');
+      const tooltipElement = document.querySelector('.gist-tooltip-inner');
       expect(positionTooltip).toHaveBeenCalledWith(tooltipElement, '#target-el', 'top');
     });
 
@@ -352,7 +353,7 @@ describe('message-component-manager', () => {
       expect(log).toHaveBeenCalledWith('No target selector for tooltip inst-1');
       expect(positionTooltip).not.toHaveBeenCalled();
 
-      const container = document.querySelector('#gist-tooltip-container');
+      const container = document.querySelector('.gist-tooltip-container');
       expect(container?.classList.contains('gist-visible')).toBe(false);
     });
   });
@@ -372,9 +373,9 @@ describe('message-component-manager', () => {
       const wrapper = document.createElement('div');
       wrapper.id = 'gist-tooltip-inst-1';
       const tooltip = document.createElement('div');
-      tooltip.id = 'gist-tooltip';
+      tooltip.className = 'gist-tooltip-inner';
       const container = document.createElement('div');
-      container.id = 'gist-tooltip-container';
+      container.className = 'gist-tooltip-container';
       const iframe = document.createElement('iframe');
       iframe.className = 'gist-tooltip-frame';
       container.appendChild(iframe);
@@ -421,6 +422,75 @@ describe('message-component-manager', () => {
       expect(() => {
         hideTooltipComponent({ messageId: 'msg-1', instanceId: 'inst-1' });
       }).not.toThrow();
+    });
+  });
+
+  describe('clearAllTooltipHandles', () => {
+    function setupTooltipWithHandle(instanceId: string): ReturnType<typeof vi.fn> {
+      const wrapper = document.createElement('div');
+      wrapper.id = `gist-tooltip-${instanceId}`;
+      const tooltip = document.createElement('div');
+      tooltip.className = 'gist-tooltip-inner';
+      const container = document.createElement('div');
+      container.className = 'gist-tooltip-container';
+      const iframe = document.createElement('iframe');
+      iframe.className = 'gist-tooltip-frame';
+      container.appendChild(iframe);
+      tooltip.appendChild(container);
+      wrapper.appendChild(tooltip);
+      document.body.appendChild(wrapper);
+
+      const mockCleanup = vi.fn();
+      vi.mocked(positionTooltip).mockReturnValue({ cleanup: mockCleanup, reposition: vi.fn() });
+      vi.mocked(resolveMessageProperties).mockReturnValue({
+        isEmbedded: false,
+        elementId: '',
+        hasRouteRule: false,
+        routeRule: '',
+        position: '',
+        hasPosition: false,
+        tooltipPosition: 'bottom',
+        hasTooltipPosition: true,
+        tooltipArrowColor: '#fff',
+        shouldScale: false,
+        campaignId: null,
+        messageWidth: 414,
+        overlayColor: '#00000033',
+        persistent: false,
+        exitClick: false,
+        hasCustomWidth: false,
+      });
+
+      showTooltipComponent({
+        messageId: `msg-${instanceId}`,
+        instanceId,
+        properties: { gist: { elementId: '#target-el' } },
+      });
+
+      return mockCleanup;
+    }
+
+    it('cleans up all active tooltip handles', () => {
+      const cleanup1 = setupTooltipWithHandle('inst-a');
+      const cleanup2 = setupTooltipWithHandle('inst-b');
+
+      clearAllTooltipHandles();
+
+      expect(cleanup1).toHaveBeenCalled();
+      expect(cleanup2).toHaveBeenCalled();
+    });
+
+    it('is safe to call when no tooltips are active', () => {
+      expect(() => clearAllTooltipHandles()).not.toThrow();
+    });
+
+    it('prevents double cleanup when hideTooltipComponent is called after clear', () => {
+      const cleanup = setupTooltipWithHandle('inst-c');
+
+      clearAllTooltipHandles();
+      hideTooltipComponent({ messageId: 'msg-inst-c', instanceId: 'inst-c' });
+
+      expect(cleanup).toHaveBeenCalledTimes(1);
     });
   });
 });
