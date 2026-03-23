@@ -1,6 +1,6 @@
 import type { ResolvedMessageProperties } from '../types';
 
-const ARROW_SIZE = 10;
+export const ARROW_SIZE = 10;
 
 function getArrowClass(tooltipPosition: string): string {
   switch (tooltipPosition) {

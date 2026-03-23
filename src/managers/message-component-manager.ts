@@ -285,12 +285,14 @@ export function showTooltipComponent(message: GistMessage): boolean {
   if (handle) {
     const isVisible = tooltipElement.style.display !== 'none';
     if (isVisible) {
-      tooltipHandleMap.set(instanceId, handle);
-
       const container = wrapper.querySelector('.gist-tooltip-container') as HTMLElement | null;
-      if (container) {
-        container.classList.add('gist-visible');
+      if (!container) {
+        handle.cleanup();
+        log(`Tooltip container not found for instance ${instanceId}`);
+        return false;
       }
+      tooltipHandleMap.set(instanceId, handle);
+      container.classList.add('gist-visible');
       return true;
     }
     handle.cleanup();

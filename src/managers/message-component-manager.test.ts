@@ -347,6 +347,30 @@ describe('message-component-manager', () => {
       expect(container?.classList.contains('gist-visible')).toBe(false);
     });
 
+    it('returns false and cleans up when tooltip container element is missing', () => {
+      const mockCleanup = vi.fn();
+      vi.mocked(positionTooltip).mockReturnValue({ cleanup: mockCleanup, reposition: vi.fn() });
+
+      const wrapper = document.createElement('div');
+      wrapper.id = 'gist-tooltip-inst-1';
+      const tooltip = document.createElement('div');
+      tooltip.className = 'gist-tooltip-inner';
+      wrapper.appendChild(tooltip);
+      document.body.appendChild(wrapper);
+
+      const message: GistMessage = {
+        messageId: 'msg-1',
+        instanceId: 'inst-1',
+        properties: { gist: { elementId: '#target-el' } },
+      };
+
+      const result = showTooltipComponent(message);
+
+      expect(result).toBe(false);
+      expect(mockCleanup).toHaveBeenCalled();
+      expect(log).toHaveBeenCalledWith('Tooltip container not found for instance inst-1');
+    });
+
     it('returns false and cleans up when tooltip is hidden via display:none (no viewport fit)', () => {
       setupTooltipWrapper('inst-1');
       const mockCleanup = vi.fn();

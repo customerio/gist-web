@@ -1,8 +1,8 @@
 import { log } from '../utilities/log';
+import { ARROW_SIZE } from '../templates/tooltip';
 
 export type TooltipPosition = 'top' | 'bottom' | 'left' | 'right';
 
-const ARROW_SIZE = 10;
 const ARROW_GAP = ARROW_SIZE + 6;
 const VIEWPORT_PADDING = 4;
 
