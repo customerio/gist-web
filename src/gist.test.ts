@@ -311,15 +311,6 @@ describe('Gist', () => {
       expect(clearUserToken).toHaveBeenCalled();
       expect(useGuestSession).not.toHaveBeenCalled();
     });
-
-    it('clears all tooltip handles before clearing the user token', async () => {
-      await Gist.setup(baseConfig());
-      vi.mocked(clearAllTooltipHandles).mockClear();
-
-      await Gist.clearUserToken();
-
-      expect(clearAllTooltipHandles).toHaveBeenCalled();
-    });
   });
 
   describe('dismissMessage', () => {

@@ -125,7 +125,6 @@ export default class Gist {
 
   static async clearUserToken(): Promise<void> {
     if (this.config.isPreviewSession) return;
-    clearAllTooltipHandles();
     clearUserToken();
     if (this.config.useAnonymousSession) {
       useGuestSession();
