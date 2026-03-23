@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { findTargetElement, positionTooltip } from './tooltip-position-manager';
+import { findTargetElement, positionTooltip, type TooltipHandle } from './tooltip-position-manager';
 import { log } from '../utilities/log';
 
 vi.mock('../utilities/log', () => ({ log: vi.fn() }));
@@ -49,7 +49,7 @@ function createTooltip(rect: Partial<DOMRect>): HTMLElement {
 }
 
 describe('tooltip-position-manager', () => {
-  let cleanup: (() => void) | null = null;
+  let handle: TooltipHandle | null = null;
 
   beforeEach(() => {
     document.body.innerHTML = '';
@@ -66,8 +66,8 @@ describe('tooltip-position-manager', () => {
   });
 
   afterEach(() => {
-    cleanup?.();
-    cleanup = null;
+    handle?.cleanup();
+    handle = null;
     vi.unstubAllGlobals();
   });
 
@@ -100,48 +100,50 @@ describe('tooltip-position-manager', () => {
       expect(result).toBeNull();
     });
 
-    it('returns a cleanup function on success', () => {
+    it('returns a handle with cleanup and reposition on success', () => {
       createTarget({});
       const tooltip = createTooltip({});
-      cleanup = positionTooltip(tooltip, '#target', 'top');
-      expect(typeof cleanup).toBe('function');
+      handle = positionTooltip(tooltip, '#target', 'top');
+      expect(handle).not.toBeNull();
+      expect(typeof handle!.cleanup).toBe('function');
+      expect(typeof handle!.reposition).toBe('function');
     });
 
     it('positions tooltip above target for "top"', () => {
       createTarget({ top: 200, bottom: 240, left: 300, right: 400, width: 100, height: 40 });
       const tooltip = createTooltip({ width: 120, height: 50 });
-      cleanup = positionTooltip(tooltip, '#target', 'top');
+      handle = positionTooltip(tooltip, '#target', 'top');
 
       expect(tooltip.style.position).toBe('absolute');
-      expect(tooltip.style.top).toBe('142px');
+      expect(tooltip.style.top).toBe('134px');
       expect(tooltip.style.left).toBe('290px');
     });
 
     it('positions tooltip below target for "bottom"', () => {
       createTarget({ top: 100, bottom: 140, left: 300, right: 400, width: 100, height: 40 });
       const tooltip = createTooltip({ width: 120, height: 50 });
-      cleanup = positionTooltip(tooltip, '#target', 'bottom');
+      handle = positionTooltip(tooltip, '#target', 'bottom');
 
-      expect(tooltip.style.top).toBe('148px');
+      expect(tooltip.style.top).toBe('156px');
       expect(tooltip.style.left).toBe('290px');
     });
 
     it('positions tooltip to the left of target for "left"', () => {
       createTarget({ top: 200, bottom: 240, left: 300, right: 400, width: 100, height: 40 });
       const tooltip = createTooltip({ width: 120, height: 50 });
-      cleanup = positionTooltip(tooltip, '#target', 'left');
+      handle = positionTooltip(tooltip, '#target', 'left');
 
       expect(tooltip.style.top).toBe('195px');
-      expect(tooltip.style.left).toBe('172px');
+      expect(tooltip.style.left).toBe('164px');
     });
 
     it('positions tooltip to the right of target for "right"', () => {
       createTarget({ top: 200, bottom: 240, left: 300, right: 400, width: 100, height: 40 });
       const tooltip = createTooltip({ width: 120, height: 50 });
-      cleanup = positionTooltip(tooltip, '#target', 'right');
+      handle = positionTooltip(tooltip, '#target', 'right');
 
       expect(tooltip.style.top).toBe('195px');
-      expect(tooltip.style.left).toBe('408px');
+      expect(tooltip.style.left).toBe('416px');
     });
 
     it('accounts for scroll offset in positioning', () => {
@@ -150,9 +152,9 @@ describe('tooltip-position-manager', () => {
 
       createTarget({ top: 200, bottom: 240, left: 300, right: 400, width: 100, height: 40 });
       const tooltip = createTooltip({ width: 120, height: 50 });
-      cleanup = positionTooltip(tooltip, '#target', 'bottom');
+      handle = positionTooltip(tooltip, '#target', 'bottom');
 
-      expect(tooltip.style.top).toBe('348px');
+      expect(tooltip.style.top).toBe('356px');
       expect(tooltip.style.left).toBe('340px');
     });
 
@@ -160,45 +162,130 @@ describe('tooltip-position-manager', () => {
       it('flips from top to bottom when tooltip would overflow above viewport', () => {
         createTarget({ top: 30, bottom: 70, left: 300, right: 400, width: 100, height: 40 });
         const tooltip = createTooltip({ width: 120, height: 50 });
-        cleanup = positionTooltip(tooltip, '#target', 'top');
+        handle = positionTooltip(tooltip, '#target', 'top');
 
-        expect(parseFloat(tooltip.style.top)).toBe(78);
+        expect(parseFloat(tooltip.style.top)).toBe(86);
       });
 
       it('flips from bottom to top when tooltip would overflow below viewport', () => {
         Object.defineProperty(window, 'innerHeight', { value: 768, configurable: true });
         createTarget({ top: 700, bottom: 740, left: 300, right: 400, width: 100, height: 40 });
         const tooltip = createTooltip({ width: 120, height: 50 });
-        cleanup = positionTooltip(tooltip, '#target', 'bottom');
+        handle = positionTooltip(tooltip, '#target', 'bottom');
 
-        expect(parseFloat(tooltip.style.top)).toBe(642);
+        expect(parseFloat(tooltip.style.top)).toBe(634);
       });
 
       it('flips from left to right when tooltip would overflow left of viewport', () => {
         createTarget({ top: 200, bottom: 240, left: 30, right: 130, width: 100, height: 40 });
         const tooltip = createTooltip({ width: 120, height: 50 });
-        cleanup = positionTooltip(tooltip, '#target', 'left');
+        handle = positionTooltip(tooltip, '#target', 'left');
 
-        expect(parseFloat(tooltip.style.left)).toBe(138);
+        expect(parseFloat(tooltip.style.left)).toBe(146);
       });
 
       it('flips from right to left when tooltip would overflow right of viewport', () => {
         Object.defineProperty(window, 'innerWidth', { value: 1024, configurable: true });
         createTarget({ top: 200, bottom: 240, left: 900, right: 1000, width: 100, height: 40 });
         const tooltip = createTooltip({ width: 120, height: 50 });
-        cleanup = positionTooltip(tooltip, '#target', 'right');
+        handle = positionTooltip(tooltip, '#target', 'right');
 
-        expect(parseFloat(tooltip.style.left)).toBe(772);
+        expect(parseFloat(tooltip.style.left)).toBe(764);
       });
 
-      it('keeps original position when flipped position also does not fit', () => {
+      it('hides tooltip when target scrolls out of viewport', () => {
+        const target = createTarget({
+          top: -100,
+          bottom: -60,
+          left: 300,
+          right: 400,
+          width: 100,
+          height: 40,
+        });
+        const tooltip = createTooltip({ width: 120, height: 50 });
+        handle = positionTooltip(tooltip, '#target', 'bottom');
+
+        expect(tooltip.style.display).toBe('none');
+
+        (target.getBoundingClientRect as ReturnType<typeof vi.fn>).mockReturnValue({
+          top: 200,
+          bottom: 240,
+          left: 300,
+          right: 400,
+          width: 100,
+          height: 40,
+          x: 300,
+          y: 200,
+          toJSON: () => ({}),
+        });
+
+        window.dispatchEvent(new Event('scroll'));
+
+        expect(tooltip.style.display).toBe('');
+      });
+
+      it('hides tooltip when no position fits the viewport', () => {
         Object.defineProperty(window, 'innerWidth', { value: 100, configurable: true });
         Object.defineProperty(window, 'innerHeight', { value: 100, configurable: true });
         createTarget({ top: 30, bottom: 70, left: 30, right: 70, width: 40, height: 40 });
         const tooltip = createTooltip({ width: 120, height: 50 });
-        cleanup = positionTooltip(tooltip, '#target', 'top');
+        handle = positionTooltip(tooltip, '#target', 'top');
 
-        expect(parseFloat(tooltip.style.top)).toBe(-28);
+        expect(tooltip.style.display).toBe('none');
+      });
+
+      it('hides tooltip when left position stops fitting and no fallback fits either', () => {
+        Object.defineProperty(window, 'innerWidth', { value: 400, configurable: true });
+        Object.defineProperty(window, 'innerHeight', { value: 300, configurable: true });
+
+        createTarget({
+          top: 10,
+          bottom: 50,
+          left: 10,
+          right: 90,
+          width: 80,
+          height: 40,
+        });
+        const tooltip = createTooltip({ width: 200, height: 100 });
+        handle = positionTooltip(tooltip, '#target', 'left');
+
+        expect(tooltip.style.display).toBe('none');
+      });
+
+      it('re-shows tooltip when a valid position becomes available after being hidden', () => {
+        const target = createTarget({
+          top: 10,
+          bottom: 50,
+          left: 10,
+          right: 90,
+          width: 80,
+          height: 40,
+        });
+        const tooltip = createTooltip({ width: 200, height: 100 });
+
+        Object.defineProperty(window, 'innerWidth', { value: 100, configurable: true });
+        Object.defineProperty(window, 'innerHeight', { value: 100, configurable: true });
+
+        handle = positionTooltip(tooltip, '#target', 'bottom');
+        expect(tooltip.style.display).toBe('none');
+
+        // Viewport grows, target moves to a position where bottom fits
+        Object.defineProperty(window, 'innerWidth', { value: 1024, configurable: true });
+        Object.defineProperty(window, 'innerHeight', { value: 768, configurable: true });
+        (target.getBoundingClientRect as ReturnType<typeof vi.fn>).mockReturnValue({
+          top: 200,
+          bottom: 240,
+          left: 300,
+          right: 380,
+          width: 80,
+          height: 40,
+          x: 300,
+          y: 200,
+          toJSON: () => ({}),
+        });
+
+        window.dispatchEvent(new Event('resize'));
+        expect(tooltip.style.display).toBe('');
       });
     });
 
@@ -219,7 +306,7 @@ describe('tooltip-position-manager', () => {
 
         const target = createTarget({});
         const tooltip = createTooltip({ width: 120, height: 50 });
-        cleanup = positionTooltip(tooltip, '#target', 'bottom');
+        handle = positionTooltip(tooltip, '#target', 'bottom');
 
         target.remove();
 
@@ -240,7 +327,7 @@ describe('tooltip-position-manager', () => {
 
         createTarget({});
         const tooltip = createTooltip({ width: 120, height: 50 });
-        cleanup = positionTooltip(tooltip, '#target', 'bottom');
+        handle = positionTooltip(tooltip, '#target', 'bottom');
 
         tooltip.remove();
 
@@ -255,13 +342,13 @@ describe('tooltip-position-manager', () => {
       it('cleanup is idempotent and can be called multiple times safely', () => {
         createTarget({});
         const tooltip = createTooltip({ width: 120, height: 50 });
-        cleanup = positionTooltip(tooltip, '#target', 'bottom');
+        handle = positionTooltip(tooltip, '#target', 'bottom');
 
-        cleanup!();
-        cleanup!();
-        cleanup!();
+        handle!.cleanup();
+        handle!.cleanup();
+        handle!.cleanup();
 
-        cleanup = null;
+        handle = null;
       });
     });
 
@@ -269,7 +356,7 @@ describe('tooltip-position-manager', () => {
       it('repositions on scroll events', () => {
         const target = createTarget({});
         const tooltip = createTooltip({ width: 120, height: 50 });
-        cleanup = positionTooltip(tooltip, '#target', 'bottom');
+        handle = positionTooltip(tooltip, '#target', 'bottom');
 
         const callCount = (target.getBoundingClientRect as ReturnType<typeof vi.fn>).mock.calls
           .length;
@@ -284,7 +371,7 @@ describe('tooltip-position-manager', () => {
       it('repositions on resize events', () => {
         const target = createTarget({});
         const tooltip = createTooltip({ width: 120, height: 50 });
-        cleanup = positionTooltip(tooltip, '#target', 'bottom');
+        handle = positionTooltip(tooltip, '#target', 'bottom');
 
         const callCount = (target.getBoundingClientRect as ReturnType<typeof vi.fn>).mock.calls
           .length;
@@ -299,8 +386,8 @@ describe('tooltip-position-manager', () => {
       it('cleanup function removes event listeners', () => {
         const target = createTarget({});
         const tooltip = createTooltip({ width: 120, height: 50 });
-        cleanup = positionTooltip(tooltip, '#target', 'bottom');
-        cleanup!();
+        handle = positionTooltip(tooltip, '#target', 'bottom');
+        handle!.cleanup();
 
         const callCount = (target.getBoundingClientRect as ReturnType<typeof vi.fn>).mock.calls
           .length;
@@ -311,7 +398,7 @@ describe('tooltip-position-manager', () => {
         const newCallCount = (target.getBoundingClientRect as ReturnType<typeof vi.fn>).mock.calls
           .length;
         expect(newCallCount).toBe(callCount);
-        cleanup = null;
+        handle = null;
       });
 
       it('throttles updates via requestAnimationFrame', () => {
@@ -325,7 +412,7 @@ describe('tooltip-position-manager', () => {
 
         createTarget({});
         const tooltip = createTooltip({ width: 120, height: 50 });
-        cleanup = positionTooltip(tooltip, '#target', 'bottom');
+        handle = positionTooltip(tooltip, '#target', 'bottom');
 
         window.dispatchEvent(new Event('scroll'));
         window.dispatchEvent(new Event('scroll'));

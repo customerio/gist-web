@@ -39,50 +39,55 @@ export function tooltipHTMLTemplate(
             #gist-tooltip-container {
                 position: relative;
                 z-index: 9999999;
+                opacity: 0;
+                transition: opacity 0.3s ease-in-out;
+            }
+            #gist-tooltip-container.gist-visible {
+                opacity: 1;
+            }
+            .gist-tooltip-frame-clip {
+                overflow: hidden;
             }
             .gist-tooltip-frame {
+                display: block;
                 width: ${messageProperties.messageWidth}px;
                 border: none;
-                opacity: 0;
-                transition: opacity 0.3s ease-in-out, height 0.1s ease-in-out;
-            }
-            .gist-tooltip-frame.gist-visible {
-                opacity: 1;
-                pointer-events: auto;
+                transition: height 0.1s ease-in-out;
             }
             .gist-tooltip-arrow {
                 width: 0;
                 height: 0;
                 position: absolute;
+                z-index: 1;
             }
             .gist-tooltip-arrow.gist-arrow-bottom {
-                bottom: -${ARROW_SIZE}px;
+                bottom: 0;
                 left: 50%;
-                transform: translateX(-50%);
+                transform: translateX(-50%) translateY(100%);
                 border-left: ${ARROW_SIZE}px solid transparent;
                 border-right: ${ARROW_SIZE}px solid transparent;
                 border-top: ${ARROW_SIZE}px solid ${arrowColor};
             }
             .gist-tooltip-arrow.gist-arrow-top {
-                top: -${ARROW_SIZE}px;
+                top: 0;
                 left: 50%;
-                transform: translateX(-50%);
+                transform: translateX(-50%) translateY(-100%);
                 border-left: ${ARROW_SIZE}px solid transparent;
                 border-right: ${ARROW_SIZE}px solid transparent;
                 border-bottom: ${ARROW_SIZE}px solid ${arrowColor};
             }
             .gist-tooltip-arrow.gist-arrow-right {
-                right: -${ARROW_SIZE}px;
+                right: 0;
                 top: 50%;
-                transform: translateY(-50%);
+                transform: translateY(-50%) translateX(100%);
                 border-top: ${ARROW_SIZE}px solid transparent;
                 border-bottom: ${ARROW_SIZE}px solid transparent;
                 border-left: ${ARROW_SIZE}px solid ${arrowColor};
             }
             .gist-tooltip-arrow.gist-arrow-left {
-                left: -${ARROW_SIZE}px;
+                left: 0;
                 top: 50%;
-                transform: translateY(-50%);
+                transform: translateY(-50%) translateX(-100%);
                 border-top: ${ARROW_SIZE}px solid transparent;
                 border-bottom: ${ARROW_SIZE}px solid transparent;
                 border-right: ${ARROW_SIZE}px solid ${arrowColor};
@@ -95,7 +100,9 @@ export function tooltipHTMLTemplate(
         </style>
         <div id="gist-tooltip-container">
             <div class="gist-tooltip-arrow ${arrowClass}"></div>
-            <iframe id="${elementId}" class="gist-tooltip-frame" src="${url}"></iframe>
+            <div class="gist-tooltip-frame-clip">
+                <iframe id="${elementId}" class="gist-tooltip-frame" src="${url}"></iframe>
+            </div>
         </div>
     </div>`;
   return template;

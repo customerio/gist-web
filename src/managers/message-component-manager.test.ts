@@ -193,7 +193,7 @@ describe('message-component-manager', () => {
 
     it('cleans up existing position listeners before re-creating the tooltip', () => {
       const mockCleanup = vi.fn();
-      vi.mocked(positionTooltip).mockReturnValue(mockCleanup);
+      vi.mocked(positionTooltip).mockReturnValue({ cleanup: mockCleanup, reposition: vi.fn() });
 
       vi.mocked(resolveMessageProperties).mockReturnValue({
         isEmbedded: false,
@@ -248,7 +248,7 @@ describe('message-component-manager', () => {
       return wrapper;
     }
 
-    it('adds gist-visible class to the tooltip iframe', () => {
+    it('adds gist-visible class to the tooltip container', () => {
       setupTooltipWrapper('inst-1');
       const message: GistMessage = {
         messageId: 'msg-1',
@@ -258,8 +258,8 @@ describe('message-component-manager', () => {
 
       showTooltipComponent(message);
 
-      const iframe = document.querySelector('.gist-tooltip-frame');
-      expect(iframe?.classList.contains('gist-visible')).toBe(true);
+      const container = document.querySelector('#gist-tooltip-container');
+      expect(container?.classList.contains('gist-visible')).toBe(true);
     });
 
     it('calls positionTooltip with the wrapper, selector, and position', () => {
@@ -352,8 +352,8 @@ describe('message-component-manager', () => {
       expect(log).toHaveBeenCalledWith('No target selector for tooltip inst-1');
       expect(positionTooltip).not.toHaveBeenCalled();
 
-      const iframe = document.querySelector('.gist-tooltip-frame');
-      expect(iframe?.classList.contains('gist-visible')).toBe(false);
+      const container = document.querySelector('#gist-tooltip-container');
+      expect(container?.classList.contains('gist-visible')).toBe(false);
     });
   });
 
@@ -383,7 +383,7 @@ describe('message-component-manager', () => {
       document.body.appendChild(wrapper);
 
       const mockCleanup = vi.fn();
-      vi.mocked(positionTooltip).mockReturnValue(mockCleanup);
+      vi.mocked(positionTooltip).mockReturnValue({ cleanup: mockCleanup, reposition: vi.fn() });
 
       vi.mocked(resolveMessageProperties).mockReturnValue({
         isEmbedded: false,

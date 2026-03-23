@@ -6,7 +6,11 @@ import { messageHTMLTemplate } from '../templates/message';
 import { tooltipHTMLTemplate } from '../templates/tooltip';
 import { positions } from './page-component-manager';
 import { wideOverlayPositions } from '../utilities/message-utils';
-import { positionTooltip, type TooltipPosition } from './tooltip-position-manager';
+import {
+  positionTooltip,
+  type TooltipPosition,
+  type TooltipHandle,
+} from './tooltip-position-manager';
 import type { GistMessage, ResolvedMessageProperties } from '../types';
 
 interface MessageOptions {
@@ -216,7 +220,7 @@ export function removeOverlayComponent(): void {
   }
 }
 
-const tooltipCleanupMap = new Map<string, () => void>();
+const tooltipHandleMap = new Map<string, TooltipHandle>();
 
 export function loadTooltipComponent(
   url: string,
@@ -228,10 +232,10 @@ export function loadTooltipComponent(
   const messageElementId = getMessageElementId(instanceId);
   const messageProperties = resolveMessageProperties(message);
 
-  const existingCleanup = tooltipCleanupMap.get(instanceId);
-  if (existingCleanup) {
-    existingCleanup();
-    tooltipCleanupMap.delete(instanceId);
+  const existingHandle = tooltipHandleMap.get(instanceId);
+  if (existingHandle) {
+    existingHandle.cleanup();
+    tooltipHandleMap.delete(instanceId);
   }
 
   document.querySelectorAll(`#gist-tooltip-${instanceId}`).forEach((el) => {
@@ -256,16 +260,17 @@ export function showTooltipComponent(message: GistMessage): void {
     return;
   }
 
-  const selector = message.properties?.gist?.elementId as string | undefined;
+  const selector =
+    (message.properties?.gist?.elementId as string | undefined) || message.elementId || undefined;
   if (!selector) {
     log(`No target selector for tooltip ${instanceId}`);
     return;
   }
 
-  const existingCleanup = tooltipCleanupMap.get(instanceId);
-  if (existingCleanup) {
-    existingCleanup();
-    tooltipCleanupMap.delete(instanceId);
+  const existingHandle = tooltipHandleMap.get(instanceId);
+  if (existingHandle) {
+    existingHandle.cleanup();
+    tooltipHandleMap.delete(instanceId);
   }
 
   const tooltipElement = wrapper.querySelector('#gist-tooltip') as HTMLElement | null;
@@ -275,30 +280,49 @@ export function showTooltipComponent(message: GistMessage): void {
   }
 
   const position = (messageProperties.tooltipPosition || 'bottom') as TooltipPosition;
-  const cleanup = positionTooltip(tooltipElement, selector, position);
-  if (cleanup) {
-    tooltipCleanupMap.set(instanceId, cleanup);
-  }
+  const handle = positionTooltip(tooltipElement, selector, position);
+  if (handle) {
+    tooltipHandleMap.set(instanceId, handle);
 
-  const iframe = wrapper.querySelector('.gist-tooltip-frame') as HTMLElement | null;
-  if (iframe) {
-    iframe.classList.add('gist-visible');
+    const container = wrapper.querySelector('#gist-tooltip-container') as HTMLElement | null;
+    if (container) {
+      container.classList.add('gist-visible');
+    }
+  } else {
+    log(`Failed to position tooltip for instance ${instanceId}, target may not exist`);
   }
 }
 
 export function hideTooltipComponent(message: GistMessage): void {
   const instanceId = message.instanceId ?? '';
 
-  const existingCleanup = tooltipCleanupMap.get(instanceId);
-  if (existingCleanup) {
-    existingCleanup();
-    tooltipCleanupMap.delete(instanceId);
+  const existingHandle = tooltipHandleMap.get(instanceId);
+  if (existingHandle) {
+    existingHandle.cleanup();
+    tooltipHandleMap.delete(instanceId);
   }
 
   const wrapperId = `gist-tooltip-${instanceId}`;
   const wrapper = safelyFetchElement(wrapperId);
   if (wrapper) {
     wrapper.parentNode?.removeChild(wrapper);
+  }
+}
+
+export function resizeTooltipComponent(
+  message: GistMessage,
+  size: { width: number; height: number }
+): void {
+  const instanceId = message.instanceId ?? '';
+  const iframeId = getMessageElementId(instanceId);
+  const iframe = document.getElementById(iframeId) as HTMLIFrameElement | null;
+  if (iframe && size.height > 0) {
+    iframe.style.height = `${size.height}px`;
+
+    const handle = tooltipHandleMap.get(instanceId);
+    if (handle) {
+      handle.reposition();
+    }
   }
 }
 
