@@ -65,6 +65,7 @@ vi.mock('../managers/gist-properties-manager', () => ({
       persistent: false,
       exitClick: !!gist?.exitClick,
       hasCustomWidth: (gist?.messageWidth ?? 0) > 0,
+      tooltipArrowColor: gist?.tooltipArrowColor || '#fff',
     };
   }),
 }));
@@ -337,8 +338,39 @@ describe('hasDisplayChanged', () => {
     ).toBe(true);
   });
 
+  it('returns true when tooltip arrow color changes', () => {
+    const msg = makeMessage({
+      tooltipPosition: 'top',
+      elementId: 'my-element',
+      properties: { gist: { tooltipArrowColor: '#fff' } },
+    });
+    expect(
+      hasDisplayChanged(msg, {
+        displayType: 'tooltip',
+        tooltipPosition: 'top',
+        elementSelector: 'my-element',
+        tooltipArrowColor: '#FF5733',
+      })
+    ).toBe(true);
+  });
+
   it('returns false when nothing changed for tooltip', () => {
     const msg = makeMessage({ tooltipPosition: 'top', elementId: 'my-element' });
+    expect(
+      hasDisplayChanged(msg, {
+        displayType: 'tooltip',
+        tooltipPosition: 'top',
+        elementSelector: 'my-element',
+      })
+    ).toBe(false);
+  });
+
+  it('returns false when tooltip arrow color is not in display settings', () => {
+    const msg = makeMessage({
+      tooltipPosition: 'top',
+      elementId: 'my-element',
+      properties: { gist: { tooltipArrowColor: '#FF5733' } },
+    });
     expect(
       hasDisplayChanged(msg, {
         displayType: 'tooltip',

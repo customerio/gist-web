@@ -138,6 +138,12 @@ export function hasDisplayChanged(
       if (currentMessage.elementId !== displaySettings.elementSelector) {
         return true;
       }
+      if (
+        displaySettings.tooltipArrowColor !== undefined &&
+        resolvedProps.tooltipArrowColor !== displaySettings.tooltipArrowColor
+      ) {
+        return true;
+      }
       break;
     }
   }
