@@ -13,6 +13,8 @@ const FALLBACK_ORDER: Record<TooltipPosition, TooltipPosition[]> = {
   right: ['left', 'top', 'bottom'],
 };
 
+const OVERFLOW_RE = /auto|scroll/;
+
 const ARROW_CLASS_FOR_POSITION: Record<TooltipPosition, string> = {
   top: 'gist-arrow-bottom',
   bottom: 'gist-arrow-top',
@@ -229,7 +231,7 @@ function getScrollableAncestors(element: Element): Element[] {
   while (current) {
     const style = getComputedStyle(current);
     const overflow = style.overflow + style.overflowX + style.overflowY;
-    if (/auto|scroll/.test(overflow)) {
+    if (OVERFLOW_RE.test(overflow)) {
       ancestors.push(current);
     }
     current = current.parentElement;
