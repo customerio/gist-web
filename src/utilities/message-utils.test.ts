@@ -459,6 +459,39 @@ describe('applyDisplaySettings', () => {
     expect(getCurrentDisplayType(msg)).toBe('inline');
   });
 
+  it('clears tooltipArrowColor when switching from tooltip to modal', () => {
+    const msg = makeMessage({
+      tooltipPosition: 'top',
+      elementId: 'my-element',
+      properties: { gist: { tooltipArrowColor: '#FF5733' } },
+    });
+    applyDisplaySettings(msg, { displayType: 'modal' });
+
+    expect(msg.properties?.gist?.tooltipArrowColor).toBeUndefined();
+  });
+
+  it('clears tooltipArrowColor when switching from tooltip to overlay', () => {
+    const msg = makeMessage({
+      tooltipPosition: 'top',
+      elementId: 'my-element',
+      properties: { gist: { tooltipArrowColor: '#FF5733' } },
+    });
+    applyDisplaySettings(msg, { displayType: 'overlay', overlayPosition: 'topCenter' });
+
+    expect(msg.properties?.gist?.tooltipArrowColor).toBeUndefined();
+  });
+
+  it('clears tooltipArrowColor when switching from tooltip to inline', () => {
+    const msg = makeMessage({
+      tooltipPosition: 'top',
+      elementId: 'my-element',
+      properties: { gist: { tooltipArrowColor: '#FF5733' } },
+    });
+    applyDisplaySettings(msg, { displayType: 'inline', elementSelector: 'my-container' });
+
+    expect(msg.properties?.gist?.tooltipArrowColor).toBeUndefined();
+  });
+
   it('clears custom width for wide overlay positions', () => {
     const msg = makeMessage({
       overlay: false,
