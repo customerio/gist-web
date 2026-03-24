@@ -33,9 +33,9 @@ export function tooltipHTMLTemplate(
   const scope = wrapperId ? `#${wrapperId} ` : '';
 
   const template = `
-    <div class="gist-tooltip-inner">
+    <div class="gist-tooltip-outer">
         <style>
-            ${scope}.gist-tooltip-inner {
+            ${scope}.gist-tooltip-outer {
                 position: absolute;
             }
             ${scope}.gist-tooltip-container {

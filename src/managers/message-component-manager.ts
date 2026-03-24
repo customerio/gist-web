@@ -274,7 +274,7 @@ export function showTooltipComponent(message: GistMessage): boolean {
     tooltipHandleMap.delete(instanceId);
   }
 
-  const tooltipElement = wrapper.querySelector('.gist-tooltip-inner') as HTMLElement | null;
+  const tooltipElement = wrapper.querySelector('.gist-tooltip-outer') as HTMLElement | null;
   if (!tooltipElement) {
     log(`Tooltip inner element not found for instance ${instanceId}`);
     return false;

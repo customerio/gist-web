@@ -54,7 +54,7 @@ vi.mock('../templates/message', () => ({
 vi.mock('../templates/tooltip', () => ({
   tooltipHTMLTemplate: vi.fn(
     (_id: string, _props: unknown, url: string, _wrapperId?: string) =>
-      `<div class="gist-tooltip-inner"><div class="gist-tooltip-container"><iframe id="${_id}" class="gist-tooltip-frame" src="${url}"></iframe></div></div>`
+      `<div class="gist-tooltip-outer"><div class="gist-tooltip-container"><iframe id="${_id}" class="gist-tooltip-frame" src="${url}"></iframe></div></div>`
   ),
 }));
 vi.mock('./page-component-manager', () => ({
@@ -237,7 +237,7 @@ describe('message-component-manager', () => {
       const wrapper = document.createElement('div');
       wrapper.id = `gist-tooltip-${instanceId}`;
       const tooltip = document.createElement('div');
-      tooltip.className = 'gist-tooltip-inner';
+      tooltip.className = 'gist-tooltip-outer';
       const container = document.createElement('div');
       container.className = 'gist-tooltip-container';
       const iframe = document.createElement('iframe');
@@ -294,7 +294,7 @@ describe('message-component-manager', () => {
 
       showTooltipComponent(message);
 
-      const tooltipElement = document.querySelector('.gist-tooltip-inner');
+      const tooltipElement = document.querySelector('.gist-tooltip-outer');
       expect(positionTooltip).toHaveBeenCalledWith(tooltipElement, '#target-el', 'top');
     });
 
@@ -354,7 +354,7 @@ describe('message-component-manager', () => {
       const wrapper = document.createElement('div');
       wrapper.id = 'gist-tooltip-inst-1';
       const tooltip = document.createElement('div');
-      tooltip.className = 'gist-tooltip-inner';
+      tooltip.className = 'gist-tooltip-outer';
       wrapper.appendChild(tooltip);
       document.body.appendChild(wrapper);
 
@@ -441,7 +441,7 @@ describe('message-component-manager', () => {
       const wrapper = document.createElement('div');
       wrapper.id = 'gist-tooltip-inst-1';
       const tooltip = document.createElement('div');
-      tooltip.className = 'gist-tooltip-inner';
+      tooltip.className = 'gist-tooltip-outer';
       const container = document.createElement('div');
       container.className = 'gist-tooltip-container';
       const iframe = document.createElement('iframe');
@@ -498,7 +498,7 @@ describe('message-component-manager', () => {
       const wrapper = document.createElement('div');
       wrapper.id = `gist-tooltip-${instanceId}`;
       const tooltip = document.createElement('div');
-      tooltip.className = 'gist-tooltip-inner';
+      tooltip.className = 'gist-tooltip-outer';
       const container = document.createElement('div');
       container.className = 'gist-tooltip-container';
       const iframe = document.createElement('iframe');

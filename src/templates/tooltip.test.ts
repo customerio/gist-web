@@ -39,11 +39,11 @@ describe('tooltipHTMLTemplate', () => {
     expect(iframe?.getAttribute('src')).toBe('https://example.com/tooltip');
   });
 
-  it('contains the gist-tooltip-inner wrapper div', () => {
+  it('contains the gist-tooltip-outer wrapper div', () => {
     const html = tooltipHTMLTemplate('el', makeProps(), 'https://example.com');
     const doc = parseHTML(html);
 
-    const wrapper = doc.querySelector('.gist-tooltip-inner');
+    const wrapper = doc.querySelector('.gist-tooltip-outer');
     expect(wrapper).not.toBeNull();
   });
 
@@ -185,7 +185,7 @@ describe('tooltipHTMLTemplate', () => {
   it('uses position: absolute on the wrapper', () => {
     const html = tooltipHTMLTemplate('el', makeProps(), 'https://example.com');
 
-    expect(html).toContain('.gist-tooltip-inner');
+    expect(html).toContain('.gist-tooltip-outer');
     expect(html).toContain('position: absolute');
   });
 
@@ -197,7 +197,7 @@ describe('tooltipHTMLTemplate', () => {
       'gist-tooltip-abc123'
     );
 
-    expect(html).toContain('#gist-tooltip-abc123 .gist-tooltip-inner');
+    expect(html).toContain('#gist-tooltip-abc123 .gist-tooltip-outer');
     expect(html).toContain('#gist-tooltip-abc123 .gist-tooltip-container');
     expect(html).toContain('#gist-tooltip-abc123 .gist-tooltip-frame');
     expect(html).toContain('#gist-tooltip-abc123 .gist-tooltip-arrow');
@@ -207,7 +207,7 @@ describe('tooltipHTMLTemplate', () => {
     const html = tooltipHTMLTemplate('el', makeProps(), 'https://example.com');
 
     expect(html).not.toMatch(/#gist-tooltip-/);
-    expect(html).toMatch(/^\s+\.gist-tooltip-inner\s*\{/m);
+    expect(html).toMatch(/^\s+\.gist-tooltip-outer\s*\{/m);
   });
 
   it('isolates styles between two tooltips with different configs', () => {
