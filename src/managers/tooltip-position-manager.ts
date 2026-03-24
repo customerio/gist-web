@@ -1,4 +1,5 @@
 import { log } from '../utilities/log';
+import { findElement } from '../utilities/dom';
 import { ARROW_SIZE } from '../templates/tooltip';
 
 export type TooltipPosition = 'top' | 'bottom' | 'left' | 'right';
@@ -23,16 +24,11 @@ const ARROW_CLASS_FOR_POSITION: Record<TooltipPosition, string> = {
 };
 
 export function findTargetElement(selector: string): Element | null {
-  try {
-    const element = document.querySelector(selector);
-    if (!element) {
-      log(`Tooltip target element not found for selector: ${selector}`);
-    }
-    return element;
-  } catch {
-    log(`Invalid selector for tooltip target: ${selector}`);
-    return null;
+  const element = findElement(selector);
+  if (!element) {
+    log(`Tooltip target element not found for selector: ${selector}`);
   }
+  return element;
 }
 
 function calculatePosition(
