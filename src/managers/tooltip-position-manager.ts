@@ -280,18 +280,21 @@ const SCROLL_SETTLE_TIMEOUT_MS = 1000;
 
 function waitForScrollSettle(targetElement: Element): Promise<void> {
   return new Promise<void>((resolve) => {
-    let lastTop = targetElement.getBoundingClientRect().top;
+    let lastRect = targetElement.getBoundingClientRect();
     let stableFrames = 0;
     const start = Date.now();
 
     function check(): void {
-      const currentTop = targetElement.getBoundingClientRect().top;
-      if (Math.abs(currentTop - lastTop) < 1) {
+      const currentRect = targetElement.getBoundingClientRect();
+      if (
+        Math.abs(currentRect.top - lastRect.top) < 1 &&
+        Math.abs(currentRect.left - lastRect.left) < 1
+      ) {
         stableFrames++;
       } else {
         stableFrames = 0;
       }
-      lastTop = currentTop;
+      lastRect = currentRect;
 
       if (stableFrames >= 2 || Date.now() - start > SCROLL_SETTLE_TIMEOUT_MS) {
         resolve();

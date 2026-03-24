@@ -641,6 +641,54 @@ describe('tooltip-position-manager', () => {
       expect(result).toBe(true);
     });
 
+    it('waits for horizontal scroll to settle before resolving', async () => {
+      const target = createTarget({
+        top: -200,
+        bottom: -160,
+        left: -300,
+        right: -220,
+        width: 80,
+        height: 40,
+      });
+      const tooltip = createTooltip({ width: 120, height: 50 });
+
+      let callCount = 0;
+      target.scrollIntoView = vi.fn(() => {
+        callCount = 0;
+        (target.getBoundingClientRect as ReturnType<typeof vi.fn>).mockImplementation(() => {
+          callCount++;
+          if (callCount <= 2) {
+            return {
+              top: 300,
+              bottom: 340,
+              left: 200 + (3 - callCount) * 40,
+              right: 280 + (3 - callCount) * 40,
+              width: 80,
+              height: 40,
+              x: 200 + (3 - callCount) * 40,
+              y: 300,
+              toJSON: () => ({}),
+            };
+          }
+          return {
+            top: 300,
+            bottom: 340,
+            left: 200,
+            right: 280,
+            width: 80,
+            height: 40,
+            x: 200,
+            y: 300,
+            toJSON: () => ({}),
+          };
+        });
+      });
+
+      const result = await ensureTargetInView(tooltip, '#target', 'bottom');
+      expect(target.scrollIntoView).toHaveBeenCalled();
+      expect(result).toBe(true);
+    });
+
     it('does not scroll when preflight predicts tooltip will not fit', async () => {
       Object.defineProperty(window, 'innerWidth', { value: 100, configurable: true });
       Object.defineProperty(window, 'innerHeight', { value: 100, configurable: true });
