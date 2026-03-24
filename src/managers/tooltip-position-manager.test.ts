@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { findTargetElement, positionTooltip, type TooltipHandle } from './tooltip-position-manager';
+import {
+  findTargetElement,
+  positionTooltip,
+  canTooltipFitInViewport,
+  ensureTargetInView,
+  type TooltipHandle,
+} from './tooltip-position-manager';
 import { log } from '../utilities/log';
 
 vi.mock('../utilities/log', () => ({ log: vi.fn() }));
@@ -498,6 +504,208 @@ describe('tooltip-position-manager', () => {
         window.dispatchEvent(new Event('scroll'));
         expect(rafCallCount).toBe(2);
       });
+    });
+  });
+
+  describe('canTooltipFitInViewport', () => {
+    it('returns true when tooltip fits around a centered target', () => {
+      createTarget({ top: 400, bottom: 440, left: 500, right: 580, width: 80, height: 40 });
+      const tooltip = createTooltip({ width: 120, height: 50 });
+      expect(canTooltipFitInViewport(tooltip, '#target', 'bottom')).toBe(true);
+    });
+
+    it('returns false when target element is not found', () => {
+      const tooltip = createTooltip({ width: 120, height: 50 });
+      expect(canTooltipFitInViewport(tooltip, '#missing', 'bottom')).toBe(false);
+    });
+
+    it('returns false when tooltip is too large for the viewport', () => {
+      Object.defineProperty(window, 'innerWidth', { value: 100, configurable: true });
+      Object.defineProperty(window, 'innerHeight', { value: 100, configurable: true });
+      createTarget({ top: 30, bottom: 70, left: 30, right: 70, width: 40, height: 40 });
+      const tooltip = createTooltip({ width: 200, height: 200 });
+      expect(canTooltipFitInViewport(tooltip, '#target', 'bottom')).toBe(false);
+    });
+  });
+
+  describe('ensureTargetInView', () => {
+    it('resolves true immediately when target is already visible', async () => {
+      createTarget({ top: 100, bottom: 140, left: 200, right: 280, width: 80, height: 40 });
+      const tooltip = createTooltip({ width: 120, height: 50 });
+      const result = await ensureTargetInView(tooltip, '#target', 'bottom');
+      expect(result).toBe(true);
+    });
+
+    it('returns false when target element is not found', async () => {
+      const tooltip = createTooltip({ width: 120, height: 50 });
+      const result = await ensureTargetInView(tooltip, '#missing', 'bottom');
+      expect(result).toBe(false);
+    });
+
+    it('smooth-scrolls target into view when offscreen and preflight passes', async () => {
+      const target = createTarget({
+        top: -200,
+        bottom: -160,
+        left: 200,
+        right: 280,
+        width: 80,
+        height: 40,
+      });
+      const tooltip = createTooltip({ width: 120, height: 50 });
+
+      target.scrollIntoView = vi.fn(() => {
+        (target.getBoundingClientRect as ReturnType<typeof vi.fn>).mockReturnValue({
+          top: 300,
+          bottom: 340,
+          left: 200,
+          right: 280,
+          width: 80,
+          height: 40,
+          x: 200,
+          y: 300,
+          toJSON: () => ({}),
+        });
+      });
+
+      const result = await ensureTargetInView(tooltip, '#target', 'bottom');
+      expect(target.scrollIntoView).toHaveBeenCalledWith({
+        behavior: 'smooth',
+        block: 'center',
+        inline: 'center',
+      });
+      expect(result).toBe(true);
+    });
+
+    it('scrolls target inside a scrollable ancestor into view', async () => {
+      const scrollContainer = document.createElement('div');
+      scrollContainer.id = 'scroll-container';
+      Object.defineProperty(scrollContainer, 'style', {
+        value: { overflow: 'auto', overflowX: '', overflowY: '' },
+        writable: true,
+      });
+      document.body.appendChild(scrollContainer);
+
+      const target = document.createElement('div');
+      target.id = 'nested-target';
+      scrollContainer.appendChild(target);
+
+      const clippedRect = {
+        top: -100,
+        bottom: -60,
+        left: 200,
+        right: 280,
+        width: 80,
+        height: 40,
+        x: 200,
+        y: -100,
+        toJSON: () => ({}),
+      } as DOMRect;
+      target.getBoundingClientRect = vi.fn(() => clippedRect);
+
+      scrollContainer.getBoundingClientRect = vi.fn(
+        () =>
+          ({
+            top: 50,
+            bottom: 350,
+            left: 100,
+            right: 500,
+            width: 400,
+            height: 300,
+            x: 100,
+            y: 50,
+            toJSON: () => ({}),
+          }) as DOMRect
+      );
+
+      const tooltip = createTooltip({ width: 120, height: 50 });
+      target.scrollIntoView = vi.fn(() => {
+        (target.getBoundingClientRect as ReturnType<typeof vi.fn>).mockReturnValue({
+          top: 180,
+          bottom: 220,
+          left: 200,
+          right: 280,
+          width: 80,
+          height: 40,
+          x: 200,
+          y: 180,
+          toJSON: () => ({}),
+        });
+      });
+
+      const result = await ensureTargetInView(tooltip, '#nested-target', 'right');
+      expect(target.scrollIntoView).toHaveBeenCalledWith({
+        behavior: 'smooth',
+        block: 'center',
+        inline: 'center',
+      });
+      expect(result).toBe(true);
+    });
+
+    it('waits for horizontal scroll to settle before resolving', async () => {
+      const target = createTarget({
+        top: -200,
+        bottom: -160,
+        left: -300,
+        right: -220,
+        width: 80,
+        height: 40,
+      });
+      const tooltip = createTooltip({ width: 120, height: 50 });
+
+      let callCount = 0;
+      target.scrollIntoView = vi.fn(() => {
+        callCount = 0;
+        (target.getBoundingClientRect as ReturnType<typeof vi.fn>).mockImplementation(() => {
+          callCount++;
+          if (callCount <= 2) {
+            return {
+              top: 300,
+              bottom: 340,
+              left: 200 + (3 - callCount) * 40,
+              right: 280 + (3 - callCount) * 40,
+              width: 80,
+              height: 40,
+              x: 200 + (3 - callCount) * 40,
+              y: 300,
+              toJSON: () => ({}),
+            };
+          }
+          return {
+            top: 300,
+            bottom: 340,
+            left: 200,
+            right: 280,
+            width: 80,
+            height: 40,
+            x: 200,
+            y: 300,
+            toJSON: () => ({}),
+          };
+        });
+      });
+
+      const result = await ensureTargetInView(tooltip, '#target', 'bottom');
+      expect(target.scrollIntoView).toHaveBeenCalled();
+      expect(result).toBe(true);
+    });
+
+    it('does not scroll when preflight predicts tooltip will not fit', async () => {
+      Object.defineProperty(window, 'innerWidth', { value: 100, configurable: true });
+      Object.defineProperty(window, 'innerHeight', { value: 100, configurable: true });
+      const target = createTarget({
+        top: -200,
+        bottom: -160,
+        left: 200,
+        right: 280,
+        width: 80,
+        height: 40,
+      });
+      const tooltip = createTooltip({ width: 200, height: 200 });
+      target.scrollIntoView = vi.fn();
+
+      const result = await ensureTargetInView(tooltip, '#target', 'bottom');
+      expect(target.scrollIntoView).not.toHaveBeenCalled();
+      expect(result).toBe(false);
     });
   });
 });

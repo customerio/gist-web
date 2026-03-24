@@ -102,11 +102,28 @@
       </div>
 
       <div class="tooltip-section">
+        <h3>Auto-Scroll Into View</h3>
+        <p>Targets that exist in the page but are outside the viewport (or scrolled out of a container) get smoothly scrolled into view before the tooltip appears. Scrolling only happens when the SDK can guarantee the tooltip will render successfully.</p>
+        <div class="tooltip-btn-row">
+          <button class="tooltip-target btn-blue" onclick="showTooltipAt('#offscreen-target', 'top')">Offscreen Page Target ↓</button>
+          <button class="tooltip-target btn-orange" onclick="showTooltipAt('#scroll-item-8', 'right')">Scroll Container Target (Feature H)</button>
+        </div>
+      </div>
+
+      <div class="tooltip-section">
         <h3>Tooltip Event Log</h3>
         <div class="tooltip-event-log" id="tooltipEventLog">
           <div class="no-events">Tooltip events will appear here…</div>
         </div>
       </div>
+    </div>
+
+    <div style="height: 120vh;"></div>
+    <div style="text-align: center; padding: 40px 20px;">
+      <button id="offscreen-target" class="tooltip-target btn-green" onclick="showTooltipAt('#offscreen-target', 'top')" style="font-size: 16px; padding: 14px 28px;">
+        I'm the offscreen target
+      </button>
+      <p style="margin-top: 12px; color: #666; font-size: 14px;">This element starts below the fold. The SDK scrolled here because it predicted a valid tooltip placement.</p>
     </div>
 
     <div class="config-form-sticky">

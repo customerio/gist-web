@@ -244,6 +244,118 @@ export interface TooltipHandle {
   reposition: () => void;
 }
 
+/**
+ * Predicts whether the tooltip can be positioned after the target is scrolled
+ * into view. Returns true only when the target exists in the DOM and at least
+ * one placement (preferred + fallbacks) would fit the viewport assuming the
+ * target occupies a centered viewport position after scrollIntoView.
+ */
+export function canTooltipFitInViewport(
+  tooltipElement: HTMLElement,
+  targetSelector: string,
+  position: TooltipPosition
+): boolean {
+  const targetElement = findTargetElement(targetSelector);
+  if (!targetElement) return false;
+
+  const targetRect = targetElement.getBoundingClientRect();
+  const vpW = window.innerWidth;
+  const vpH = window.innerHeight;
+
+  const simulatedTargetRect = new DOMRect(
+    Math.max(0, (vpW - targetRect.width) / 2),
+    Math.max(0, (vpH - targetRect.height) / 2),
+    targetRect.width,
+    targetRect.height
+  );
+
+  tooltipElement.style.display = '';
+  const tooltipRect = tooltipElement.getBoundingClientRect();
+
+  return findBestPosition(tooltipRect, simulatedTargetRect, position) !== null;
+}
+
+const SCROLL_POLL_INTERVAL_MS = 50;
+const SCROLL_SETTLE_TIMEOUT_MS = 1000;
+
+function waitForScrollSettle(targetElement: Element): Promise<void> {
+  return new Promise<void>((resolve) => {
+    let lastRect = targetElement.getBoundingClientRect();
+    let stableFrames = 0;
+    const start = Date.now();
+
+    function check(): void {
+      const currentRect = targetElement.getBoundingClientRect();
+      if (
+        Math.abs(currentRect.top - lastRect.top) < 1 &&
+        Math.abs(currentRect.left - lastRect.left) < 1
+      ) {
+        stableFrames++;
+      } else {
+        stableFrames = 0;
+      }
+      lastRect = currentRect;
+
+      if (stableFrames >= 2 || Date.now() - start > SCROLL_SETTLE_TIMEOUT_MS) {
+        resolve();
+        return;
+      }
+      setTimeout(check, SCROLL_POLL_INTERVAL_MS);
+    }
+
+    setTimeout(check, SCROLL_POLL_INTERVAL_MS);
+  });
+}
+
+/**
+ * If the target is already visible, resolves immediately.
+ * Otherwise, if `canTooltipFitInViewport` predicts a valid placement, smoothly
+ * scrolls the target into view (including within nested scroll containers) and
+ * waits for the scroll to settle. Returns false without scrolling when the
+ * preflight fails.
+ */
+export async function ensureTargetInView(
+  tooltipElement: HTMLElement,
+  targetSelector: string,
+  position: TooltipPosition
+): Promise<boolean> {
+  const targetElement = findTargetElement(targetSelector);
+  if (!targetElement) return false;
+
+  let scrollAncestors: Element[] = [];
+  try {
+    scrollAncestors = getScrollableAncestors(targetElement);
+  } catch {
+    // getComputedStyle may throw in test environments
+  }
+
+  const targetRect = targetElement.getBoundingClientRect();
+  if (isTargetVisible(targetRect, scrollAncestors)) {
+    return true;
+  }
+
+  if (!canTooltipFitInViewport(tooltipElement, targetSelector, position)) {
+    log(
+      `Preflight failed: tooltip would not fit after scrolling target "${targetSelector}" into view`
+    );
+    return false;
+  }
+
+  targetElement.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+
+  await waitForScrollSettle(targetElement);
+
+  const postScrollRect = targetElement.getBoundingClientRect();
+  let postScrollAncestors: Element[] = [];
+  try {
+    postScrollAncestors = getScrollableAncestors(targetElement);
+  } catch {
+    // ignore
+  }
+
+  return isTargetVisible(postScrollRect, postScrollAncestors);
+}
+
 export function positionTooltip(
   tooltipElement: HTMLElement,
   targetSelector: string,

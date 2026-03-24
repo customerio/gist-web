@@ -13,7 +13,7 @@ import {
 } from './message-component-manager';
 import { log } from '../utilities/log';
 import { resolveMessageProperties } from './gist-properties-manager';
-import { positionTooltip } from './tooltip-position-manager';
+import { positionTooltip, ensureTargetInView } from './tooltip-position-manager';
 import type { GistMessage } from '../types';
 
 vi.mock('../utilities/log', () => ({ log: vi.fn() }));
@@ -65,6 +65,7 @@ vi.mock('../utilities/message-utils', () => ({
 }));
 vi.mock('./tooltip-position-manager', () => ({
   positionTooltip: vi.fn(),
+  ensureTargetInView: vi.fn(() => Promise.resolve(true)),
 }));
 
 describe('message-component-manager', () => {
@@ -192,7 +193,7 @@ describe('message-component-manager', () => {
       expect(iframe?.onload).toBeTypeOf('function');
     });
 
-    it('cleans up existing position listeners before re-creating the tooltip', () => {
+    it('cleans up existing position listeners before re-creating the tooltip', async () => {
       const mockCleanup = vi.fn();
       vi.mocked(positionTooltip).mockReturnValue({ cleanup: mockCleanup, reposition: vi.fn() });
 
@@ -222,7 +223,7 @@ describe('message-component-manager', () => {
       };
 
       loadTooltipComponent('https://view.example.com/index.html', message, baseOptions);
-      showTooltipComponent(message);
+      await showTooltipComponent(message);
 
       expect(mockCleanup).not.toHaveBeenCalled();
 
@@ -249,7 +250,7 @@ describe('message-component-manager', () => {
       return wrapper;
     }
 
-    it('adds gist-visible class to the tooltip container and returns true when positioned', () => {
+    it('adds gist-visible class to the tooltip container and returns true when positioned', async () => {
       vi.mocked(positionTooltip).mockReturnValue({ cleanup: vi.fn(), reposition: vi.fn() });
       setupTooltipWrapper('inst-1');
       const message: GistMessage = {
@@ -258,14 +259,14 @@ describe('message-component-manager', () => {
         properties: { gist: { elementId: '#target-el' } },
       };
 
-      const result = showTooltipComponent(message);
+      const result = await showTooltipComponent(message);
 
       expect(result).toBe(true);
       const container = document.querySelector('.gist-tooltip-container');
       expect(container?.classList.contains('gist-visible')).toBe(true);
     });
 
-    it('calls positionTooltip with the wrapper, selector, and position', () => {
+    it('calls positionTooltip with the wrapper, selector, and position', async () => {
       setupTooltipWrapper('inst-1');
       vi.mocked(resolveMessageProperties).mockReturnValue({
         isEmbedded: false,
@@ -292,13 +293,13 @@ describe('message-component-manager', () => {
         properties: { gist: { elementId: '#target-el', tooltipPosition: 'top' } },
       };
 
-      showTooltipComponent(message);
+      await showTooltipComponent(message);
 
       const tooltipElement = document.querySelector('.gist-tooltip-outer');
       expect(positionTooltip).toHaveBeenCalledWith(tooltipElement, '#target-el', 'top');
     });
 
-    it('defaults tooltip position to bottom when not specified', () => {
+    it('defaults tooltip position to bottom when not specified', async () => {
       setupTooltipWrapper('inst-1');
       vi.mocked(resolveMessageProperties).mockReturnValue({
         isEmbedded: false,
@@ -325,12 +326,12 @@ describe('message-component-manager', () => {
         properties: { gist: { elementId: '#target-el' } },
       };
 
-      showTooltipComponent(message);
+      await showTooltipComponent(message);
 
       expect(positionTooltip).toHaveBeenCalledWith(expect.any(HTMLElement), '#target-el', 'bottom');
     });
 
-    it('returns false when positionTooltip returns null (target not found)', () => {
+    it('returns false when positionTooltip returns null (target not found)', async () => {
       setupTooltipWrapper('inst-1');
       vi.mocked(positionTooltip).mockReturnValue(null);
 
@@ -340,14 +341,14 @@ describe('message-component-manager', () => {
         properties: { gist: { elementId: '#target-el' } },
       };
 
-      const result = showTooltipComponent(message);
+      const result = await showTooltipComponent(message);
 
       expect(result).toBe(false);
       const container = document.querySelector('.gist-tooltip-container');
       expect(container?.classList.contains('gist-visible')).toBe(false);
     });
 
-    it('returns false and cleans up when tooltip container element is missing', () => {
+    it('returns false and cleans up when tooltip container element is missing', async () => {
       const mockCleanup = vi.fn();
       vi.mocked(positionTooltip).mockReturnValue({ cleanup: mockCleanup, reposition: vi.fn() });
 
@@ -364,14 +365,14 @@ describe('message-component-manager', () => {
         properties: { gist: { elementId: '#target-el' } },
       };
 
-      const result = showTooltipComponent(message);
+      const result = await showTooltipComponent(message);
 
       expect(result).toBe(false);
       expect(mockCleanup).toHaveBeenCalled();
       expect(log).toHaveBeenCalledWith('Tooltip container not found for instance inst-1');
     });
 
-    it('returns false and cleans up when tooltip is hidden via display:none (no viewport fit)', () => {
+    it('returns false and cleans up when tooltip is hidden via display:none (no viewport fit)', async () => {
       setupTooltipWrapper('inst-1');
       const mockCleanup = vi.fn();
 
@@ -386,7 +387,7 @@ describe('message-component-manager', () => {
         properties: { gist: { elementId: '#target-el' } },
       };
 
-      const result = showTooltipComponent(message);
+      const result = await showTooltipComponent(message);
 
       expect(result).toBe(false);
       expect(mockCleanup).toHaveBeenCalled();
@@ -394,28 +395,28 @@ describe('message-component-manager', () => {
       expect(container?.classList.contains('gist-visible')).toBe(false);
     });
 
-    it('logs and returns false when wrapper is not found', () => {
+    it('logs and returns false when wrapper is not found', async () => {
       const message: GistMessage = {
         messageId: 'msg-1',
         instanceId: 'inst-1',
         properties: { gist: { elementId: '#target-el' } },
       };
 
-      const result = showTooltipComponent(message);
+      const result = await showTooltipComponent(message);
 
       expect(result).toBe(false);
       expect(log).toHaveBeenCalledWith('Tooltip wrapper not found for instance inst-1');
       expect(positionTooltip).not.toHaveBeenCalled();
     });
 
-    it('logs and returns false when no target selector is provided', () => {
+    it('logs and returns false when no target selector is provided', async () => {
       setupTooltipWrapper('inst-1');
       const message: GistMessage = {
         messageId: 'msg-1',
         instanceId: 'inst-1',
       };
 
-      const result = showTooltipComponent(message);
+      const result = await showTooltipComponent(message);
 
       expect(result).toBe(false);
       expect(log).toHaveBeenCalledWith('No target selector for tooltip inst-1');
@@ -423,6 +424,39 @@ describe('message-component-manager', () => {
 
       const container = document.querySelector('.gist-tooltip-container');
       expect(container?.classList.contains('gist-visible')).toBe(false);
+    });
+
+    it('returns false without calling positionTooltip when ensureTargetInView returns false', async () => {
+      vi.mocked(ensureTargetInView).mockResolvedValue(false);
+      setupTooltipWrapper('inst-1');
+      const message: GistMessage = {
+        messageId: 'msg-1',
+        instanceId: 'inst-1',
+        properties: { gist: { elementId: '#target-el' } },
+      };
+
+      const result = await showTooltipComponent(message);
+
+      expect(result).toBe(false);
+      expect(ensureTargetInView).toHaveBeenCalled();
+      expect(positionTooltip).not.toHaveBeenCalled();
+    });
+
+    it('proceeds to positionTooltip when ensureTargetInView returns true', async () => {
+      vi.mocked(ensureTargetInView).mockResolvedValue(true);
+      vi.mocked(positionTooltip).mockReturnValue({ cleanup: vi.fn(), reposition: vi.fn() });
+      setupTooltipWrapper('inst-1');
+      const message: GistMessage = {
+        messageId: 'msg-1',
+        instanceId: 'inst-1',
+        properties: { gist: { elementId: '#target-el' } },
+      };
+
+      const result = await showTooltipComponent(message);
+
+      expect(result).toBe(true);
+      expect(ensureTargetInView).toHaveBeenCalled();
+      expect(positionTooltip).toHaveBeenCalled();
     });
   });
 
@@ -437,7 +471,7 @@ describe('message-component-manager', () => {
       expect(document.getElementById('gist-tooltip-inst-1')).toBeNull();
     });
 
-    it('calls the position cleanup function when one exists', () => {
+    it('calls the position cleanup function when one exists', async () => {
       const wrapper = document.createElement('div');
       wrapper.id = 'gist-tooltip-inst-1';
       const tooltip = document.createElement('div');
@@ -479,7 +513,7 @@ describe('message-component-manager', () => {
         properties: { gist: { elementId: '#target-el' } },
       };
 
-      showTooltipComponent(message);
+      await showTooltipComponent(message);
       hideTooltipComponent(message);
 
       expect(mockCleanup).toHaveBeenCalled();
@@ -510,7 +544,7 @@ describe('message-component-manager', () => {
       return wrapper;
     }
 
-    it('calls cleanup on all tracked tooltip handles', () => {
+    it('calls cleanup on all tracked tooltip handles', async () => {
       const cleanup1 = vi.fn();
       const cleanup2 = vi.fn();
       vi.mocked(positionTooltip)
@@ -520,12 +554,12 @@ describe('message-component-manager', () => {
       setupTooltipWrapper('inst-1');
       setupTooltipWrapper('inst-2');
 
-      showTooltipComponent({
+      await showTooltipComponent({
         messageId: 'msg-1',
         instanceId: 'inst-1',
         properties: { gist: { elementId: '#target-1' } },
       });
-      showTooltipComponent({
+      await showTooltipComponent({
         messageId: 'msg-2',
         instanceId: 'inst-2',
         properties: { gist: { elementId: '#target-2' } },
@@ -564,12 +598,12 @@ describe('message-component-manager', () => {
       expect(() => clearAllTooltipHandles()).not.toThrow();
     });
 
-    it('clears the map so subsequent hideTooltipComponent does not double-cleanup', () => {
+    it('clears the map so subsequent hideTooltipComponent does not double-cleanup', async () => {
       const mockCleanup = vi.fn();
       vi.mocked(positionTooltip).mockReturnValue({ cleanup: mockCleanup, reposition: vi.fn() });
 
       setupTooltipWrapper('inst-1');
-      showTooltipComponent({
+      await showTooltipComponent({
         messageId: 'msg-1',
         instanceId: 'inst-1',
         properties: { gist: { elementId: '#target-1' } },
