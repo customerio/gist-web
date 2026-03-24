@@ -1,6 +1,6 @@
 import type { ResolvedMessageProperties } from '../types';
 
-const ARROW_SIZE = 10;
+export const ARROW_SIZE = 10;
 
 function getArrowClass(tooltipPosition: string): string {
   switch (tooltipPosition) {
@@ -20,7 +20,8 @@ function getArrowClass(tooltipPosition: string): string {
 export function tooltipHTMLTemplate(
   elementId: string,
   messageProperties: ResolvedMessageProperties,
-  url: string
+  url: string,
+  wrapperId: string = ''
 ): string {
   let maxWidthBreakpoint = 600;
   if (messageProperties.messageWidth > maxWidthBreakpoint) {
@@ -29,73 +30,81 @@ export function tooltipHTMLTemplate(
 
   const arrowColor = messageProperties.tooltipArrowColor;
   const arrowClass = getArrowClass(messageProperties.tooltipPosition);
+  const scope = wrapperId ? `#${wrapperId} ` : '';
 
   const template = `
-    <div id="gist-tooltip">
+    <div class="gist-tooltip-outer">
         <style>
-            #gist-tooltip {
+            ${scope}.gist-tooltip-outer {
                 position: absolute;
             }
-            #gist-tooltip-container {
+            ${scope}.gist-tooltip-container {
                 position: relative;
                 z-index: 9999999;
+                opacity: 0;
+                transition: opacity 0.3s ease-in-out;
             }
-            .gist-tooltip-frame {
+            ${scope}.gist-tooltip-container.gist-visible {
+                opacity: 1;
+            }
+            ${scope}.gist-tooltip-frame-clip {
+                overflow: hidden;
+            }
+            ${scope}.gist-tooltip-frame {
+                display: block;
                 width: ${messageProperties.messageWidth}px;
                 border: none;
-                opacity: 0;
-                transition: opacity 0.3s ease-in-out, height 0.1s ease-in-out;
+                transition: height 0.1s ease-in-out;
             }
-            .gist-tooltip-frame.gist-visible {
-                opacity: 1;
-                pointer-events: auto;
-            }
-            .gist-tooltip-arrow {
+            ${scope}.gist-tooltip-arrow {
                 width: 0;
                 height: 0;
                 position: absolute;
+                z-index: 1;
             }
-            .gist-tooltip-arrow.gist-arrow-bottom {
-                bottom: -${ARROW_SIZE}px;
+            ${scope}.gist-tooltip-arrow.gist-arrow-bottom {
+                bottom: 0;
                 left: 50%;
-                transform: translateX(-50%);
+                transform: translateX(-50%) translateY(100%);
                 border-left: ${ARROW_SIZE}px solid transparent;
                 border-right: ${ARROW_SIZE}px solid transparent;
                 border-top: ${ARROW_SIZE}px solid ${arrowColor};
             }
-            .gist-tooltip-arrow.gist-arrow-top {
-                top: -${ARROW_SIZE}px;
+            ${scope}.gist-tooltip-arrow.gist-arrow-top {
+                top: 0;
                 left: 50%;
-                transform: translateX(-50%);
+                transform: translateX(-50%) translateY(-100%);
                 border-left: ${ARROW_SIZE}px solid transparent;
                 border-right: ${ARROW_SIZE}px solid transparent;
                 border-bottom: ${ARROW_SIZE}px solid ${arrowColor};
             }
-            .gist-tooltip-arrow.gist-arrow-right {
-                right: -${ARROW_SIZE}px;
+            ${scope}.gist-tooltip-arrow.gist-arrow-right {
+                right: 0;
                 top: 50%;
-                transform: translateY(-50%);
+                transform: translateY(-50%) translateX(100%);
                 border-top: ${ARROW_SIZE}px solid transparent;
                 border-bottom: ${ARROW_SIZE}px solid transparent;
                 border-left: ${ARROW_SIZE}px solid ${arrowColor};
             }
-            .gist-tooltip-arrow.gist-arrow-left {
-                left: -${ARROW_SIZE}px;
+            ${scope}.gist-tooltip-arrow.gist-arrow-left {
+                left: 0;
                 top: 50%;
-                transform: translateY(-50%);
+                transform: translateY(-50%) translateX(-100%);
                 border-top: ${ARROW_SIZE}px solid transparent;
                 border-bottom: ${ARROW_SIZE}px solid transparent;
                 border-right: ${ARROW_SIZE}px solid ${arrowColor};
             }
             @media (max-width: ${maxWidthBreakpoint}px) {
-                .gist-tooltip-frame {
+                ${scope}.gist-tooltip-frame {
                     max-width: 100%;
                 }
             }
         </style>
-        <div id="gist-tooltip-container">
+        <div class="gist-tooltip-container">
             <div class="gist-tooltip-arrow ${arrowClass}"></div>
-            <iframe id="${elementId}" class="gist-tooltip-frame" src="${url}"></iframe>
+            <div class="gist-tooltip-frame-clip">
+                <iframe id="${elementId}" class="gist-tooltip-frame" src="${url}"></iframe>
+            </div>
         </div>
     </div>`;
   return template;

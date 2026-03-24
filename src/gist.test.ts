@@ -38,6 +38,7 @@ vi.mock('./utilities/message-utils', () => ({
 }));
 vi.mock('./managers/message-component-manager', () => ({
   sendDisplaySettingsToIframe: vi.fn(),
+  clearAllTooltipHandles: vi.fn(),
 }));
 vi.mock('./managers/locale-manager', () => ({
   setUserLocale: vi.fn(),
@@ -73,7 +74,10 @@ import {
   logBroadcastDismissedLocally,
 } from './managers/message-manager';
 import { fetchMessageByInstanceId } from './utilities/message-utils';
-import { sendDisplaySettingsToIframe } from './managers/message-component-manager';
+import {
+  sendDisplaySettingsToIframe,
+  clearAllTooltipHandles,
+} from './managers/message-component-manager';
 import { setUserLocale } from './managers/locale-manager';
 import {
   setCustomAttribute,
@@ -215,6 +219,11 @@ describe('Gist', () => {
     it('initializes currentMessages as empty array', async () => {
       await Gist.setup(baseConfig());
       expect(Gist.currentMessages).toEqual([]);
+    });
+
+    it('clears all tooltip handles during setup', async () => {
+      await Gist.setup(baseConfig());
+      expect(clearAllTooltipHandles).toHaveBeenCalled();
     });
 
     it('sets isDocumentVisible to true', async () => {

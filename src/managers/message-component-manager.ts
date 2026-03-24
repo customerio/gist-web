@@ -6,7 +6,11 @@ import { messageHTMLTemplate } from '../templates/message';
 import { tooltipHTMLTemplate } from '../templates/tooltip';
 import { positions } from './page-component-manager';
 import { wideOverlayPositions } from '../utilities/message-utils';
-import { positionTooltip, type TooltipPosition } from './tooltip-position-manager';
+import {
+  positionTooltip,
+  type TooltipPosition,
+  type TooltipHandle,
+} from './tooltip-position-manager';
 import type { GistMessage, ResolvedMessageProperties } from '../types';
 
 interface MessageOptions {
@@ -216,7 +220,7 @@ export function removeOverlayComponent(): void {
   }
 }
 
-const tooltipCleanupMap = new Map<string, () => void>();
+const tooltipHandleMap = new Map<string, TooltipHandle>();
 
 export function loadTooltipComponent(
   url: string,
@@ -228,77 +232,120 @@ export function loadTooltipComponent(
   const messageElementId = getMessageElementId(instanceId);
   const messageProperties = resolveMessageProperties(message);
 
-  const existingCleanup = tooltipCleanupMap.get(instanceId);
-  if (existingCleanup) {
-    existingCleanup();
-    tooltipCleanupMap.delete(instanceId);
+  const existingHandle = tooltipHandleMap.get(instanceId);
+  if (existingHandle) {
+    existingHandle.cleanup();
+    tooltipHandleMap.delete(instanceId);
   }
 
   document.querySelectorAll(`#gist-tooltip-${instanceId}`).forEach((el) => {
     el.parentNode?.removeChild(el);
   });
 
+  const wrapperId = `gist-tooltip-${instanceId}`;
   const wrapper = document.createElement('div');
-  wrapper.id = `gist-tooltip-${instanceId}`;
-  wrapper.innerHTML = tooltipHTMLTemplate(messageElementId, messageProperties, url);
+  wrapper.id = wrapperId;
+  wrapper.innerHTML = tooltipHTMLTemplate(messageElementId, messageProperties, url, wrapperId);
   document.body.appendChild(wrapper);
 
   attachIframeLoadEvent(messageElementId, options, stepName);
 }
 
-export function showTooltipComponent(message: GistMessage): void {
+export function showTooltipComponent(message: GistMessage): boolean {
   const instanceId = message.instanceId ?? '';
   const messageProperties = resolveMessageProperties(message);
   const wrapperId = `gist-tooltip-${instanceId}`;
   const wrapper = safelyFetchElement(wrapperId);
   if (!wrapper) {
     log(`Tooltip wrapper not found for instance ${instanceId}`);
-    return;
+    return false;
   }
 
-  const selector = message.properties?.gist?.elementId as string | undefined;
+  const selector =
+    (message.properties?.gist?.elementId as string | undefined) || message.elementId || undefined;
   if (!selector) {
     log(`No target selector for tooltip ${instanceId}`);
-    return;
+    return false;
   }
 
-  const existingCleanup = tooltipCleanupMap.get(instanceId);
-  if (existingCleanup) {
-    existingCleanup();
-    tooltipCleanupMap.delete(instanceId);
+  const existingHandle = tooltipHandleMap.get(instanceId);
+  if (existingHandle) {
+    existingHandle.cleanup();
+    tooltipHandleMap.delete(instanceId);
   }
 
-  const tooltipElement = wrapper.querySelector('#gist-tooltip') as HTMLElement | null;
+  const tooltipElement = wrapper.querySelector('.gist-tooltip-outer') as HTMLElement | null;
   if (!tooltipElement) {
     log(`Tooltip inner element not found for instance ${instanceId}`);
-    return;
+    return false;
   }
 
   const position = (messageProperties.tooltipPosition || 'bottom') as TooltipPosition;
-  const cleanup = positionTooltip(tooltipElement, selector, position);
-  if (cleanup) {
-    tooltipCleanupMap.set(instanceId, cleanup);
+  const handle = positionTooltip(tooltipElement, selector, position);
+  if (handle) {
+    const isVisible = tooltipElement.style.display !== 'none';
+    if (isVisible) {
+      const container = wrapper.querySelector('.gist-tooltip-container') as HTMLElement | null;
+      if (!container) {
+        handle.cleanup();
+        log(`Tooltip container not found for instance ${instanceId}`);
+        return false;
+      }
+      tooltipHandleMap.set(instanceId, handle);
+      container.classList.add('gist-visible');
+      return true;
+    }
+    handle.cleanup();
+    log(
+      `Tooltip for instance ${instanceId} could not be positioned within the viewport, target "${selector}" may be off-screen`
+    );
+    return false;
   }
-
-  const iframe = wrapper.querySelector('.gist-tooltip-frame') as HTMLElement | null;
-  if (iframe) {
-    iframe.classList.add('gist-visible');
-  }
+  log(
+    `Failed to position tooltip for instance ${instanceId}, target "${selector}" may not exist or no position fits the viewport`
+  );
+  return false;
 }
 
 export function hideTooltipComponent(message: GistMessage): void {
   const instanceId = message.instanceId ?? '';
 
-  const existingCleanup = tooltipCleanupMap.get(instanceId);
-  if (existingCleanup) {
-    existingCleanup();
-    tooltipCleanupMap.delete(instanceId);
+  const existingHandle = tooltipHandleMap.get(instanceId);
+  if (existingHandle) {
+    existingHandle.cleanup();
+    tooltipHandleMap.delete(instanceId);
   }
 
   const wrapperId = `gist-tooltip-${instanceId}`;
   const wrapper = safelyFetchElement(wrapperId);
   if (wrapper) {
     wrapper.parentNode?.removeChild(wrapper);
+  }
+}
+
+export function clearAllTooltipHandles(): void {
+  tooltipHandleMap.forEach((handle) => handle.cleanup());
+  tooltipHandleMap.clear();
+
+  document.querySelectorAll('[id^="gist-tooltip-"]').forEach((el) => {
+    el.parentNode?.removeChild(el);
+  });
+}
+
+export function resizeTooltipComponent(
+  message: GistMessage,
+  size: { width: number; height: number }
+): void {
+  const instanceId = message.instanceId ?? '';
+  const iframeId = getMessageElementId(instanceId);
+  const iframe = document.getElementById(iframeId) as HTMLIFrameElement | null;
+  if (iframe && size.height > 0) {
+    iframe.style.height = `${size.height}px`;
+
+    const handle = tooltipHandleMap.get(instanceId);
+    if (handle) {
+      handle.reposition();
+    }
   }
 }
 

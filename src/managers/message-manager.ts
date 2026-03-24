@@ -12,9 +12,13 @@ import {
   showEmbedComponent,
   hideEmbedComponent,
   resizeComponent,
+  resizeTooltipComponent,
   elementHasHeight,
   changeOverlayTitle,
   sendDisplaySettingsToIframe,
+  loadTooltipComponent,
+  showTooltipComponent,
+  hideTooltipComponent,
 } from './message-component-manager';
 import { resolveMessageProperties } from './gist-properties-manager';
 import { positions, addPageElement } from './page-component-manager';
@@ -40,6 +44,7 @@ import {
   updateMessageByInstanceId,
   hasDisplayChanged,
   applyDisplaySettings,
+  getCurrentDisplayType,
 } from '../utilities/message-utils';
 import {
   updatePreviewBarMessage,
@@ -58,33 +63,101 @@ interface GistEventData {
 }
 
 export async function showMessage(message: GistMessage): Promise<GistMessage | null> {
-  if (Gist.isDocumentVisible) {
-    if (isQueueIdAlreadyShowing(message.queueId)) {
-      log(`Message with queueId ${message.queueId} is already showing.`);
-      return null;
-    }
-    if (Gist.overlayInstanceId) {
-      log(`Message ${Gist.overlayInstanceId} already showing.`);
-      return null;
-    } else {
-      const properties = resolveMessageProperties(message);
-
-      message.instanceId = uuidv4();
-      message.overlay = true;
-      message.firstLoad = true;
-      message.shouldResizeHeight = true;
-      message.shouldScale = properties.shouldScale;
-      message.renderStartTime = new Date().getTime();
-      Gist.overlayInstanceId = message.instanceId;
-      Gist.currentMessages.push(message);
-
-      const savedStep = message.savedStepName || null;
-      return loadMessageComponent(message, null, savedStep);
-    }
-  } else {
+  if (!Gist.isDocumentVisible) {
     log('Document hidden, not showing message now.');
     return null;
   }
+
+  if (isQueueIdAlreadyShowing(message.queueId)) {
+    log(`Message with queueId ${message.queueId} is already showing.`);
+    return null;
+  }
+
+  const properties = resolveMessageProperties(message);
+
+  // Detect tooltip from properties if not already set on message
+  if (!message.tooltipPosition && properties.hasTooltipPosition) {
+    message.tooltipPosition = properties.tooltipPosition;
+  }
+
+  // Route to tooltip flow
+  if (message.tooltipPosition) {
+    return showTooltipMessage(message, properties);
+  }
+
+  // Original overlay flow
+  if (Gist.overlayInstanceId) {
+    log(`Message ${Gist.overlayInstanceId} already showing.`);
+    return null;
+  }
+
+  message.instanceId = uuidv4();
+  message.overlay = true;
+  message.firstLoad = true;
+  message.shouldResizeHeight = true;
+  message.shouldScale = properties.shouldScale;
+  message.renderStartTime = new Date().getTime();
+  Gist.overlayInstanceId = message.instanceId;
+  Gist.currentMessages.push(message);
+
+  const savedStep = message.savedStepName || null;
+  return loadMessageComponent(message, null, savedStep);
+}
+
+function showTooltipMessage(
+  message: GistMessage,
+  properties: ReturnType<typeof resolveMessageProperties>
+): GistMessage | null {
+  const targetSelector = properties.elementId || message.elementId;
+  if (!targetSelector) {
+    log(`No target selector specified for tooltip message ${message.messageId}`);
+    Gist.messageError(message);
+    return null;
+  }
+
+  // Verify target element exists in the DOM
+  try {
+    const targetElement = document.querySelector(targetSelector);
+    if (!targetElement) {
+      log(
+        `Tooltip target element "${targetSelector}" not found for message ${message.messageId}, skipping display`
+      );
+      Gist.messageError(message);
+      return null;
+    }
+  } catch {
+    log(`Invalid tooltip target selector "${targetSelector}" for message ${message.messageId}`);
+    Gist.messageError(message);
+    return null;
+  }
+
+  const existingTooltip = Gist.currentMessages.find(
+    (m) => m.tooltipPosition && m.elementId === targetSelector
+  );
+  if (existingTooltip) {
+    log(
+      `Tooltip already showing on target "${targetSelector}" (instance ${existingTooltip.instanceId}), dismissing it first`
+    );
+    Gist.messageDismissed(existingTooltip);
+    hideTooltipComponent(existingTooltip);
+    if (existingTooltip.instanceId) {
+      removeMessageByInstanceId(existingTooltip.instanceId);
+    }
+  }
+
+  message.instanceId = uuidv4();
+  message.overlay = false;
+  message.firstLoad = true;
+  message.shouldResizeHeight = false;
+  message.shouldScale = false;
+  message.renderStartTime = new Date().getTime();
+
+  message.elementId = targetSelector;
+
+  Gist.currentMessages.push(message);
+
+  const savedStep = message.savedStepName || null;
+  return loadMessageComponent(message, null, savedStep);
 }
 
 export function embedMessage(message: GistMessage, elementId: string): GistMessage | null {
@@ -127,7 +200,10 @@ export async function hideMessage(message: GistMessage): Promise<void> {
 }
 
 export async function resetMessage(message: GistMessage): Promise<void> {
-  if (message.overlay) {
+  const displayType = getCurrentDisplayType(message);
+  if (displayType === 'tooltip') {
+    resetTooltipState(message);
+  } else if (message.overlay) {
     await resetOverlayState(true, message);
   } else {
     resetEmbedState(message);
@@ -154,6 +230,21 @@ function resetEmbedState(message: GistMessage): void {
   }
   if (message.elementId) {
     hideEmbedComponent(message.elementId);
+  }
+  if (Gist.config.isPreviewSession) {
+    clearPreviewBarMessage();
+    exitPreviewSession();
+  }
+}
+
+function resetTooltipState(message: GistMessage): void {
+  hideTooltipComponent(message);
+  if (message.instanceId) {
+    removeMessageByInstanceId(message.instanceId);
+  }
+  if (Gist.currentMessages.length === 0) {
+    window.removeEventListener('message', handleGistEvents);
+    window.removeEventListener('touchstart', handleTouchStartEvents);
   }
   if (Gist.config.isPreviewSession) {
     clearPreviewBarMessage();
@@ -212,7 +303,11 @@ function loadMessageComponent(
   window.addEventListener('message', handleGistEvents);
   window.addEventListener('touchstart', handleTouchStartEvents);
 
-  if (elementId) {
+  const displayType = getCurrentDisplayType(message);
+
+  if (displayType === 'tooltip') {
+    loadTooltipComponent(url, message, options, stepName);
+  } else if (elementId) {
     if (positions.includes(elementId)) {
       addPageElement(elementId);
     }
@@ -273,7 +368,43 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
           updatePreviewBarMessage(currentMessage);
         }
         if (currentMessage.firstLoad || currentMessage.isDisplayChange) {
-          if (currentMessage.overlay) {
+          const displayType = getCurrentDisplayType(currentMessage);
+
+          if (displayType === 'tooltip') {
+            const targetSelector =
+              (currentMessage.properties?.gist?.elementId as string | undefined) ||
+              currentMessage.elementId ||
+              undefined;
+            let targetFound = false;
+            try {
+              targetFound = !!targetSelector && !!document.querySelector(targetSelector);
+            } catch {
+              log(
+                `Invalid tooltip target selector "${targetSelector}" for message ${currentMessage.messageId}`
+              );
+            }
+            if (!targetFound) {
+              log(
+                `Tooltip target not found for "${targetSelector}", emitting error and skipping display`
+              );
+              Gist.messageError(currentMessage);
+              currentMessage.firstLoad = false;
+              currentMessage.isDisplayChange = false;
+              resetTooltipState(currentMessage);
+              break;
+            }
+            const tooltipVisible = showTooltipComponent(currentMessage);
+            if (!tooltipVisible) {
+              log(
+                `Tooltip positioning failed for "${targetSelector}", emitting error and cleaning up`
+              );
+              Gist.messageError(currentMessage);
+              currentMessage.firstLoad = false;
+              currentMessage.isDisplayChange = false;
+              resetTooltipState(currentMessage);
+              break;
+            }
+          } else if (currentMessage.overlay) {
             showOverlayComponent(currentMessage);
           } else {
             showEmbedComponent(currentMessage.elementId!);
@@ -388,7 +519,13 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
         log(
           `Size Changed Width: ${data.gist.parameters.width} - Height: ${data.gist.parameters.height}`
         );
-        if (!currentMessage.elementId || currentMessage.shouldResizeHeight) {
+        const sizeDisplayType = getCurrentDisplayType(currentMessage);
+        if (sizeDisplayType === 'tooltip') {
+          resizeTooltipComponent(
+            currentMessage,
+            data.gist.parameters as { width: number; height: number }
+          );
+        } else if (!currentMessage.elementId || currentMessage.shouldResizeHeight) {
           resizeComponent(
             currentMessage,
             data.gist.parameters as { width: number; height: number }
@@ -411,7 +548,10 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
       case 'error':
       case 'routeError': {
         Gist.messageError(currentMessage);
-        if (Gist.overlayInstanceId) {
+        const displayType = getCurrentDisplayType(currentMessage);
+        if (displayType === 'tooltip') {
+          resetTooltipState(currentMessage);
+        } else if (Gist.overlayInstanceId) {
           await resetOverlayState(false, currentMessage);
         } else {
           resetEmbedState(currentMessage);
@@ -429,7 +569,18 @@ async function reloadMessageWithNewDisplay(
   message.isDisplayChange = true;
   message.renderStartTime = new Date().getTime();
 
+  const displayType = getCurrentDisplayType(message);
   const elementId = message.elementId || null;
+
+  if (displayType === 'tooltip') {
+    if (Gist.overlayInstanceId === message.instanceId) {
+      Gist.overlayInstanceId = null;
+    }
+    message.shouldScale = false;
+    message.shouldResizeHeight = false;
+    loadMessageComponent(message, null, stepName);
+    return;
+  }
 
   if (elementId) {
     const existingMessage = fetchMessageByElementId(elementId);
@@ -458,7 +609,10 @@ async function reloadMessageWithNewDisplay(
 }
 
 export async function hideMessageVisually(message: GistMessage): Promise<void> {
-  if (message.overlay) {
+  const displayType = getCurrentDisplayType(message);
+  if (displayType === 'tooltip') {
+    hideTooltipComponent(message);
+  } else if (message.overlay) {
     await hideOverlayComponent();
   } else if (message.elementId) {
     hideEmbedComponent(message.elementId);

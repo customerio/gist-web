@@ -16,7 +16,10 @@ import {
   logBroadcastDismissedLocally,
 } from './managers/message-manager';
 import { fetchMessageByInstanceId } from './utilities/message-utils';
-import { sendDisplaySettingsToIframe } from './managers/message-component-manager';
+import {
+  sendDisplaySettingsToIframe,
+  clearAllTooltipHandles,
+} from './managers/message-component-manager';
 import { setUserLocale } from './managers/locale-manager';
 import {
   setCustomAttribute,
@@ -57,6 +60,7 @@ export default class Gist {
       experiments: config.experiments ?? false,
     };
     this.currentMessages = [];
+    clearAllTooltipHandles();
     this.overlayInstanceId = null;
     this.currentRoute = null;
     this.isDocumentVisible = true;

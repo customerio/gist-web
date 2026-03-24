@@ -26,7 +26,7 @@ export function resolveMessageProperties(message: GistMessage): ResolvedMessageP
   if (!gist) return defaults;
 
   return {
-    isEmbedded: !!gist.elementId,
+    isEmbedded: !!gist.elementId && !gist.tooltipPosition,
     elementId: gist.elementId || '',
     hasRouteRule: !!gist.routeRuleWeb,
     routeRule: gist.routeRuleWeb || '',
