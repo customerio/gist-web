@@ -55,7 +55,7 @@ vi.mock('./message-component-manager', () => ({
   changeOverlayTitle: vi.fn(),
   sendDisplaySettingsToIframe: vi.fn(),
   loadTooltipComponent: vi.fn(),
-  showTooltipComponent: vi.fn(() => true),
+  showTooltipComponent: vi.fn(() => Promise.resolve(true)),
   hideTooltipComponent: vi.fn(),
 }));
 vi.mock('./gist-properties-manager', () => ({
@@ -626,7 +626,7 @@ describe('message-manager', () => {
         const mocks = await import('./message-component-manager');
 
         vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties('#target-btn'));
-        vi.mocked(mocks.showTooltipComponent).mockReturnValue(false);
+        vi.mocked(mocks.showTooltipComponent).mockResolvedValue(false);
         addTargetElement('#target-btn');
 
         const message: GistMessage = {

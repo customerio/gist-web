@@ -393,7 +393,7 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
               resetTooltipState(currentMessage);
               break;
             }
-            const tooltipVisible = showTooltipComponent(currentMessage);
+            const tooltipVisible = await showTooltipComponent(currentMessage);
             if (!tooltipVisible) {
               log(
                 `Tooltip positioning failed for "${targetSelector}", emitting error and cleaning up`

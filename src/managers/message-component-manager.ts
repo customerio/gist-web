@@ -8,6 +8,7 @@ import { positions } from './page-component-manager';
 import { wideOverlayPositions } from '../utilities/message-utils';
 import {
   positionTooltip,
+  ensureTargetInView,
   type TooltipPosition,
   type TooltipHandle,
 } from './tooltip-position-manager';
@@ -251,7 +252,7 @@ export function loadTooltipComponent(
   attachIframeLoadEvent(messageElementId, options, stepName);
 }
 
-export function showTooltipComponent(message: GistMessage): boolean {
+export async function showTooltipComponent(message: GistMessage): Promise<boolean> {
   const instanceId = message.instanceId ?? '';
   const messageProperties = resolveMessageProperties(message);
   const wrapperId = `gist-tooltip-${instanceId}`;
@@ -281,6 +282,15 @@ export function showTooltipComponent(message: GistMessage): boolean {
   }
 
   const position = (messageProperties.tooltipPosition || 'bottom') as TooltipPosition;
+
+  const targetReady = await ensureTargetInView(tooltipElement, selector, position);
+  if (!targetReady) {
+    log(
+      `Tooltip for instance ${instanceId} skipped: target "${selector}" is off-screen and cannot be scrolled into a valid position`
+    );
+    return false;
+  }
+
   const handle = positionTooltip(tooltipElement, selector, position);
   if (handle) {
     const isVisible = tooltipElement.style.display !== 'none';
