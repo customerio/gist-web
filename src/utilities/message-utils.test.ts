@@ -406,6 +406,32 @@ describe('applyDisplaySettings', () => {
     expect(msg.position).toBeNull();
   });
 
+  it('sets tooltipArrowColor for tooltip type when provided', () => {
+    const msg = makeMessage({ overlay: true });
+    applyDisplaySettings(msg, {
+      displayType: 'tooltip',
+      elementSelector: 'my-element',
+      tooltipPosition: 'top',
+      tooltipArrowColor: '#FF5733',
+    });
+
+    expect(msg.properties?.gist?.tooltipArrowColor).toBe('#FF5733');
+  });
+
+  it('does not set tooltipArrowColor when not provided in display settings', () => {
+    const msg = makeMessage({
+      overlay: true,
+      properties: { gist: { tooltipArrowColor: '#original' } },
+    });
+    applyDisplaySettings(msg, {
+      displayType: 'tooltip',
+      elementSelector: 'my-element',
+      tooltipPosition: 'top',
+    });
+
+    expect(msg.properties?.gist?.tooltipArrowColor).toBe('#original');
+  });
+
   it('clears tooltipPosition when switching from tooltip to modal', () => {
     const msg = makeMessage({ tooltipPosition: 'top', elementId: 'my-element' });
     applyDisplaySettings(msg, { displayType: 'modal' });

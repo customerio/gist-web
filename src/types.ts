@@ -35,6 +35,7 @@ export interface DisplaySettings {
   overlayPosition?: string;
   elementSelector?: string;
   tooltipPosition?: string;
+  tooltipArrowColor?: string;
   maxWidth?: number;
   overlayColor?: string;
   dismissOutsideClick?: boolean;

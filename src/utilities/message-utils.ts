@@ -197,6 +197,9 @@ export function applyDisplaySettings(message: GistMessage, displaySettings: Disp
     message.properties.gist.tooltipPosition = displaySettings.tooltipPosition;
     message.position = null;
     message.properties.gist.position = null;
+    if (displaySettings.tooltipArrowColor !== undefined) {
+      message.properties.gist.tooltipArrowColor = displaySettings.tooltipArrowColor;
+    }
   }
 
   const isWideOverlayPosition =
