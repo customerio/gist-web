@@ -114,6 +114,7 @@ vi.mock('./preview-bar-manager', () => ({
   updatePreviewBarMessage: vi.fn(),
   updatePreviewBarStep: vi.fn(),
   clearPreviewBarMessage: vi.fn(),
+  isPreviewPickerActive: vi.fn(() => false),
 }));
 vi.mock('../utilities/preview-mode', () => ({
   PREVIEW_PARAM_ID: 'cioPreviewId',

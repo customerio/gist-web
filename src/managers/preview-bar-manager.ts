@@ -15,6 +15,7 @@ import { PREVIEW_PARAM_ID, teardownPreview } from '../utilities/preview-mode';
 const STORAGE_KEY = 'gist.previewBar.collapsed';
 const STYLE_ID = 'gist-pb-styles';
 const BAR_ID = 'gist-preview-bar';
+const PLACEHOLDER_SELECTOR = '$element_id';
 
 const OVERLAY_POSITION_LABELS: Record<string, string> = {
   topLeft: 'Top Left',
@@ -115,9 +116,10 @@ function buildOverlayColor(color: string, opacity: number): string {
 // ─── Guards ───────────────────────────────────────────────────────────────────
 
 function isReadyToApply(settings: DisplaySettings): boolean {
+  const selector = settings.elementSelector?.trim();
   if (
     (settings.displayType === 'inline' || settings.displayType === 'tooltip') &&
-    !settings.elementSelector?.trim()
+    (!selector || selector === PLACEHOLDER_SELECTOR)
   ) {
     return false;
   }
@@ -632,9 +634,19 @@ function renderBar() {
 
   // Type-specific controls
   const displayType = currentSettings.displayType || 'modal';
-  if (displayType === 'modal') buildModalControls(currentSettings, controlsRow);
-  else if (displayType === 'overlay') buildOverlayControls(currentSettings, controlsRow);
-  else if (displayType === 'inline') buildInlineControls(currentSettings, controlsRow);
+  switch (displayType) {
+    case 'overlay':
+      buildOverlayControls(currentSettings, controlsRow);
+      break;
+    case 'inline':
+    case 'tooltip':
+      buildInlineControls(currentSettings, controlsRow);
+      break;
+    case 'modal':
+    default:
+      buildModalControls(currentSettings, controlsRow);
+      break;
+  }
 
   controlsRow.appendChild(el('div', { className: 'gist-pb-spacer' }));
 
@@ -702,6 +714,7 @@ export function updatePreviewBarMessage(message: GistMessage): void {
       if (!targetStep) {
         log(`Preview bar: step "${savedStep}" not found, ignoring initial step/display override`);
         renderBar();
+        if (!isReadyToApply(currentSettings)) activatePickerIfNeeded();
         return;
       }
       currentStepName = targetStep.stepName;
@@ -712,6 +725,7 @@ export function updatePreviewBarMessage(message: GistMessage): void {
       if (!hasPendingStep) {
         log(`Preview bar: display type "${savedType}" provided without a step, ignoring`);
         renderBar();
+        if (!isReadyToApply(currentSettings)) activatePickerIfNeeded();
         return;
       }
       currentSettings = {
@@ -732,6 +746,9 @@ export function updatePreviewBarMessage(message: GistMessage): void {
   }
 
   renderBar();
+  if (!isReadyToApply(currentSettings)) {
+    activatePickerIfNeeded();
+  }
 }
 
 export function updatePreviewBarStep(stepName: string, displaySettings: DisplaySettings): void {
@@ -791,6 +808,10 @@ export function setPreviewBarInitialStep(
 ): void {
   pendingInitialStepName = stepName;
   pendingInitialDisplayType = displayType;
+}
+
+export function isPreviewPickerActive(): boolean {
+  return pickerActive;
 }
 
 export function destroyPreviewBar(): void {

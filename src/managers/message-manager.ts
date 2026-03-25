@@ -50,6 +50,7 @@ import {
   updatePreviewBarMessage,
   updatePreviewBarStep,
   clearPreviewBarMessage,
+  isPreviewPickerActive,
 } from './preview-bar-manager';
 import { PREVIEW_PARAM_ID, PREVIEW_SETTINGS_PARAM } from '../utilities/preview-mode';
 import type { GistMessage, DisplaySettings, MessageProperties } from '../types';
@@ -116,19 +117,21 @@ function showTooltipMessage(
   }
 
   // Verify target element exists in the DOM
-  try {
-    const targetElement = document.querySelector(targetSelector);
-    if (!targetElement) {
-      log(
-        `Tooltip target element "${targetSelector}" not found for message ${message.messageId}, skipping display`
-      );
+  if (!Gist.config.isPreviewSession) {
+    try {
+      const targetElement = document.querySelector(targetSelector);
+      if (!targetElement) {
+        log(
+          `Tooltip target element "${targetSelector}" not found for message ${message.messageId}, skipping display`
+        );
+        Gist.messageError(message);
+        return null;
+      }
+    } catch {
+      log(`Invalid tooltip target selector "${targetSelector}" for message ${message.messageId}`);
       Gist.messageError(message);
       return null;
     }
-  } catch {
-    log(`Invalid tooltip target selector "${targetSelector}" for message ${message.messageId}`);
-    Gist.messageError(message);
-    return null;
   }
 
   const existingTooltip = Gist.currentMessages.find(
@@ -308,10 +311,26 @@ function loadMessageComponent(
   if (displayType === 'tooltip') {
     loadTooltipComponent(url, message, options, stepName);
   } else if (elementId) {
-    if (positions.includes(elementId)) {
-      addPageElement(elementId);
+    let elementExists = false;
+    try {
+      // XXX: use shared util in Karn's upcoming PR
+      elementExists = !!(document.getElementById(elementId) ?? document.querySelector(elementId));
+    } catch {
+      elementExists = false;
     }
-    loadEmbedComponent(elementId, url, message, options, stepName);
+    if (!elementExists && Gist.config.isPreviewSession) {
+      // In previews, if the target element doesn't exist, load as an
+      // overlay so the iframe still mounts, allowing the user to pick a valid element.
+      log(`Preview session: element "${elementId}" not found, loading as overlay for preview bar`);
+      message.overlay = true;
+      Gist.overlayInstanceId = message.instanceId ?? null;
+      loadOverlayComponent(url, message, options, stepName);
+    } else {
+      if (positions.includes(elementId)) {
+        addPageElement(elementId);
+      }
+      loadEmbedComponent(elementId, url, message, options, stepName);
+    }
   } else {
     loadOverlayComponent(url, message, options, stepName);
   }
@@ -366,6 +385,13 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
         }
         if (Gist.config.isPreviewSession && currentMessage.properties?.gist?.livePreview) {
           updatePreviewBarMessage(currentMessage);
+          if (isPreviewPickerActive()) {
+            // The preview bar activated the element picker as a fallback overlay (e.g. inline/tooltip with
+            // an invalid selector). Skip rendering the message so the fallback is not shown behind the picker.
+            currentMessage.firstLoad = false;
+            currentMessage.isDisplayChange = false;
+            break;
+          }
         }
         if (currentMessage.firstLoad || currentMessage.isDisplayChange) {
           const displayType = getCurrentDisplayType(currentMessage);
@@ -384,13 +410,20 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
               );
             }
             if (!targetFound) {
-              log(
-                `Tooltip target not found for "${targetSelector}", emitting error and skipping display`
-              );
-              Gist.messageError(currentMessage);
               currentMessage.firstLoad = false;
               currentMessage.isDisplayChange = false;
-              resetTooltipState(currentMessage);
+              if (Gist.config.isPreviewSession) {
+                log(
+                  `Preview session: tooltip target "${targetSelector}" not found, skipping display`
+                );
+                // Don't reset so the element-picker can activate.
+              } else {
+                log(
+                  `Tooltip target not found for "${targetSelector}", emitting error and skipping display`
+                );
+                Gist.messageError(currentMessage);
+                resetTooltipState(currentMessage);
+              }
               break;
             }
             const tooltipVisible = await showTooltipComponent(currentMessage);
