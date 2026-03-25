@@ -95,7 +95,7 @@ describe('tooltip-position-manager', () => {
 
     it('returns null and logs warning for invalid selector', () => {
       expect(findTargetElement('[invalid')).toBeNull();
-      expect(log).toHaveBeenCalledWith('Invalid selector for tooltip target: [invalid');
+      expect(log).toHaveBeenCalledWith('Tooltip target element not found for selector: [invalid');
     });
   });
 

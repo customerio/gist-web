@@ -1,5 +1,6 @@
 import Gist from '../gist';
 import { log } from '../utilities/log';
+import { findElement } from '../utilities/dom';
 import { resolveMessageProperties } from './gist-properties-manager';
 import { embedHTMLTemplate } from '../templates/embed';
 import { messageHTMLTemplate } from '../templates/message';
@@ -36,7 +37,7 @@ export function loadEmbedComponent(
   options: MessageOptions,
   stepName: string | null = null
 ): void {
-  const element = safelyFetchElement(elementId);
+  const element = findElement(elementId);
   if (element) {
     const messageElementId = getMessageElementId(message.instanceId ?? '');
     element.classList.add(messageElementId);
@@ -59,14 +60,14 @@ export function loadEmbedComponent(
 }
 
 export function showEmbedComponent(elementId: string): void {
-  const element = safelyFetchElement(elementId);
+  const element = findElement(elementId);
   if (element) {
     element.classList.add('gist-visible');
   }
 }
 
 export function hideEmbedComponent(elementId: string): void {
-  const element = safelyFetchElement(elementId);
+  const element = findElement(elementId);
   if (element) {
     element.classList.remove('gist-visible');
     const classesToRemove = Array.from(element.classList).filter((cls) => cls.startsWith('gist-'));
@@ -78,7 +79,7 @@ export function hideEmbedComponent(elementId: string): void {
 }
 
 export function elementHasHeight(elementId: string): boolean | undefined {
-  const element = safelyFetchElement(elementId);
+  const element = findElement(elementId);
   if (element) {
     return !!(element.style && element.style.height && element.style.height !== '0px');
   }
@@ -91,7 +92,7 @@ export function resizeComponent(
   const elementId = message.elementId
     ? message.elementId
     : getMessageElementId(message.instanceId ?? '');
-  const element = safelyFetchElement(elementId);
+  const element = findElement(elementId);
   if (element) {
     const style = element.style;
     if (size.height > 0) {
@@ -256,7 +257,7 @@ export async function showTooltipComponent(message: GistMessage): Promise<boolea
   const instanceId = message.instanceId ?? '';
   const messageProperties = resolveMessageProperties(message);
   const wrapperId = `gist-tooltip-${instanceId}`;
-  const wrapper = safelyFetchElement(wrapperId);
+  const wrapper = findElement(wrapperId);
   if (!wrapper) {
     log(`Tooltip wrapper not found for instance ${instanceId}`);
     return false;
@@ -327,7 +328,7 @@ export function hideTooltipComponent(message: GistMessage): void {
   }
 
   const wrapperId = `gist-tooltip-${instanceId}`;
-  const wrapper = safelyFetchElement(wrapperId);
+  const wrapper = findElement(wrapperId);
   if (wrapper) {
     wrapper.parentNode?.removeChild(wrapper);
   }
@@ -360,7 +361,7 @@ export function resizeTooltipComponent(
 }
 
 export function changeOverlayTitle(instanceId: string, title: string): void {
-  const element = safelyFetchElement(getMessageElementId(instanceId));
+  const element = findElement(getMessageElementId(instanceId));
   if (element) {
     element.title = title;
   }
@@ -386,13 +387,4 @@ function embed(
 function component(url: string, message: GistMessage): string {
   const messageProperties = resolveMessageProperties(message);
   return messageHTMLTemplate(getMessageElementId(message.instanceId ?? ''), messageProperties, url);
-}
-
-function safelyFetchElement(elementId: string): HTMLElement | null {
-  try {
-    const element = document.getElementById(elementId) ?? document.querySelector(elementId);
-    return (element as HTMLElement) || null;
-  } catch {
-    return null;
-  }
 }

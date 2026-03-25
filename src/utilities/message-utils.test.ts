@@ -65,6 +65,7 @@ vi.mock('../managers/gist-properties-manager', () => ({
       persistent: false,
       exitClick: !!gist?.exitClick,
       hasCustomWidth: (gist?.messageWidth ?? 0) > 0,
+      tooltipArrowColor: gist?.tooltipArrowColor || '#fff',
     };
   }),
 }));
@@ -337,8 +338,39 @@ describe('hasDisplayChanged', () => {
     ).toBe(true);
   });
 
+  it('returns true when tooltip arrow color changes', () => {
+    const msg = makeMessage({
+      tooltipPosition: 'top',
+      elementId: 'my-element',
+      properties: { gist: { tooltipArrowColor: '#fff' } },
+    });
+    expect(
+      hasDisplayChanged(msg, {
+        displayType: 'tooltip',
+        tooltipPosition: 'top',
+        elementSelector: 'my-element',
+        tooltipArrowColor: '#FF5733',
+      })
+    ).toBe(true);
+  });
+
   it('returns false when nothing changed for tooltip', () => {
     const msg = makeMessage({ tooltipPosition: 'top', elementId: 'my-element' });
+    expect(
+      hasDisplayChanged(msg, {
+        displayType: 'tooltip',
+        tooltipPosition: 'top',
+        elementSelector: 'my-element',
+      })
+    ).toBe(false);
+  });
+
+  it('returns false when tooltip arrow color is not in display settings', () => {
+    const msg = makeMessage({
+      tooltipPosition: 'top',
+      elementId: 'my-element',
+      properties: { gist: { tooltipArrowColor: '#FF5733' } },
+    });
     expect(
       hasDisplayChanged(msg, {
         displayType: 'tooltip',
@@ -406,6 +438,32 @@ describe('applyDisplaySettings', () => {
     expect(msg.position).toBeNull();
   });
 
+  it('sets tooltipArrowColor for tooltip type when provided', () => {
+    const msg = makeMessage({ overlay: true });
+    applyDisplaySettings(msg, {
+      displayType: 'tooltip',
+      elementSelector: 'my-element',
+      tooltipPosition: 'top',
+      tooltipArrowColor: '#FF5733',
+    });
+
+    expect(msg.properties?.gist?.tooltipArrowColor).toBe('#FF5733');
+  });
+
+  it('does not set tooltipArrowColor when not provided in display settings', () => {
+    const msg = makeMessage({
+      overlay: true,
+      properties: { gist: { tooltipArrowColor: '#original' } },
+    });
+    applyDisplaySettings(msg, {
+      displayType: 'tooltip',
+      elementSelector: 'my-element',
+      tooltipPosition: 'top',
+    });
+
+    expect(msg.properties?.gist?.tooltipArrowColor).toBe('#original');
+  });
+
   it('clears tooltipPosition when switching from tooltip to modal', () => {
     const msg = makeMessage({ tooltipPosition: 'top', elementId: 'my-element' });
     applyDisplaySettings(msg, { displayType: 'modal' });
@@ -431,6 +489,39 @@ describe('applyDisplaySettings', () => {
     expect(msg.tooltipPosition).toBeUndefined();
     expect(msg.properties?.gist?.tooltipPosition).toBeUndefined();
     expect(getCurrentDisplayType(msg)).toBe('inline');
+  });
+
+  it('clears tooltipArrowColor when switching from tooltip to modal', () => {
+    const msg = makeMessage({
+      tooltipPosition: 'top',
+      elementId: 'my-element',
+      properties: { gist: { tooltipArrowColor: '#FF5733' } },
+    });
+    applyDisplaySettings(msg, { displayType: 'modal' });
+
+    expect(msg.properties?.gist?.tooltipArrowColor).toBeUndefined();
+  });
+
+  it('clears tooltipArrowColor when switching from tooltip to overlay', () => {
+    const msg = makeMessage({
+      tooltipPosition: 'top',
+      elementId: 'my-element',
+      properties: { gist: { tooltipArrowColor: '#FF5733' } },
+    });
+    applyDisplaySettings(msg, { displayType: 'overlay', overlayPosition: 'topCenter' });
+
+    expect(msg.properties?.gist?.tooltipArrowColor).toBeUndefined();
+  });
+
+  it('clears tooltipArrowColor when switching from tooltip to inline', () => {
+    const msg = makeMessage({
+      tooltipPosition: 'top',
+      elementId: 'my-element',
+      properties: { gist: { tooltipArrowColor: '#FF5733' } },
+    });
+    applyDisplaySettings(msg, { displayType: 'inline', elementSelector: 'my-container' });
+
+    expect(msg.properties?.gist?.tooltipArrowColor).toBeUndefined();
   });
 
   it('clears custom width for wide overlay positions', () => {

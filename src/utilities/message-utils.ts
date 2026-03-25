@@ -138,6 +138,12 @@ export function hasDisplayChanged(
       if (currentMessage.elementId !== displaySettings.elementSelector) {
         return true;
       }
+      if (
+        displaySettings.tooltipArrowColor !== undefined &&
+        resolvedProps.tooltipArrowColor !== displaySettings.tooltipArrowColor
+      ) {
+        return true;
+      }
       break;
     }
   }
@@ -172,6 +178,7 @@ export function applyDisplaySettings(message: GistMessage, displaySettings: Disp
     message.properties.gist.position = displaySettings.modalPosition || 'center';
     message.tooltipPosition = undefined;
     message.properties.gist.tooltipPosition = undefined;
+    message.properties.gist.tooltipArrowColor = undefined;
   } else if (displaySettings.displayType === 'overlay') {
     message.overlay = false;
     const elementId = mapOverlayPositionToElementId(displaySettings.overlayPosition);
@@ -181,6 +188,7 @@ export function applyDisplaySettings(message: GistMessage, displaySettings: Disp
     message.properties.gist.position = null;
     message.tooltipPosition = undefined;
     message.properties.gist.tooltipPosition = undefined;
+    message.properties.gist.tooltipArrowColor = undefined;
   } else if (displaySettings.displayType === 'inline') {
     message.overlay = false;
     message.elementId = displaySettings.elementSelector;
@@ -189,6 +197,7 @@ export function applyDisplaySettings(message: GistMessage, displaySettings: Disp
     message.properties.gist.position = null;
     message.tooltipPosition = undefined;
     message.properties.gist.tooltipPosition = undefined;
+    message.properties.gist.tooltipArrowColor = undefined;
   } else if (displaySettings.displayType === 'tooltip') {
     message.overlay = false;
     message.elementId = displaySettings.elementSelector;
@@ -197,6 +206,9 @@ export function applyDisplaySettings(message: GistMessage, displaySettings: Disp
     message.properties.gist.tooltipPosition = displaySettings.tooltipPosition;
     message.position = null;
     message.properties.gist.position = null;
+    if (displaySettings.tooltipArrowColor !== undefined) {
+      message.properties.gist.tooltipArrowColor = displaySettings.tooltipArrowColor;
+    }
   }
 
   const isWideOverlayPosition =
