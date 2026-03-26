@@ -292,7 +292,17 @@ export async function showTooltipComponent(message: GistMessage): Promise<boolea
     return false;
   }
 
-  const handle = positionTooltip(tooltipElement, selector, position);
+  const handle = positionTooltip(tooltipElement, selector, position, {
+    onDetach: () => {
+      tooltipHandleMap.delete(instanceId);
+      const wrapperId = `gist-tooltip-${instanceId}`;
+      const w = findElement(wrapperId);
+      if (w) {
+        w.parentNode?.removeChild(w);
+      }
+    },
+  });
+
   if (handle) {
     const isVisible = tooltipElement.style.display !== 'none';
     if (isVisible) {

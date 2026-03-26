@@ -4,3 +4,4 @@ dist
 web
 .docs
 .husky/_
+scripts/
