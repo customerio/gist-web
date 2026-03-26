@@ -641,14 +641,17 @@ function renderBar() {
       updated.maxWidth = updated.maxWidth ?? 414;
       delete updated.overlayPosition;
       delete updated.elementSelector;
+      delete updated.tooltipPosition;
     } else if (newType === 'overlay') {
       updated.overlayPosition = updated.overlayPosition || 'topCenter';
       updated.maxWidth = updated.maxWidth ?? 414;
       delete updated.modalPosition;
       delete updated.elementSelector;
+      delete updated.tooltipPosition;
     } else if (newType === 'inline') {
       delete updated.modalPosition;
       delete updated.overlayPosition;
+      delete updated.tooltipPosition;
     } else if (newType === 'tooltip') {
       updated.tooltipPosition = updated.tooltipPosition || 'top';
       delete updated.modalPosition;
