@@ -119,11 +119,15 @@ function showTooltipMessage(
   // Verify target element exists in the DOM
   const targetElement = findElement(targetSelector);
   if (!targetElement) {
-    log(
-      `Tooltip target element "${targetSelector}" not found for message ${message.messageId}, skipping display`
-    );
-    Gist.messageError(message);
-    return null;
+    const isLivePreview = Gist.config.isPreviewSession && message.properties?.gist?.livePreview;
+    if (!isLivePreview) {
+      log(
+        `Tooltip target element "${targetSelector}" not found for message ${message.messageId}, skipping display`
+      );
+      Gist.messageError(message);
+      return null;
+    }
+    log(`Preview: tooltip target "${targetSelector}" not found, loading message for preview bar`);
   }
 
   const existingTooltip = Gist.currentMessages.find(
@@ -372,6 +376,16 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
               undefined;
             const targetFound = !!targetSelector && !!findElement(targetSelector);
             if (!targetFound) {
+              const isLivePreview =
+                Gist.config.isPreviewSession && currentMessage.properties?.gist?.livePreview;
+              if (isLivePreview) {
+                log(
+                  `Preview: tooltip target "${targetSelector}" not found, preview bar will show element picker`
+                );
+                currentMessage.firstLoad = false;
+                currentMessage.isDisplayChange = false;
+                break;
+              }
               log(
                 `Tooltip target not found for "${targetSelector}", emitting error and skipping display`
               );
