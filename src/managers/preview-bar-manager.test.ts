@@ -37,6 +37,7 @@ import {
   initPreviewBar,
   updatePreviewBarMessage,
   updatePreviewBarStep,
+  clearPreviewBarMessage,
   destroyPreviewBar,
 } from './preview-bar-manager';
 
@@ -207,6 +208,38 @@ describe('preview-bar-manager', () => {
       const labels = Array.from(bar.querySelectorAll('.gist-pb-label')).map((el) => el.textContent);
       expect(labels).toContain('Element Selector');
       expect(labels).toContain('Position');
+    });
+  });
+
+  describe('clearPreviewBarMessage', () => {
+    it('shows session ended UI with countdown', () => {
+      initBarWithMessage();
+      clearPreviewBarMessage();
+
+      const bar = document.getElementById('gist-preview-bar')!;
+      expect(bar.querySelector('.gist-pb-ended-text')).not.toBeNull();
+      expect(bar.textContent).toContain('Refreshing in 5s');
+    });
+
+    it('prevents updatePreviewBarMessage from resetting session ended state', () => {
+      const message = initBarWithMessage();
+      clearPreviewBarMessage();
+
+      updatePreviewBarMessage(message);
+
+      const bar = document.getElementById('gist-preview-bar')!;
+      expect(bar.querySelector('.gist-pb-ended-text')).not.toBeNull();
+      expect(bar.querySelector('.gist-pb-save-btn')).toBeNull();
+    });
+
+    it('prevents updatePreviewBarStep from resetting session ended state', () => {
+      initBarWithMessage();
+      clearPreviewBarMessage();
+
+      updatePreviewBarStep('step-2', { displayType: 'modal' });
+
+      const bar = document.getElementById('gist-preview-bar')!;
+      expect(bar.querySelector('.gist-pb-ended-text')).not.toBeNull();
     });
   });
 

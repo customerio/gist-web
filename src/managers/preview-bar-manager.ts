@@ -714,7 +714,7 @@ export function initPreviewBar(): void {
 }
 
 export function updatePreviewBarMessage(message: GistMessage): void {
-  isSessionEnded = false;
+  if (isSessionEnded) return;
   currentInstanceId = message.instanceId ?? null;
   const fullSettings = message.displaySettings as unknown;
   if (Array.isArray(fullSettings) && fullSettings.length > 0) {
@@ -773,6 +773,7 @@ export function updatePreviewBarMessage(message: GistMessage): void {
 }
 
 export function updatePreviewBarStep(stepName: string, displaySettings: DisplaySettings): void {
+  if (isSessionEnded) return;
   currentStepName = stepName;
   const step = currentSteps.find((s) => s.stepName === stepName);
 
