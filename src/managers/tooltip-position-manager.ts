@@ -241,6 +241,11 @@ export interface TooltipHandle {
 }
 
 export interface PositionTooltipOptions {
+  /**
+   * Called when the position manager detects that the target or tooltip element
+   * was removed from the DOM unexpectedly (e.g. SPA navigation, dynamic DOM
+   * mutation). Not called when the consumer invokes `handle.cleanup()` directly.
+   */
   onDetach?: () => void;
 }
 
@@ -455,9 +460,13 @@ export function positionTooltip(
 
   try {
     observer = new MutationObserver(() => {
-      if (!document.contains(targetElement)) {
-        update();
-      }
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        if (!document.contains(targetElement)) {
+          update();
+        }
+      });
     });
     observer.observe(document.body, { childList: true, subtree: true });
   } catch {

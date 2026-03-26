@@ -295,7 +295,6 @@ export async function showTooltipComponent(message: GistMessage): Promise<boolea
   const handle = positionTooltip(tooltipElement, selector, position, {
     onDetach: () => {
       tooltipHandleMap.delete(instanceId);
-      const wrapperId = `gist-tooltip-${instanceId}`;
       const w = findElement(wrapperId);
       if (w) {
         w.parentNode?.removeChild(w);

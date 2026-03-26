@@ -500,6 +500,31 @@ describe('tooltip-position-manager', () => {
         );
       });
 
+      it('disconnects the MutationObserver on cleanup', async () => {
+        const disconnectSpy = vi.fn();
+        const OriginalObserver = globalThis.MutationObserver;
+        vi.stubGlobal(
+          'MutationObserver',
+          class extends OriginalObserver {
+            disconnect() {
+              disconnectSpy();
+              super.disconnect();
+            }
+          }
+        );
+
+        createTarget({});
+        const tooltip = createTooltip({ width: 120, height: 50 });
+        handle = positionTooltip(tooltip, '#target', 'bottom');
+
+        expect(disconnectSpy).not.toHaveBeenCalled();
+
+        handle!.cleanup();
+
+        expect(disconnectSpy).toHaveBeenCalledTimes(1);
+        handle = null;
+      });
+
       it('cleanup is idempotent and can be called multiple times safely', () => {
         createTarget({});
         const tooltip = createTooltip({ width: 120, height: 50 });
