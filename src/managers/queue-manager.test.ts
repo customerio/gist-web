@@ -1,9 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { checkMessageQueue, stopSSEListener, pullMessagesFromQueue } from './queue-manager';
+import {
+  checkMessageQueue,
+  stopSSEListener,
+  pullMessagesFromQueue,
+  handleMessage,
+} from './queue-manager';
 import { getEligibleBroadcasts } from './message-broadcast-manager';
 import { getMessagesFromLocalStore } from './message-user-queue-manager';
-import { showMessage } from './message-manager';
+import { showMessage, embedMessage } from './message-manager';
+import { resolveMessageProperties } from './gist-properties-manager';
+import { findElement } from '../utilities/dom';
 import { settings } from '../services/settings';
+import Gist from '../gist';
 import type { GistMessage } from '../types';
 
 vi.mock('../utilities/log', () => ({ log: vi.fn() }));
@@ -82,12 +90,16 @@ vi.mock('../services/settings', () => ({
 vi.mock('../utilities/message-utils', () => ({
   applyDisplaySettings: vi.fn(),
 }));
+vi.mock('../utilities/dom', () => ({
+  findElement: vi.fn(() => null),
+}));
 vi.mock('../gist', () => ({
   default: {
     currentRoute: null,
     isDocumentVisible: true,
     currentMessages: [],
     overlayInstanceId: null,
+    config: {},
   },
 }));
 
@@ -145,6 +157,110 @@ describe('queue-manager', () => {
 
       expect(settings.removeActiveSSEConnection).toHaveBeenCalled();
       expect(settings.setUseSSEFlag).toHaveBeenCalledWith(false);
+    });
+  });
+
+  describe('handleMessage – live preview with invalid elementId', () => {
+    it('falls back to showMessage when embedded element is not found in live preview', async () => {
+      vi.mocked(resolveMessageProperties).mockReturnValue({
+        isEmbedded: true,
+        elementId: 'nonexistent-element',
+        hasRouteRule: false,
+        routeRule: '',
+        position: '',
+        hasPosition: false,
+        tooltipPosition: '',
+        hasTooltipPosition: false,
+        tooltipArrowColor: '#fff',
+        shouldScale: false,
+        campaignId: null,
+        messageWidth: 414,
+        overlayColor: '#00000033',
+        persistent: false,
+        exitClick: false,
+        hasCustomWidth: false,
+      });
+      vi.mocked(findElement).mockReturnValue(null);
+      (Gist as unknown as Record<string, unknown>).config = { isPreviewSession: true };
+
+      const message: GistMessage = {
+        messageId: 'preview-msg',
+        queueId: 'q-preview',
+        properties: { gist: { livePreview: true, elementId: 'nonexistent-element' } },
+      };
+
+      await handleMessage(message);
+
+      expect(showMessage).toHaveBeenCalledWith(message);
+      expect(embedMessage).not.toHaveBeenCalled();
+    });
+
+    it('uses embedMessage when embedded element exists in live preview', async () => {
+      vi.mocked(resolveMessageProperties).mockReturnValue({
+        isEmbedded: true,
+        elementId: 'real-element',
+        hasRouteRule: false,
+        routeRule: '',
+        position: '',
+        hasPosition: false,
+        tooltipPosition: '',
+        hasTooltipPosition: false,
+        tooltipArrowColor: '#fff',
+        shouldScale: false,
+        campaignId: null,
+        messageWidth: 414,
+        overlayColor: '#00000033',
+        persistent: false,
+        exitClick: false,
+        hasCustomWidth: false,
+      });
+      vi.mocked(findElement).mockReturnValue(document.createElement('div'));
+      (Gist as unknown as Record<string, unknown>).config = { isPreviewSession: true };
+
+      const message: GistMessage = {
+        messageId: 'preview-msg-2',
+        queueId: 'q-preview-2',
+        properties: { gist: { livePreview: true, elementId: 'real-element' } },
+      };
+
+      await handleMessage(message);
+
+      expect(embedMessage).toHaveBeenCalledWith(message, 'real-element');
+      expect(showMessage).not.toHaveBeenCalled();
+    });
+
+    it('uses embedMessage when not in preview session even if element is missing', async () => {
+      vi.mocked(resolveMessageProperties).mockReturnValue({
+        isEmbedded: true,
+        elementId: 'missing-element',
+        hasRouteRule: false,
+        routeRule: '',
+        position: '',
+        hasPosition: false,
+        tooltipPosition: '',
+        hasTooltipPosition: false,
+        tooltipArrowColor: '#fff',
+        shouldScale: false,
+        campaignId: null,
+        messageWidth: 414,
+        overlayColor: '#00000033',
+        persistent: false,
+        exitClick: false,
+        hasCustomWidth: false,
+      });
+      vi.mocked(findElement).mockReturnValue(null);
+      (Gist as unknown as Record<string, unknown>).config = { isPreviewSession: false };
+
+      const message: GistMessage = {
+        messageId: 'normal-msg',
+        queueId: 'q-normal',
+        properties: { gist: { elementId: 'missing-element' } },
+      };
+
+      await handleMessage(message);
+
+      expect(embedMessage).toHaveBeenCalledWith(message, 'missing-element');
+      expect(showMessage).not.toHaveBeenCalled();
     });
   });
 });

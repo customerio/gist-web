@@ -237,9 +237,19 @@ function buildOverlayControls(settings: DisplaySettings, row: HTMLElement) {
   }
 }
 
+function validateSelectorInput(input: HTMLInputElement): void {
+  const selector = input.value.trim();
+  if (selector && !fetchElementBySelector(selector)) {
+    input.classList.add('gist-pb-input--invalid');
+  } else {
+    input.classList.remove('gist-pb-input--invalid');
+  }
+}
+
 function buildInlineControls(settings: DisplaySettings, row: HTMLElement) {
   const selectorInput = createInput('text', settings.elementSelector || '', '260px');
   selectorInput.placeholder = 'Element ID or selector';
+  validateSelectorInput(selectorInput);
   selectorInput.addEventListener('change', () => {
     const newSelector = selectorInput.value.trim();
     const prevSelector = currentSettings.elementSelector;
@@ -248,6 +258,7 @@ function buildInlineControls(settings: DisplaySettings, row: HTMLElement) {
     if (prevSelector && prevSelector !== newSelector) {
       restoreElementContent(prevSelector);
     }
+    validateSelectorInput(selectorInput);
   });
 
   const selectBtn = el('button', {

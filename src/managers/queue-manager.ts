@@ -25,6 +25,7 @@ import { updateInboxMessagesLocalStore } from './inbox-message-manager';
 import type { InboxMessage } from './inbox-message-manager';
 import { settings } from '../services/settings';
 import { applyDisplaySettings } from '../utilities/message-utils';
+import { findElement } from '../utilities/dom';
 import type { GistMessage, DisplaySettings } from '../types';
 
 const sleep = (time: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, time));
@@ -86,7 +87,7 @@ export async function checkCurrentMessagesAfterRouteChange(): Promise<void> {
 }
 
 // TODO: Move this to a utility and only return valid messages (from: getEligibleBroadcasts getMessagesFromLocalStore) & to handleMessage
-async function handleMessage(message: GistMessage): Promise<boolean> {
+export async function handleMessage(message: GistMessage): Promise<boolean> {
   let messageProperties = resolveMessageProperties(message);
   if (messageProperties.hasRouteRule) {
     let currentUrl = Gist.currentRoute;
@@ -135,7 +136,15 @@ async function handleMessage(message: GistMessage): Promise<boolean> {
   } else {
     let result: GistMessage | null = null;
     if (messageProperties.isEmbedded) {
-      result = embedMessage(message, messageProperties.elementId);
+      const isLivePreview = Gist.config.isPreviewSession && message.properties?.gist?.livePreview;
+      if (isLivePreview && !findElement(messageProperties.elementId)) {
+        log(
+          `Preview: element "${messageProperties.elementId}" not found, showing as overlay so placement can be changed`
+        );
+        result = await showMessage(message);
+      } else {
+        result = embedMessage(message, messageProperties.elementId);
+      }
     } else {
       result = await showMessage(message);
     }
