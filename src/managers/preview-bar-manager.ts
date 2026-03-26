@@ -8,6 +8,7 @@ import {
   mapOverlayPositionToElementId,
 } from '../utilities/message-utils';
 import { log } from '../utilities/log';
+import { findElement } from '../utilities/dom';
 import { PREVIEW_BAR_CSS, chevronSvg } from './preview-bar-styles';
 import { savePreviewDisplaySettings, deletePreviewSession } from '../services/preview-service';
 import { PREVIEW_PARAM_ID, teardownPreview } from '../utilities/preview-mode';
@@ -239,14 +240,14 @@ function buildOverlayControls(settings: DisplaySettings, row: HTMLElement) {
 
 function validateSelectorInput(input: HTMLInputElement): void {
   const selector = input.value.trim();
-  if (selector && !fetchElementBySelector(selector)) {
+  if (selector && !findElement(selector)) {
     input.classList.add('gist-pb-input--invalid');
   } else {
     input.classList.remove('gist-pb-input--invalid');
   }
 }
 
-function buildInlineControls(settings: DisplaySettings, row: HTMLElement) {
+function buildElementSelectorControl(settings: DisplaySettings, row: HTMLElement) {
   const selectorInput = createInput('text', settings.elementSelector || '', '260px');
   selectorInput.placeholder = 'Element ID or selector';
   validateSelectorInput(selectorInput);
@@ -262,6 +263,7 @@ function buildInlineControls(settings: DisplaySettings, row: HTMLElement) {
   });
 
   const selectBtn = el('button', {
+    type: 'button',
     className: 'gist-pb-select-elem-btn',
     textContent: 'Select Element',
   });
@@ -271,6 +273,28 @@ function buildInlineControls(settings: DisplaySettings, row: HTMLElement) {
   inputRow.appendChild(selectorInput);
   inputRow.appendChild(selectBtn);
   row.appendChild(labelGroup('Element Selector', inputRow));
+}
+
+function buildInlineControls(settings: DisplaySettings, row: HTMLElement) {
+  buildElementSelectorControl(settings, row);
+}
+
+function buildTooltipControls(settings: DisplaySettings, row: HTMLElement) {
+  buildElementSelectorControl(settings, row);
+
+  const posSelect = createSelect(
+    [
+      { value: 'top', label: 'Top' },
+      { value: 'bottom', label: 'Bottom' },
+      { value: 'left', label: 'Left' },
+      { value: 'right', label: 'Right' },
+    ],
+    settings.tooltipPosition || 'top'
+  );
+  posSelect.addEventListener('change', () =>
+    emitSettings({ ...currentSettings, tooltipPosition: posSelect.value })
+  );
+  row.appendChild(labelGroup('Position', posSelect));
 }
 
 function buildOverlayColorControl(settings: DisplaySettings): HTMLElement {
@@ -324,22 +348,10 @@ function buildOverlayColorControl(settings: DisplaySettings): HTMLElement {
   return labelGroup('Overlay Color', controlRow);
 }
 
-// ─── Element content preservation ────────────────────────────────────────────
-
-function fetchElementBySelector(selector: string): HTMLElement | null {
-  if (!selector) return null;
-  try {
-    return (document.getElementById(selector) ??
-      document.querySelector(selector)) as HTMLElement | null;
-  } catch {
-    return null;
-  }
-}
-
 /** Snapshot an element's innerHTML the first time the picker targets it. */
 function captureElementContent(selector: string): void {
   if (!selector || originalElementContent.has(selector)) return;
-  const element = fetchElementBySelector(selector);
+  const element = findElement(selector);
   if (element) {
     originalElementContent.set(selector, element.innerHTML);
   }
@@ -349,7 +361,7 @@ function captureElementContent(selector: string): void {
 function restoreElementContent(selector: string): void {
   const original = originalElementContent.get(selector);
   if (original === undefined) return;
-  const element = fetchElementBySelector(selector);
+  const element = findElement(selector);
   if (element) {
     element.innerHTML = original;
   }
@@ -561,7 +573,7 @@ function renderBar() {
 
   const toggleRowClass = `gist-pb-toggle-row${isCollapsed ? ' gist-pb-toggle-row--collapsed' : ''}`;
   const toggleRow = el('div', { className: toggleRowClass });
-  const toggleBtn = el('button', { className: 'gist-pb-toggle-btn' });
+  const toggleBtn = el('button', { type: 'button', className: 'gist-pb-toggle-btn' });
   const chevronStyle = isCollapsed
     ? 'transform:rotate(180deg);display:inline-flex;'
     : 'display:inline-flex;';
@@ -604,6 +616,7 @@ function renderBar() {
       { value: 'modal', label: 'Modal' },
       { value: 'overlay', label: 'Overlay' },
       { value: 'inline', label: 'Inline' },
+      { value: 'tooltip', label: 'Tooltip' },
     ],
     currentSettings.displayType || 'modal'
   );
@@ -617,14 +630,23 @@ function renderBar() {
       updated.maxWidth = updated.maxWidth ?? 414;
       delete updated.overlayPosition;
       delete updated.elementSelector;
+      delete updated.tooltipPosition;
     } else if (newType === 'overlay') {
       updated.overlayPosition = updated.overlayPosition || 'topCenter';
       updated.maxWidth = updated.maxWidth ?? 414;
       delete updated.modalPosition;
       delete updated.elementSelector;
+      delete updated.tooltipPosition;
     } else if (newType === 'inline') {
       delete updated.modalPosition;
       delete updated.overlayPosition;
+      delete updated.tooltipPosition;
+    } else if (newType === 'tooltip') {
+      updated.tooltipPosition = updated.tooltipPosition || 'top';
+      delete updated.modalPosition;
+      delete updated.overlayPosition;
+      delete updated.overlayColor;
+      delete updated.dismissOutsideClick;
     }
     currentSettings = updated;
     emitSettings(currentSettings);
@@ -646,10 +668,15 @@ function renderBar() {
   if (displayType === 'modal') buildModalControls(currentSettings, controlsRow);
   else if (displayType === 'overlay') buildOverlayControls(currentSettings, controlsRow);
   else if (displayType === 'inline') buildInlineControls(currentSettings, controlsRow);
+  else if (displayType === 'tooltip') buildTooltipControls(currentSettings, controlsRow);
 
   controlsRow.appendChild(el('div', { className: 'gist-pb-spacer' }));
 
-  const endBtn = el('button', { className: 'gist-pb-save-btn', textContent: 'End session' });
+  const endBtn = el('button', {
+    type: 'button',
+    className: 'gist-pb-save-btn',
+    textContent: 'End session',
+  });
   endBtn.addEventListener('click', async () => {
     if (!currentInstanceId) return;
     await Gist.dismissMessage(currentInstanceId);

@@ -42,6 +42,7 @@
       <a href="#" class="button" onClick="logIn()">Log In</a>
       <a href="#" class="button" onClick="logOut()">Log Out</a>
       <a href="#tooltipDemo" class="button" style="background-color:#8b5cf6;">Tooltip Demo ↓</a>
+      <a href="#" class="button" style="background-color:#b45309;" onClick="enablePreviewBar()">Enable Preview Bar</a>
     </div>
     <div class="row docs">
       <p>More information can be found on our <a target="_blank" href="https://docs.gist.build">docs</a>, if you have any question you can email us at <a target="_blank" href="mailto:support@gist.build">support@gist.build</a></p>
@@ -396,6 +397,39 @@
       Gist.events.on("messageDismissed", message => {
         setTimeout(refreshActiveMessages, 500);
       });
+
+      // ─── Preview Bar Demo ─────────────────────────────
+      function enablePreviewBar() {
+        var url = new URL(window.location.href);
+        if (url.searchParams.has('cioPreviewId')) {
+          alert('Preview bar is already active.');
+          return;
+        }
+        url.searchParams.set('cioPreviewId', 'local-preview-' + Date.now());
+        window.location.href = url.toString();
+      }
+
+      // When preview bar is active, auto-show a local HTML message with livePreview
+      (function() {
+        var params = new URLSearchParams(window.location.search);
+        if (!params.has('cioPreviewId')) return;
+
+        function showPreviewBarMessage() {
+          Gist.showMessage({
+            messageId: 'preview-bar-demo',
+            position: 'center',
+            properties: {
+              gist: {
+                encodedMessageHtml: EncodedTestHTMLMessage,
+                livePreview: true
+              }
+            }
+          });
+        }
+
+        // Show the message after a short delay to let the SDK initialize
+        setTimeout(showPreviewBarMessage, 1000);
+      })();
 
       // ─── Tooltip Demo ─────────────────────────────────
       let activeTooltipInstanceId = null;

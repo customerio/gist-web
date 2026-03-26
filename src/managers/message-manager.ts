@@ -21,6 +21,7 @@ import {
   hideTooltipComponent,
 } from './message-component-manager';
 import { resolveMessageProperties } from './gist-properties-manager';
+import { findElement } from '../utilities/dom';
 import { positions, addPageElement } from './page-component-manager';
 import { getAllCustomAttributes } from './custom-attribute-manager';
 import { checkMessageQueue } from './queue-manager';
@@ -116,17 +117,11 @@ function showTooltipMessage(
   }
 
   // Verify target element exists in the DOM
-  try {
-    const targetElement = document.querySelector(targetSelector);
-    if (!targetElement) {
-      log(
-        `Tooltip target element "${targetSelector}" not found for message ${message.messageId}, skipping display`
-      );
-      Gist.messageError(message);
-      return null;
-    }
-  } catch {
-    log(`Invalid tooltip target selector "${targetSelector}" for message ${message.messageId}`);
+  const targetElement = findElement(targetSelector);
+  if (!targetElement) {
+    log(
+      `Tooltip target element "${targetSelector}" not found for message ${message.messageId}, skipping display`
+    );
     Gist.messageError(message);
     return null;
   }
@@ -375,14 +370,7 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
               (currentMessage.properties?.gist?.elementId as string | undefined) ||
               currentMessage.elementId ||
               undefined;
-            let targetFound = false;
-            try {
-              targetFound = !!targetSelector && !!document.querySelector(targetSelector);
-            } catch {
-              log(
-                `Invalid tooltip target selector "${targetSelector}" for message ${currentMessage.messageId}`
-              );
-            }
+            const targetFound = !!targetSelector && !!findElement(targetSelector);
             if (!targetFound) {
               log(
                 `Tooltip target not found for "${targetSelector}", emitting error and skipping display`
