@@ -240,6 +240,15 @@ export interface TooltipHandle {
   reposition: () => void;
 }
 
+export interface PositionTooltipOptions {
+  /**
+   * Called when the position manager detects that the target or tooltip element
+   * was removed from the DOM unexpectedly (e.g. SPA navigation, dynamic DOM
+   * mutation). Not called when the consumer invokes `handle.cleanup()` directly.
+   */
+  onDetach?: () => void;
+}
+
 /**
  * Predicts whether the tooltip can be positioned after the target is scrolled
  * into view. Returns true only when the target exists in the DOM and at least
@@ -355,7 +364,8 @@ export async function ensureTargetInView(
 export function positionTooltip(
   tooltipElement: HTMLElement,
   targetSelector: string,
-  position: TooltipPosition
+  position: TooltipPosition,
+  options?: PositionTooltipOptions
 ): TooltipHandle | null {
   const targetElement = findTargetElement(targetSelector);
   if (!targetElement) {
@@ -363,8 +373,10 @@ export function positionTooltip(
   }
 
   let rafId: number | null = null;
+  let mutationRafId: number | null = null;
   let cleaned = false;
   let scrollAncestors: Element[] = [];
+  let observer: MutationObserver | null = null;
 
   try {
     scrollAncestors = getScrollableAncestors(targetElement);
@@ -380,6 +392,7 @@ export function positionTooltip(
     if (!targetElement || !document.contains(targetElement) || !document.contains(tooltipElement)) {
       log(`Tooltip or target element removed from DOM, cleaning up listeners`);
       cleanup();
+      options?.onDetach?.();
       return;
     }
 
@@ -419,6 +432,10 @@ export function positionTooltip(
       return;
     }
     cleaned = true;
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
     window.removeEventListener('scroll', onScrollOrResize);
     window.removeEventListener('resize', onScrollOrResize);
     for (const ancestor of scrollAncestors) {
@@ -427,6 +444,10 @@ export function positionTooltip(
     if (rafId !== null) {
       cancelAnimationFrame(rafId);
       rafId = null;
+    }
+    if (mutationRafId !== null) {
+      cancelAnimationFrame(mutationRafId);
+      mutationRafId = null;
     }
   }
 
@@ -440,6 +461,21 @@ export function positionTooltip(
   window.addEventListener('resize', onScrollOrResize, { passive: true });
   for (const ancestor of scrollAncestors) {
     ancestor.addEventListener('scroll', onScrollOrResize, { passive: true });
+  }
+
+  try {
+    observer = new MutationObserver(() => {
+      if (mutationRafId !== null) return;
+      mutationRafId = requestAnimationFrame(() => {
+        mutationRafId = null;
+        if (!document.contains(targetElement)) {
+          update();
+        }
+      });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  } catch {
+    // MutationObserver may not be available in some test environments
   }
 
   return { cleanup, reposition: update };

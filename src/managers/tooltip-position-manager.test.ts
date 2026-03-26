@@ -377,7 +377,109 @@ describe('tooltip-position-manager', () => {
         expect(result).toBeNull();
       });
 
-      it('stops repositioning when target is removed from DOM after initial positioning', () => {
+      it('calls onDetach and cleans up when target is removed from DOM after initial positioning', () => {
+        let rafCallback: FrameRequestCallback | null = null;
+        vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+          rafCallback = cb;
+          return 1;
+        });
+
+        const onDetach = vi.fn();
+        const target = createTarget({});
+        const tooltip = createTooltip({ width: 120, height: 50 });
+        handle = positionTooltip(tooltip, '#target', 'bottom', { onDetach });
+
+        target.remove();
+
+        window.dispatchEvent(new Event('scroll'));
+        rafCallback!(0);
+
+        expect(onDetach).toHaveBeenCalledTimes(1);
+        expect(log).toHaveBeenCalledWith(
+          'Tooltip or target element removed from DOM, cleaning up listeners'
+        );
+      });
+
+      it('calls onDetach and cleans up when tooltip is removed from DOM', () => {
+        let rafCallback: FrameRequestCallback | null = null;
+        vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+          rafCallback = cb;
+          return 1;
+        });
+
+        const onDetach = vi.fn();
+        createTarget({});
+        const tooltip = createTooltip({ width: 120, height: 50 });
+        handle = positionTooltip(tooltip, '#target', 'bottom', { onDetach });
+
+        tooltip.remove();
+
+        window.dispatchEvent(new Event('scroll'));
+        rafCallback!(0);
+
+        expect(onDetach).toHaveBeenCalledTimes(1);
+        expect(log).toHaveBeenCalledWith(
+          'Tooltip or target element removed from DOM, cleaning up listeners'
+        );
+      });
+
+      it('calls onDetach via MutationObserver when target is removed without scroll', async () => {
+        const onDetach = vi.fn();
+        const target = createTarget({});
+        const tooltip = createTooltip({ width: 120, height: 50 });
+        handle = positionTooltip(tooltip, '#target', 'bottom', { onDetach });
+        expect(handle).not.toBeNull();
+
+        target.remove();
+
+        // MutationObserver callbacks are microtasks — flush them
+        await new Promise((r) => setTimeout(r, 0));
+
+        expect(onDetach).toHaveBeenCalledTimes(1);
+        expect(log).toHaveBeenCalledWith(
+          'Tooltip or target element removed from DOM, cleaning up listeners'
+        );
+      });
+
+      it('calls onDetach when target parent is replaced (SPA navigation)', async () => {
+        const onDetach = vi.fn();
+        const container = document.createElement('div');
+        container.id = 'app-root';
+        document.body.appendChild(container);
+
+        const target = document.createElement('div');
+        target.id = 'spa-target';
+        container.appendChild(target);
+        target.getBoundingClientRect = vi.fn(
+          () =>
+            ({
+              top: 100,
+              bottom: 140,
+              left: 200,
+              right: 280,
+              width: 80,
+              height: 40,
+              x: 200,
+              y: 100,
+              toJSON: () => ({}),
+            }) as DOMRect
+        );
+
+        const tooltip = createTooltip({ width: 120, height: 50 });
+        handle = positionTooltip(tooltip, '#spa-target', 'bottom', { onDetach });
+        expect(handle).not.toBeNull();
+
+        container.innerHTML = '<div>new page content</div>';
+
+        await new Promise((r) => setTimeout(r, 0));
+
+        expect(onDetach).toHaveBeenCalledTimes(1);
+        expect(log).toHaveBeenCalledWith(
+          'Tooltip or target element removed from DOM, cleaning up listeners'
+        );
+      });
+
+      it('cleans up without error when onDetach is not provided', () => {
         let rafCallback: FrameRequestCallback | null = null;
         vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
           rafCallback = cb;
@@ -391,32 +493,81 @@ describe('tooltip-position-manager', () => {
         target.remove();
 
         window.dispatchEvent(new Event('scroll'));
-        rafCallback!(0);
+        expect(() => rafCallback!(0)).not.toThrow();
 
         expect(log).toHaveBeenCalledWith(
           'Tooltip or target element removed from DOM, cleaning up listeners'
         );
       });
 
-      it('stops repositioning when tooltip is removed from DOM', () => {
-        let rafCallback: FrameRequestCallback | null = null;
+      it('does not swallow scroll repositioning when an unrelated DOM mutation fires', () => {
+        const rafCallbacks: FrameRequestCallback[] = [];
+        let nextRafId = 1;
         vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
-          rafCallback = cb;
-          return 1;
+          rafCallbacks.push(cb);
+          return nextRafId++;
         });
+
+        const target = createTarget({});
+        const tooltip = createTooltip({ width: 120, height: 50 });
+        handle = positionTooltip(tooltip, '#target', 'bottom');
+
+        const callCountBefore = (target.getBoundingClientRect as ReturnType<typeof vi.fn>).mock
+          .calls.length;
+
+        // Trigger an unrelated DOM mutation (target is still attached)
+        const unrelated = document.createElement('span');
+        document.body.appendChild(unrelated);
+
+        // Flush the MutationObserver microtask so its RAF is queued
+        // MutationObserver uses a real microtask in jsdom, but we need to
+        // manually invoke the RAF callback it scheduled.
+        // Simulate: mutation observer queued a RAF
+        const mutationRaf = rafCallbacks.pop();
+
+        // Now a scroll fires while the mutation RAF is pending
+        window.dispatchEvent(new Event('scroll'));
+
+        // The scroll should have queued its own RAF (not been blocked)
+        const scrollRaf = rafCallbacks.pop();
+        expect(scrollRaf).toBeDefined();
+
+        // Fire the mutation RAF — target is still attached, so it's a no-op
+        if (mutationRaf) mutationRaf(0);
+
+        // Fire the scroll RAF — this must call update() and reposition
+        scrollRaf!(0);
+
+        const callCountAfter = (target.getBoundingClientRect as ReturnType<typeof vi.fn>).mock.calls
+          .length;
+        expect(callCountAfter).toBeGreaterThan(callCountBefore);
+
+        unrelated.remove();
+      });
+
+      it('disconnects the MutationObserver on cleanup', async () => {
+        const disconnectSpy = vi.fn();
+        const OriginalObserver = globalThis.MutationObserver;
+        vi.stubGlobal(
+          'MutationObserver',
+          class extends OriginalObserver {
+            disconnect() {
+              disconnectSpy();
+              super.disconnect();
+            }
+          }
+        );
 
         createTarget({});
         const tooltip = createTooltip({ width: 120, height: 50 });
         handle = positionTooltip(tooltip, '#target', 'bottom');
 
-        tooltip.remove();
+        expect(disconnectSpy).not.toHaveBeenCalled();
 
-        window.dispatchEvent(new Event('scroll'));
-        rafCallback!(0);
+        handle!.cleanup();
 
-        expect(log).toHaveBeenCalledWith(
-          'Tooltip or target element removed from DOM, cleaning up listeners'
-        );
+        expect(disconnectSpy).toHaveBeenCalledTimes(1);
+        handle = null;
       });
 
       it('cleanup is idempotent and can be called multiple times safely', () => {

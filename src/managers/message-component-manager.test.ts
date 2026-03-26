@@ -296,7 +296,12 @@ describe('message-component-manager', () => {
       await showTooltipComponent(message);
 
       const tooltipElement = document.querySelector('.gist-tooltip-outer');
-      expect(positionTooltip).toHaveBeenCalledWith(tooltipElement, '#target-el', 'top');
+      expect(positionTooltip).toHaveBeenCalledWith(
+        tooltipElement,
+        '#target-el',
+        'top',
+        expect.objectContaining({ onDetach: expect.any(Function) })
+      );
     });
 
     it('defaults tooltip position to bottom when not specified', async () => {
@@ -328,7 +333,12 @@ describe('message-component-manager', () => {
 
       await showTooltipComponent(message);
 
-      expect(positionTooltip).toHaveBeenCalledWith(expect.any(HTMLElement), '#target-el', 'bottom');
+      expect(positionTooltip).toHaveBeenCalledWith(
+        expect.any(HTMLElement),
+        '#target-el',
+        'bottom',
+        expect.objectContaining({ onDetach: expect.any(Function) })
+      );
     });
 
     it('returns false when positionTooltip returns null (target not found)', async () => {
@@ -424,6 +434,34 @@ describe('message-component-manager', () => {
 
       const container = document.querySelector('.gist-tooltip-container');
       expect(container?.classList.contains('gist-visible')).toBe(false);
+    });
+
+    it('removes wrapper and clears handle when onDetach is invoked by position manager', async () => {
+      let capturedOnDetach: (() => void) | undefined;
+      const mockCleanup = vi.fn();
+      vi.mocked(positionTooltip).mockImplementation((_el, _sel, _pos, options) => {
+        capturedOnDetach = options?.onDetach;
+        return { cleanup: mockCleanup, reposition: vi.fn() };
+      });
+
+      setupTooltipWrapper('inst-1');
+      const message: GistMessage = {
+        messageId: 'msg-1',
+        instanceId: 'inst-1',
+        properties: { gist: { elementId: '#target-el' } },
+      };
+
+      const result = await showTooltipComponent(message);
+      expect(result).toBe(true);
+      expect(document.getElementById('gist-tooltip-inst-1')).not.toBeNull();
+
+      capturedOnDetach!();
+
+      expect(document.getElementById('gist-tooltip-inst-1')).toBeNull();
+
+      // Subsequent hide should not call cleanup again since the map entry was cleared
+      hideTooltipComponent(message);
+      expect(mockCleanup).not.toHaveBeenCalled();
     });
 
     it('returns false without calling positionTooltip when ensureTargetInView returns false', async () => {
