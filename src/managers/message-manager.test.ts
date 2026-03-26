@@ -468,6 +468,29 @@ describe('message-manager', () => {
       expect(mockGist.messageError).toHaveBeenCalledWith(message);
     });
 
+    it('loads message for preview bar when target not found in live preview', async () => {
+      const { loadTooltipComponent } = await import('./message-component-manager');
+      const { resolveMessageProperties } = await import('./gist-properties-manager');
+      vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties('#nonexistent'));
+
+      mockGist.config.isPreviewSession = true;
+
+      const message: GistMessage = {
+        messageId: 'tooltip-preview',
+        tooltipPosition: 'bottom',
+        properties: {
+          gist: { elementId: '#nonexistent', tooltipPosition: 'bottom', livePreview: true },
+        },
+      };
+
+      const result = await showMessage(message);
+
+      expect(result).toBe(message);
+      expect(loadTooltipComponent).toHaveBeenCalled();
+      expect(mockGist.messageError).not.toHaveBeenCalled();
+      expect(mockGist.currentMessages).toContain(message);
+    });
+
     it('returns null and emits error for invalid selector instead of throwing', async () => {
       const { resolveMessageProperties } = await import('./gist-properties-manager');
       vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties('[invalid!'));
@@ -729,6 +752,57 @@ describe('message-manager', () => {
 
         expect(mockGist.messageError).toHaveBeenCalledWith(message);
         expect(message.firstLoad).toBe(false);
+      });
+
+      it('keeps message alive in live preview when tooltip target is gone on routeLoaded', async () => {
+        const { fetchMessageByInstanceId, getCurrentDisplayType } =
+          await import('../utilities/message-utils');
+        const { resolveMessageProperties } = await import('./gist-properties-manager');
+        const { updatePreviewBarMessage } = await import('./preview-bar-manager');
+        const mocks = await import('./message-component-manager');
+
+        vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties('#missing-target'));
+
+        mockGist.config.isPreviewSession = true;
+
+        const message: GistMessage = {
+          messageId: 'tooltip-preview-route',
+          tooltipPosition: 'bottom',
+          elementId: '#missing-target',
+          firstLoad: true,
+          properties: {
+            gist: {
+              elementId: '#missing-target',
+              tooltipPosition: 'bottom',
+              livePreview: true,
+            },
+          },
+        };
+
+        vi.mocked(getCurrentDisplayType).mockReturnValue('tooltip');
+        await showMessage(message);
+        vi.mocked(fetchMessageByInstanceId).mockReturnValue(message);
+
+        const event = new MessageEvent('message', {
+          data: {
+            gist: {
+              method: 'routeLoaded',
+              instanceId: message.instanceId,
+              parameters: { route: '/step-1' },
+            },
+          },
+          origin: 'https://renderer.test',
+        });
+        window.dispatchEvent(event);
+        await vi.dynamicImportSettled();
+
+        expect(updatePreviewBarMessage).toHaveBeenCalledWith(
+          expect.objectContaining({ messageId: 'tooltip-preview-route' })
+        );
+        expect(mockGist.messageError).not.toHaveBeenCalled();
+        expect(mocks.hideTooltipComponent).not.toHaveBeenCalled();
+        expect(mocks.showTooltipComponent).not.toHaveBeenCalled();
+        expect(mockGist.currentMessages).toContain(message);
       });
 
       it('gracefully handles invalid selector in routeLoaded instead of throwing', async () => {
