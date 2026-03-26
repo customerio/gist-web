@@ -93,6 +93,7 @@ export const PREVIEW_BAR_CSS = `
     font-size: 12px; color: #3F4E50; padding: 0 6px 0 2px;
     font-family: system-ui, -apple-system, sans-serif; flex-shrink: 0;
   }
+  .gist-pb-input--invalid { border-color: #941616; outline: 1px solid #941616; }
   .gist-pb-inline-row { display: flex; align-items: center; gap: 6px; }
   .gist-pb-select-elem-btn {
     height: 32px; padding: 0 12px;
