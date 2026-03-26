@@ -397,6 +397,16 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
             }
             const tooltipVisible = await showTooltipComponent(currentMessage);
             if (!tooltipVisible) {
+              const isLivePreview =
+                Gist.config.isPreviewSession && currentMessage.properties?.gist?.livePreview;
+              if (isLivePreview) {
+                log(
+                  `Preview: tooltip positioning failed for "${targetSelector}", preview bar will remain active`
+                );
+                currentMessage.firstLoad = false;
+                currentMessage.isDisplayChange = false;
+                break;
+              }
               log(
                 `Tooltip positioning failed for "${targetSelector}", emitting error and cleaning up`
               );
