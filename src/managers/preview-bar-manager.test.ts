@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { GistMessage, StepDisplayConfig } from '../types';
+import type { DisplaySettings, GistMessage, StepDisplayConfig } from '../types';
 
 const mockGist = vi.hoisted(() => ({
   currentMessages: [] as GistMessage[],
@@ -53,13 +53,13 @@ describe('preview-bar-manager', () => {
 
   function initBarWithMessage(
     steps: StepDisplayConfig[] = [],
-    displayType: string = 'modal'
+    displayType: DisplaySettings['displayType'] = 'modal'
   ): GistMessage {
     initPreviewBar();
     const message: GistMessage = {
       messageId: 'msg-1',
       instanceId: 'inst-1',
-      displaySettings: steps.length > 0 ? steps : { displayType },
+      displaySettings: steps.length > 0 ? (steps as unknown as DisplaySettings) : { displayType },
     };
     mockGist.currentMessages = [message];
     updatePreviewBarMessage(message);
