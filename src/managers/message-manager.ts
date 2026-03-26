@@ -370,14 +370,7 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
               (currentMessage.properties?.gist?.elementId as string | undefined) ||
               currentMessage.elementId ||
               undefined;
-            let targetFound = false;
-            try {
-              targetFound = !!targetSelector && !!document.querySelector(targetSelector);
-            } catch {
-              log(
-                `Invalid tooltip target selector "${targetSelector}" for message ${currentMessage.messageId}`
-              );
-            }
+            const targetFound = !!targetSelector && !!findElement(targetSelector);
             if (!targetFound) {
               log(
                 `Tooltip target not found for "${targetSelector}", emitting error and skipping display`

@@ -31,6 +31,11 @@ export const PREVIEW_BAR_CSS = `
     color: white; cursor: pointer;
     display: flex; align-items: center; gap: 6px;
     pointer-events: auto;
+    height: auto; min-width: auto;
+    box-sizing: border-box;
+    line-height: normal;
+    -webkit-appearance: none;
+    appearance: none;
   }
   .gist-pb-controls-row {
     background: #F8F9F9;
@@ -100,6 +105,8 @@ export const PREVIEW_BAR_CSS = `
     border: none; border-radius: 6px;
     font-size: 12px; font-weight: 500; font-family: system-ui, -apple-system, sans-serif;
     background: #08272B; color: white; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    min-width: auto; box-sizing: border-box;
+    -webkit-appearance: none; appearance: none;
   }
   .gist-pb-spacer { flex: 1; min-width: 0; }
   .gist-pb-save-btn {
@@ -109,6 +116,8 @@ export const PREVIEW_BAR_CSS = `
     font-size: 13px; font-weight: 600;
     font-family: system-ui, -apple-system, sans-serif;
     cursor: pointer; white-space: nowrap; align-self: center;
+    min-width: auto; box-sizing: border-box;
+    -webkit-appearance: none; appearance: none;
   }
   .gist-pb-save-btn:disabled {
     background: #CAD6D8; cursor: not-allowed;
