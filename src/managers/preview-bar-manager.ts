@@ -280,8 +280,6 @@ function buildInlineControls(settings: DisplaySettings, row: HTMLElement) {
 }
 
 function buildTooltipControls(settings: DisplaySettings, row: HTMLElement) {
-  buildElementSelectorControl(settings, row);
-
   const posSelect = createSelect(
     [
       { value: 'top', label: 'Top' },
@@ -295,6 +293,8 @@ function buildTooltipControls(settings: DisplaySettings, row: HTMLElement) {
     emitSettings({ ...currentSettings, tooltipPosition: posSelect.value })
   );
   row.appendChild(labelGroup('Position', posSelect));
+
+  buildElementSelectorControl(settings, row);
 }
 
 function buildOverlayColorControl(settings: DisplaySettings): HTMLElement {
