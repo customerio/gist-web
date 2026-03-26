@@ -468,6 +468,22 @@ describe('message-manager', () => {
       expect(mockGist.messageError).toHaveBeenCalledWith(message);
     });
 
+    it('returns null and emits error for invalid selector instead of throwing', async () => {
+      const { resolveMessageProperties } = await import('./gist-properties-manager');
+      vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties('[invalid!'));
+
+      const message: GistMessage = {
+        messageId: 'tooltip-invalid',
+        tooltipPosition: 'bottom',
+        properties: { gist: { elementId: '[invalid!', tooltipPosition: 'bottom' } },
+      };
+
+      const result = await showMessage(message);
+
+      expect(result).toBeNull();
+      expect(mockGist.messageError).toHaveBeenCalledWith(message);
+    });
+
     it('allows tooltip when an overlay is already active', async () => {
       const { loadTooltipComponent } = await import('./message-component-manager');
       const { resolveMessageProperties } = await import('./gist-properties-manager');
