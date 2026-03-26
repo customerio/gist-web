@@ -8,6 +8,7 @@ import {
   mapOverlayPositionToElementId,
 } from '../utilities/message-utils';
 import { log } from '../utilities/log';
+import { findElement } from '../utilities/dom';
 import { PREVIEW_BAR_CSS, chevronSvg } from './preview-bar-styles';
 import { savePreviewDisplaySettings, deletePreviewSession } from '../services/preview-service';
 import { PREVIEW_PARAM_ID, teardownPreview } from '../utilities/preview-mode';
@@ -239,7 +240,7 @@ function buildOverlayControls(settings: DisplaySettings, row: HTMLElement) {
 
 function validateSelectorInput(input: HTMLInputElement): void {
   const selector = input.value.trim();
-  if (selector && !fetchElementBySelector(selector)) {
+  if (selector && !findElement(selector)) {
     input.classList.add('gist-pb-input--invalid');
   } else {
     input.classList.remove('gist-pb-input--invalid');
@@ -347,22 +348,10 @@ function buildOverlayColorControl(settings: DisplaySettings): HTMLElement {
   return labelGroup('Overlay Color', controlRow);
 }
 
-// ─── Element content preservation ────────────────────────────────────────────
-
-function fetchElementBySelector(selector: string): HTMLElement | null {
-  if (!selector) return null;
-  try {
-    return (document.getElementById(selector) ??
-      document.querySelector(selector)) as HTMLElement | null;
-  } catch {
-    return null;
-  }
-}
-
 /** Snapshot an element's innerHTML the first time the picker targets it. */
 function captureElementContent(selector: string): void {
   if (!selector || originalElementContent.has(selector)) return;
-  const element = fetchElementBySelector(selector);
+  const element = findElement(selector);
   if (element) {
     originalElementContent.set(selector, element.innerHTML);
   }
@@ -372,7 +361,7 @@ function captureElementContent(selector: string): void {
 function restoreElementContent(selector: string): void {
   const original = originalElementContent.get(selector);
   if (original === undefined) return;
-  const element = fetchElementBySelector(selector);
+  const element = findElement(selector);
   if (element) {
     element.innerHTML = original;
   }
