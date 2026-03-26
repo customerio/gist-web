@@ -373,6 +373,7 @@ export function positionTooltip(
   }
 
   let rafId: number | null = null;
+  let mutationRafId: number | null = null;
   let cleaned = false;
   let scrollAncestors: Element[] = [];
   let observer: MutationObserver | null = null;
@@ -444,6 +445,10 @@ export function positionTooltip(
       cancelAnimationFrame(rafId);
       rafId = null;
     }
+    if (mutationRafId !== null) {
+      cancelAnimationFrame(mutationRafId);
+      mutationRafId = null;
+    }
   }
 
   update();
@@ -460,9 +465,9 @@ export function positionTooltip(
 
   try {
     observer = new MutationObserver(() => {
-      if (rafId !== null) return;
-      rafId = requestAnimationFrame(() => {
-        rafId = null;
+      if (mutationRafId !== null) return;
+      mutationRafId = requestAnimationFrame(() => {
+        mutationRafId = null;
         if (!document.contains(targetElement)) {
           update();
         }

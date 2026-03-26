@@ -500,6 +500,51 @@ describe('tooltip-position-manager', () => {
         );
       });
 
+      it('does not swallow scroll repositioning when an unrelated DOM mutation fires', () => {
+        const rafCallbacks: FrameRequestCallback[] = [];
+        let nextRafId = 1;
+        vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+          rafCallbacks.push(cb);
+          return nextRafId++;
+        });
+
+        const target = createTarget({});
+        const tooltip = createTooltip({ width: 120, height: 50 });
+        handle = positionTooltip(tooltip, '#target', 'bottom');
+
+        const callCountBefore = (target.getBoundingClientRect as ReturnType<typeof vi.fn>).mock
+          .calls.length;
+
+        // Trigger an unrelated DOM mutation (target is still attached)
+        const unrelated = document.createElement('span');
+        document.body.appendChild(unrelated);
+
+        // Flush the MutationObserver microtask so its RAF is queued
+        // MutationObserver uses a real microtask in jsdom, but we need to
+        // manually invoke the RAF callback it scheduled.
+        // Simulate: mutation observer queued a RAF
+        const mutationRaf = rafCallbacks.pop();
+
+        // Now a scroll fires while the mutation RAF is pending
+        window.dispatchEvent(new Event('scroll'));
+
+        // The scroll should have queued its own RAF (not been blocked)
+        const scrollRaf = rafCallbacks.pop();
+        expect(scrollRaf).toBeDefined();
+
+        // Fire the mutation RAF — target is still attached, so it's a no-op
+        if (mutationRaf) mutationRaf(0);
+
+        // Fire the scroll RAF — this must call update() and reposition
+        scrollRaf!(0);
+
+        const callCountAfter = (target.getBoundingClientRect as ReturnType<typeof vi.fn>).mock.calls
+          .length;
+        expect(callCountAfter).toBeGreaterThan(callCountBefore);
+
+        unrelated.remove();
+      });
+
       it('disconnects the MutationObserver on cleanup', async () => {
         const disconnectSpy = vi.fn();
         const OriginalObserver = globalThis.MutationObserver;
