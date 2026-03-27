@@ -108,6 +108,9 @@ export const PREVIEW_BAR_CSS = `
     min-width: auto; box-sizing: border-box;
     -webkit-appearance: none; appearance: none;
   }
+  .gist-pb-select-elem-btn:disabled {
+    opacity: 0.4; cursor: not-allowed;
+  }
   .gist-pb-spacer { flex: 1; min-width: 0; }
   .gist-pb-save-btn {
     height: 36px; padding: 0 18px;

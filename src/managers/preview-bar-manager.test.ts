@@ -191,6 +191,73 @@ describe('preview-bar-manager', () => {
     });
   });
 
+  describe('element picker button disabled state', () => {
+    function getSelectBtn(): HTMLButtonElement {
+      return document.querySelector<HTMLButtonElement>(
+        '#gist-preview-bar .gist-pb-select-elem-btn'
+      )!;
+    }
+
+    function getPickerOverlay(): HTMLElement | null {
+      return document.querySelector<HTMLElement>('.gist-pb-picker-overlay');
+    }
+
+    it('select element button is not disabled initially', () => {
+      initBarWithMessage([], 'inline');
+      expect(getSelectBtn().disabled).toBe(false);
+    });
+
+    it('disables the button when element picker is activated', () => {
+      initBarWithMessage([], 'inline');
+      const btn = getSelectBtn();
+      btn.click();
+      expect(btn.disabled).toBe(true);
+      expect(getPickerOverlay()).not.toBeNull();
+    });
+
+    it('re-enables the button after picker is cancelled with Escape', () => {
+      initBarWithMessage([], 'inline');
+      getSelectBtn().click();
+      expect(getSelectBtn().disabled).toBe(true);
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+
+      expect(getPickerOverlay()).toBeNull();
+      expect(getSelectBtn().disabled).toBe(false);
+    });
+
+    it('re-enables the button after an element is picked', () => {
+      // Add a target element for the picker to find
+      const target = document.createElement('div');
+      target.id = 'pick-target';
+      document.body.appendChild(target);
+
+      // Stub CSS.escape since jsdom doesn't support it
+      const globalCSS = globalThis as unknown as Record<string, unknown>;
+      const origCSS = globalCSS.CSS;
+      globalCSS.CSS = { escape: (v: string) => v };
+
+      initBarWithMessage([], 'inline');
+      getSelectBtn().click();
+      expect(getSelectBtn().disabled).toBe(true);
+
+      const overlay = getPickerOverlay()!;
+      // Simulate clicking on the overlay — elementFromPoint will return the target
+      const origElementFromPoint = document.elementFromPoint;
+      document.elementFromPoint = vi.fn(
+        () => target
+      ) as unknown as typeof document.elementFromPoint;
+
+      overlay.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+      document.elementFromPoint = origElementFromPoint;
+      globalCSS.CSS = origCSS;
+
+      expect(getPickerOverlay()).toBeNull();
+      expect(getSelectBtn().disabled).toBe(false);
+    });
+  });
+
   describe('updatePreviewBarStep', () => {
     it('updates the bar when step changes', () => {
       const steps: StepDisplayConfig[] = [
