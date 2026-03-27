@@ -267,6 +267,7 @@ function buildElementSelectorControl(settings: DisplaySettings, row: HTMLElement
     className: 'gist-pb-select-elem-btn',
     textContent: 'Select Element',
   });
+  if (pickerActive) selectBtn.disabled = true;
   selectBtn.addEventListener('click', () => startElementPicker(selectorInput));
 
   const inputRow = el('div', { className: 'gist-pb-inline-row' });
@@ -441,6 +442,12 @@ function startElementPicker(target: HTMLInputElement) {
   if (pickerActive) return;
   pickerActive = true;
 
+  // Disable the "Select Element" button while picker is active
+  const selectElemBtn = document.querySelector<HTMLButtonElement>(
+    `#${BAR_ID} .gist-pb-select-elem-btn`
+  );
+  if (selectElemBtn) selectElemBtn.disabled = true;
+
   const settingsBeforePicker = { ...currentSettings };
   const msg =
     Gist.currentMessages.find((m: GistMessage) => m.instanceId === currentInstanceId) ?? null;
@@ -523,6 +530,7 @@ function startElementPicker(target: HTMLInputElement) {
       }
     }
     cleanup();
+    renderBar();
   };
 
   const cleanup = () => {
