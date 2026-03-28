@@ -44,6 +44,8 @@ let isCollapsed = false;
 let isSessionEnded = false;
 let sessionEndedCountdown = 5;
 let sessionEndedTimer: ReturnType<typeof setInterval> | null = null;
+let shouldCloseWindowOnSessionEnd = true;
+let isFinalizingSessionEnd = false;
 let pickerActive = false;
 let pickerCleanup: (() => void) | null = null;
 let pendingInitialStepName: string | null = null;
@@ -571,9 +573,23 @@ function renderBar() {
       const endedRow = el('div', { className: 'gist-pb-controls-row gist-pb-ended-row' });
       const icon = el('span', { className: 'gist-pb-ended-icon', textContent: '✓' });
       const text = el('p', { className: 'gist-pb-ended-text' });
-      text.innerHTML = `<strong>Preview session ended.</strong> Close this tab and navigate back to the message editor. Refreshing in ${sessionEndedCountdown}s\u2026`;
+      if (shouldCloseWindowOnSessionEnd) {
+        text.innerHTML = `<strong>Preview session ended.</strong> This tab will close in ${sessionEndedCountdown}s\u2026`;
+      } else {
+        text.innerHTML = `<strong>Preview session ended.</strong> Finishing session in ${sessionEndedCountdown}s\u2026 This tab will stay open.`;
+      }
+
       endedRow.appendChild(icon);
       endedRow.appendChild(text);
+      if (shouldCloseWindowOnSessionEnd) {
+        const cancelBtn = el('button', {
+          type: 'button',
+          className: 'gist-pb-cancel-btn',
+          textContent: 'Cancel',
+        });
+        cancelBtn.addEventListener('click', cancelSessionEnd);
+        endedRow.appendChild(cancelBtn);
+      }
       bar.appendChild(endedRow);
     }
     return;
@@ -694,6 +710,27 @@ function renderBar() {
   bar.appendChild(controlsRow);
 }
 
+async function finalizeSessionEnd(): Promise<void> {
+  if (isFinalizingSessionEnd) return;
+  isFinalizingSessionEnd = true;
+
+  teardownPreview();
+
+  if (shouldCloseWindowOnSessionEnd) {
+    window.close();
+    return;
+  }
+
+  isSessionEnded = false;
+  renderBar();
+}
+
+function cancelSessionEnd() {
+  if (!isSessionEnded || !sessionEndedTimer) return;
+  shouldCloseWindowOnSessionEnd = false;
+  renderBar();
+}
+
 // ─── Collapse ─────────────────────────────────────────────────────────────────
 
 function toggleCollapse() {
@@ -809,6 +846,8 @@ export function clearPreviewBarMessage(): void {
   currentStepName = null;
   isSessionEnded = true;
   sessionEndedCountdown = 5;
+  shouldCloseWindowOnSessionEnd = true;
+  isFinalizingSessionEnd = false;
 
   const params = new URLSearchParams(window.location.search);
   const cioPreviewId = params.get(PREVIEW_PARAM_ID);
@@ -819,13 +858,12 @@ export function clearPreviewBarMessage(): void {
   renderBar();
 
   if (sessionEndedTimer) clearInterval(sessionEndedTimer);
-  sessionEndedTimer = setInterval(() => {
+  sessionEndedTimer = setInterval(async () => {
     sessionEndedCountdown -= 1;
     if (sessionEndedCountdown <= 0) {
       clearInterval(sessionEndedTimer!);
       sessionEndedTimer = null;
-      teardownPreview();
-      window.location.reload();
+      await finalizeSessionEnd();
     } else {
       renderBar();
     }
@@ -855,4 +893,6 @@ export function destroyPreviewBar(): void {
   currentStepName = null;
   isSessionEnded = false;
   sessionEndedCountdown = 5;
+  shouldCloseWindowOnSessionEnd = true;
+  isFinalizingSessionEnd = false;
 }
