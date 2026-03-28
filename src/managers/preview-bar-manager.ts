@@ -717,11 +717,24 @@ async function finalizeSessionEnd(): Promise<void> {
   teardownPreview();
 
   if (shouldCloseWindowOnSessionEnd) {
-    window.close();
+    try {
+      window.close();
+    } catch {
+      /* ignore */
+    }
+    try {
+      window.location.reload();
+    } catch {
+      /* ignore */
+    }
+
+    // If execution reaches this point, fallback to close the bar.
+    destroyPreviewBar();
     return;
   }
 
   isSessionEnded = false;
+  isFinalizingSessionEnd = false;
   renderBar();
 }
 
