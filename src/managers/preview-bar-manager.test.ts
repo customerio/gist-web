@@ -285,7 +285,7 @@ describe('preview-bar-manager', () => {
 
       const bar = document.getElementById('gist-preview-bar')!;
       expect(bar.querySelector('.gist-pb-ended-text')).not.toBeNull();
-      expect(bar.textContent).toContain('Refreshing in 5s');
+      expect(bar.textContent).toContain('Finishing in 5s');
     });
 
     it('prevents updatePreviewBarMessage from resetting session ended state', () => {
