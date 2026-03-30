@@ -132,7 +132,6 @@ export const PREVIEW_BAR_CSS = `
   .gist-pb-pick-highlight { 
     outline: 2px solid #006FF5 !important;
     opacity: .3;
-    filter: hue-rotate(240deg);
   }
   .gist-pb-pick-error { outline: 2px solid #941616 !important; }
   #gist-preview-bar.gist-pb-hidden { display: none; }
