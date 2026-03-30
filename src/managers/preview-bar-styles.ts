@@ -129,10 +129,7 @@ export const PREVIEW_BAR_CSS = `
     position: fixed; inset: 0; z-index: 999999999998; cursor: crosshair;
   }
   .gist-pb-checkbox { cursor: pointer; width: 14px; height: 14px; }
-  .gist-pb-pick-highlight { 
-    outline: 2px solid #006FF5 !important;
-    opacity: .3;
-  }
+  .gist-pb-pick-highlight { outline: 2px solid #006FF5 !important; }
   .gist-pb-pick-error { outline: 2px solid #941616 !important; }
   #gist-preview-bar.gist-pb-hidden { display: none; }
   .gist-pb-ended-row {
