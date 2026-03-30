@@ -573,11 +573,7 @@ function renderBar() {
       const endedRow = el('div', { className: 'gist-pb-controls-row gist-pb-ended-row' });
       const icon = el('span', { className: 'gist-pb-ended-icon', textContent: '✓' });
       const text = el('p', { className: 'gist-pb-ended-text' });
-      if (shouldCloseWindowOnSessionEnd) {
-        text.innerHTML = `<strong>Preview session ended.</strong> This tab will close in ${sessionEndedCountdown}s\u2026`;
-      } else {
-        text.innerHTML = `<strong>Preview session ended.</strong> Finishing session in ${sessionEndedCountdown}s\u2026 This tab will stay open.`;
-      }
+      text.innerHTML = buildSessionEndedText(sessionEndedCountdown);
 
       endedRow.appendChild(icon);
       endedRow.appendChild(text);
@@ -738,6 +734,13 @@ async function finalizeSessionEnd(): Promise<void> {
   renderBar();
 }
 
+function buildSessionEndedText(countdown: number): string {
+  if (shouldCloseWindowOnSessionEnd) {
+    return `<strong>Preview session ended.</strong> This tab will close in ${countdown}s\u2026`;
+  }
+  return `<strong>Preview session ended.</strong> Finishing session in ${countdown}s\u2026 This tab will stay open.`;
+}
+
 function cancelSessionEnd() {
   if (!isSessionEnded || !sessionEndedTimer) return;
   shouldCloseWindowOnSessionEnd = false;
@@ -878,7 +881,14 @@ export function clearPreviewBarMessage(): void {
       sessionEndedTimer = null;
       await finalizeSessionEnd();
     } else {
-      renderBar();
+      // Update only the countdown text to avoid destroying and recreating the Cancel
+      // button mid-click (mousedown → DOM rebuild → mouseup on missing element → no fire).
+      const textEl = document.querySelector<HTMLParagraphElement>(`#${BAR_ID} .gist-pb-ended-text`);
+      if (textEl) {
+        textEl.innerHTML = buildSessionEndedText(sessionEndedCountdown);
+      } else {
+        renderBar();
+      }
     }
   }, 1000);
 }
