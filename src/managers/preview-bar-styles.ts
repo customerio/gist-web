@@ -100,7 +100,7 @@ export const PREVIEW_BAR_CSS = `
   }
   .gist-pb-input--invalid { border-color: #941616; outline: 1px solid #941616; }
   .gist-pb-inline-row { display: flex; align-items: center; gap: 6px; }
-  .gist-pb-select-elem-btn {
+  .gist-pb-select-elem-btn, .gist-pb-cancel-btn {
     height: 32px; padding: 0 12px;
     border: none; border-radius: 6px;
     font-size: 12px; font-weight: 500; font-family: system-ui, -apple-system, sans-serif;
@@ -129,7 +129,11 @@ export const PREVIEW_BAR_CSS = `
     position: fixed; inset: 0; z-index: 999999999998; cursor: crosshair;
   }
   .gist-pb-checkbox { cursor: pointer; width: 14px; height: 14px; }
-  .gist-pb-pick-highlight { outline: 2px solid #006FF5 !important; }
+  .gist-pb-pick-highlight { 
+    outline: 2px solid #006FF5 !important;
+    opacity: .3;
+    filter: hue-rotate(240deg);
+  }
   .gist-pb-pick-error { outline: 2px solid #941616 !important; }
   #gist-preview-bar.gist-pb-hidden { display: none; }
   .gist-pb-ended-row {
