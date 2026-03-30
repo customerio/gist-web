@@ -44,6 +44,8 @@ let isCollapsed = false;
 let isSessionEnded = false;
 let sessionEndedCountdown = 5;
 let sessionEndedTimer: ReturnType<typeof setInterval> | null = null;
+let shouldCloseWindowOnSessionEnd = true;
+let isFinalizingSessionEnd = false;
 let pickerActive = false;
 let pickerCleanup: (() => void) | null = null;
 let pendingInitialStepName: string | null = null;
@@ -571,9 +573,19 @@ function renderBar() {
       const endedRow = el('div', { className: 'gist-pb-controls-row gist-pb-ended-row' });
       const icon = el('span', { className: 'gist-pb-ended-icon', textContent: '✓' });
       const text = el('p', { className: 'gist-pb-ended-text' });
-      text.innerHTML = `<strong>Preview session ended.</strong> Close this tab and navigate back to the message editor. Refreshing in ${sessionEndedCountdown}s\u2026`;
+      text.innerHTML = buildSessionEndedText(sessionEndedCountdown);
+
       endedRow.appendChild(icon);
       endedRow.appendChild(text);
+      if (shouldCloseWindowOnSessionEnd) {
+        const cancelBtn = el('button', {
+          type: 'button',
+          className: 'gist-pb-cancel-btn',
+          textContent: 'Cancel',
+        });
+        cancelBtn.addEventListener('click', cancelSessionEnd);
+        endedRow.appendChild(cancelBtn);
+      }
       bar.appendChild(endedRow);
     }
     return;
@@ -694,6 +706,47 @@ function renderBar() {
   bar.appendChild(controlsRow);
 }
 
+async function finalizeSessionEnd(): Promise<void> {
+  if (isFinalizingSessionEnd) return;
+  isFinalizingSessionEnd = true;
+
+  teardownPreview();
+
+  if (shouldCloseWindowOnSessionEnd) {
+    try {
+      window.close();
+    } catch {
+      /* ignore */
+    }
+    try {
+      window.location.reload();
+    } catch {
+      /* ignore */
+    }
+
+    // If execution reaches this point, fallback to close the bar.
+    destroyPreviewBar();
+    return;
+  }
+
+  isSessionEnded = false;
+  isFinalizingSessionEnd = false;
+  renderBar();
+}
+
+function buildSessionEndedText(countdown: number): string {
+  if (shouldCloseWindowOnSessionEnd) {
+    return `<strong>Preview session ended.</strong> This tab will close in ${countdown}s\u2026`;
+  }
+  return `<strong>Preview session ended.</strong> Finishing session in ${countdown}s\u2026 This tab will stay open.`;
+}
+
+function cancelSessionEnd() {
+  if (!isSessionEnded || !sessionEndedTimer) return;
+  shouldCloseWindowOnSessionEnd = false;
+  renderBar();
+}
+
 // ─── Collapse ─────────────────────────────────────────────────────────────────
 
 function toggleCollapse() {
@@ -809,6 +862,8 @@ export function clearPreviewBarMessage(): void {
   currentStepName = null;
   isSessionEnded = true;
   sessionEndedCountdown = 5;
+  shouldCloseWindowOnSessionEnd = true;
+  isFinalizingSessionEnd = false;
 
   const params = new URLSearchParams(window.location.search);
   const cioPreviewId = params.get(PREVIEW_PARAM_ID);
@@ -819,15 +874,21 @@ export function clearPreviewBarMessage(): void {
   renderBar();
 
   if (sessionEndedTimer) clearInterval(sessionEndedTimer);
-  sessionEndedTimer = setInterval(() => {
+  sessionEndedTimer = setInterval(async () => {
     sessionEndedCountdown -= 1;
     if (sessionEndedCountdown <= 0) {
       clearInterval(sessionEndedTimer!);
       sessionEndedTimer = null;
-      teardownPreview();
-      window.location.reload();
+      await finalizeSessionEnd();
     } else {
-      renderBar();
+      // Update only the countdown text to avoid destroying and recreating the Cancel
+      // button mid-click (mousedown → DOM rebuild → mouseup on missing element → no fire).
+      const textEl = document.querySelector<HTMLParagraphElement>(`#${BAR_ID} .gist-pb-ended-text`);
+      if (textEl) {
+        textEl.innerHTML = buildSessionEndedText(sessionEndedCountdown);
+      } else {
+        renderBar();
+      }
     }
   }, 1000);
 }
@@ -855,4 +916,6 @@ export function destroyPreviewBar(): void {
   currentStepName = null;
   isSessionEnded = false;
   sessionEndedCountdown = 5;
+  shouldCloseWindowOnSessionEnd = true;
+  isFinalizingSessionEnd = false;
 }

@@ -285,7 +285,7 @@ describe('preview-bar-manager', () => {
 
       const bar = document.getElementById('gist-preview-bar')!;
       expect(bar.querySelector('.gist-pb-ended-text')).not.toBeNull();
-      expect(bar.textContent).toContain('Refreshing in 5s');
+      expect(bar.textContent).toContain('close in 5s');
     });
 
     it('prevents updatePreviewBarMessage from resetting session ended state', () => {
@@ -307,6 +307,20 @@ describe('preview-bar-manager', () => {
 
       const bar = document.getElementById('gist-preview-bar')!;
       expect(bar.querySelector('.gist-pb-ended-text')).not.toBeNull();
+    });
+
+    it('removes preview bar if auto-close and reload do not navigate', async () => {
+      vi.useFakeTimers();
+      const closeSpy = vi.spyOn(window, 'close').mockImplementation(() => undefined);
+
+      initBarWithMessage();
+      clearPreviewBarMessage();
+
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(closeSpy).toHaveBeenCalledTimes(1);
+      expect(document.getElementById('gist-preview-bar')).toBeNull();
+
+      vi.useRealTimers();
     });
   });
 

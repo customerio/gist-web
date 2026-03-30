@@ -100,7 +100,7 @@ export const PREVIEW_BAR_CSS = `
   }
   .gist-pb-input--invalid { border-color: #941616; outline: 1px solid #941616; }
   .gist-pb-inline-row { display: flex; align-items: center; gap: 6px; }
-  .gist-pb-select-elem-btn {
+  .gist-pb-select-elem-btn, .gist-pb-cancel-btn {
     height: 32px; padding: 0 12px;
     border: none; border-radius: 6px;
     font-size: 12px; font-weight: 500; font-family: system-ui, -apple-system, sans-serif;
