@@ -25,6 +25,23 @@ export function resolveMessageProperties(message: GistMessage): ResolvedMessageP
   const gist = message?.properties?.gist;
   if (!gist) return defaults;
 
+  let tooltipArrowColor = gist.tooltipArrowColor;
+  if (!tooltipArrowColor && message.displaySettings && Array.isArray(message.displaySettings)) {
+    // Try to match savedStepName, otherwise use first step
+    const stepName = message.savedStepName;
+    let step = null;
+    if (stepName) {
+      step = message.displaySettings.find(
+        (s: any) => s && s.stepName === stepName && s.displaySettings
+      );
+    } else if (message.displaySettings.length > 0) {
+      step = message.displaySettings[0];
+    }
+    if (step && step.displaySettings && step.displaySettings.tooltipArrowColor) {
+      tooltipArrowColor = step.displaySettings.tooltipArrowColor;
+    }
+  }
+
   return {
     isEmbedded: !!gist.elementId && !gist.tooltipPosition,
     elementId: gist.elementId || '',
@@ -34,7 +51,7 @@ export function resolveMessageProperties(message: GistMessage): ResolvedMessageP
     hasPosition: !!gist.position,
     tooltipPosition: gist.tooltipPosition || '',
     hasTooltipPosition: !!gist.tooltipPosition,
-    tooltipArrowColor: gist.tooltipArrowColor || defaults.tooltipArrowColor,
+    tooltipArrowColor: tooltipArrowColor || defaults.tooltipArrowColor,
     shouldScale: !!gist.scale,
     campaignId: gist.campaignId ?? null,
     messageWidth:
