@@ -8,6 +8,7 @@ import {
 } from '../services/queue-service';
 import { showMessage, embedMessage, resetMessage } from './message-manager';
 import { resolveMessageProperties } from './gist-properties-manager';
+import { positions } from './page-component-manager';
 import { clearKeyFromLocalStore, getKeyFromLocalStore } from '../utilities/local-storage';
 import {
   updateBroadcastsLocalStore,
@@ -137,7 +138,11 @@ export async function handleMessage(message: GistMessage): Promise<boolean> {
     let result: GistMessage | null = null;
     if (messageProperties.isEmbedded) {
       const isLivePreview = Gist.config.isPreviewSession && message.properties?.gist?.livePreview;
-      if (isLivePreview && !findElement(messageProperties.elementId)) {
+      if (
+        isLivePreview &&
+        !findElement(messageProperties.elementId) &&
+        !positions.includes(messageProperties.elementId)
+      ) {
         log(
           `Preview: element "${messageProperties.elementId}" not found, showing as overlay so placement can be changed`
         );
