@@ -1,4 +1,4 @@
-import type { GistMessage, ResolvedMessageProperties } from '../types';
+import type { DisplaySettings, GistMessage, ResolvedMessageProperties } from '../types';
 
 export const MESSAGE_PROPERTY_DEFAULTS: ResolvedMessageProperties = {
   isEmbedded: false,
@@ -32,7 +32,8 @@ export function resolveMessageProperties(message: GistMessage): ResolvedMessageP
     let step = null;
     if (stepName) {
       step = message.displaySettings.find(
-        (s: any) => s && s.stepName === stepName && s.displaySettings
+        (s: Record<string, string | DisplaySettings>) =>
+          s && s.stepName === stepName && s.displaySettings
       );
     } else if (message.displaySettings.length > 0) {
       step = message.displaySettings[0];
