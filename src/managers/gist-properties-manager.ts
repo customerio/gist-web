@@ -1,4 +1,4 @@
-import type { DisplaySettings, GistMessage, ResolvedMessageProperties } from '../types';
+import type { GistMessage, ResolvedMessageProperties, StepDisplayConfig } from '../types';
 
 export const MESSAGE_PROPERTY_DEFAULTS: ResolvedMessageProperties = {
   isEmbedded: false,
@@ -19,29 +19,39 @@ export const MESSAGE_PROPERTY_DEFAULTS: ResolvedMessageProperties = {
   hasCustomWidth: false,
 };
 
+function resolveMessageTooltipColor(message: GistMessage): string {
+  let tooltipColor = MESSAGE_PROPERTY_DEFAULTS.tooltipArrowColor;
+
+  if ((message?.properties?.gist?.tooltipArrowColor?.length ?? 0) > 0) {
+    tooltipColor = message!.properties!.gist!.tooltipArrowColor!;
+  } else {
+    let step: StepDisplayConfig | undefined = undefined;
+    if (!Array.isArray(message?.displaySettings) || message.displaySettings.length === 0) {
+      return tooltipColor;
+    }
+
+    // Try to match savedStepName, otherwise use first step
+    if (message.savedStepName) {
+      step = message.displaySettings.find(
+        (s: StepDisplayConfig) => s?.stepName === message.savedStepName && s.displaySettings
+      );
+    } else {
+      step = message.displaySettings[0];
+    }
+
+    if (step?.displaySettings?.tooltipArrowColor) {
+      tooltipColor = step.displaySettings.tooltipArrowColor;
+    }
+  }
+
+  return tooltipColor;
+}
+
 export function resolveMessageProperties(message: GistMessage): ResolvedMessageProperties {
   const defaults = MESSAGE_PROPERTY_DEFAULTS;
 
   const gist = message?.properties?.gist;
   if (!gist) return defaults;
-
-  let tooltipArrowColor = gist.tooltipArrowColor;
-  if (!tooltipArrowColor && message.displaySettings && Array.isArray(message.displaySettings)) {
-    // Try to match savedStepName, otherwise use first step
-    const stepName = message.savedStepName;
-    let step = null;
-    if (stepName) {
-      step = message.displaySettings.find(
-        (s: Record<string, string | DisplaySettings>) =>
-          s && s.stepName === stepName && s.displaySettings
-      );
-    } else if (message.displaySettings.length > 0) {
-      step = message.displaySettings[0];
-    }
-    if (step && step.displaySettings && step.displaySettings.tooltipArrowColor) {
-      tooltipArrowColor = step.displaySettings.tooltipArrowColor;
-    }
-  }
 
   return {
     isEmbedded: !!gist.elementId && !gist.tooltipPosition,
@@ -52,7 +62,7 @@ export function resolveMessageProperties(message: GistMessage): ResolvedMessageP
     hasPosition: !!gist.position,
     tooltipPosition: gist.tooltipPosition || '',
     hasTooltipPosition: !!gist.tooltipPosition,
-    tooltipArrowColor: tooltipArrowColor || defaults.tooltipArrowColor,
+    tooltipArrowColor: resolveMessageTooltipColor(message),
     shouldScale: !!gist.scale,
     campaignId: gist.campaignId ?? null,
     messageWidth:
