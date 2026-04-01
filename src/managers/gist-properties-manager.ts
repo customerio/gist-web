@@ -25,18 +25,19 @@ function resolveMessageTooltipColor(message: GistMessage): string {
   if ((message?.properties?.gist?.tooltipArrowColor?.length ?? 0) > 0) {
     tooltipColor = message!.properties!.gist!.tooltipArrowColor!;
   } else {
-    let step: StepDisplayConfig | undefined = undefined;
     if (!Array.isArray(message?.displaySettings) || message.displaySettings.length === 0) {
       return tooltipColor;
     }
 
     // Try to match savedStepName, otherwise use first step
+    let step: StepDisplayConfig = message.displaySettings[0];
     if (message.savedStepName) {
-      step = message.displaySettings.find(
+      const matchedStep = message.displaySettings.find(
         (s: StepDisplayConfig) => s?.stepName === message.savedStepName && s.displaySettings
       );
-    } else {
-      step = message.displaySettings[0];
+      if (matchedStep) {
+        step = matchedStep;
+      }
     }
 
     if (step?.displaySettings?.tooltipArrowColor) {
