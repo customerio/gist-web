@@ -27,10 +27,10 @@ describe('local-storage', () => {
     expect(getKeyFromLocalStore('gist.nonexistent')).toBeNull();
   });
 
-  it('getKeyFromLocalStore returns null for keys not starting with "gist."', () => {
+  it('getKeyFromLocalStore returns value for keys not starting with "gist." and does not delete them', () => {
     shouldPersistSession(true);
     setKeyToLocalStore('other.key', 'value');
-    expect(getKeyFromLocalStore('other.key')).toBeNull();
+    expect(getKeyFromLocalStore('other.key')).toBe('value');
     expect(getKeyFromLocalStore('nonexistent')).toBeNull();
   });
 
