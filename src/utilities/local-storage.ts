@@ -62,7 +62,7 @@ function getStorage(): Storage {
 }
 
 function checkKeyForExpiry(key: string | null): unknown | null {
-  if (!key || !key.startsWith('gist.')) return null;
+  if (key?.startsWith('gist.') !== true) return null;
 
   try {
     const itemStr = getStorage().getItem(key);
