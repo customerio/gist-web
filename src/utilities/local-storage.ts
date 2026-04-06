@@ -36,7 +36,10 @@ export function clearKeyFromLocalStore(key: string): void {
 export function clearExpiredFromLocalStore(): void {
   const storage = getStorage();
   for (let i = storage.length - 1; i >= 0; i--) {
-    checkKeyForExpiry(storage.key(i));
+    const key = storage.key(i);
+    if (key?.startsWith('gist.')) {
+      checkKeyForExpiry(key);
+    }
   }
 }
 
@@ -71,23 +74,27 @@ function checkKeyForExpiry(key: string | null): unknown | null {
     const item = JSON.parse(itemStr) as StoredItem;
     if (!item.expiry) return item.value;
 
-    const now = new Date();
-    const expiryTime = new Date(item.expiry);
+    if (key.startsWith('gist.')) {
+      const now = new Date();
+      const expiryTime = new Date(item.expiry);
 
-    const isBroadcastOrUserKey =
-      (key.startsWith('gist.web.message.broadcasts') &&
-        !key.endsWith('shouldShow') &&
-        !key.endsWith('numberOfTimesShown')) ||
-      (key.startsWith('gist.web.message.user') && !key.endsWith('seen') && !key.endsWith('state'));
-    const sixtyMinutesFromNow = new Date(now.getTime() + 61 * 60 * 1000);
-    if (isBroadcastOrUserKey && expiryTime.getTime() > sixtyMinutesFromNow.getTime()) {
-      clearKeyFromLocalStore(key);
-      return null;
-    }
+      const isBroadcastOrUserKey =
+        (key.startsWith('gist.web.message.broadcasts') &&
+          !key.endsWith('shouldShow') &&
+          !key.endsWith('numberOfTimesShown')) ||
+        (key.startsWith('gist.web.message.user') &&
+          !key.endsWith('seen') &&
+          !key.endsWith('state'));
+      const sixtyMinutesFromNow = new Date(now.getTime() + 61 * 60 * 1000);
+      if (isBroadcastOrUserKey && expiryTime.getTime() > sixtyMinutesFromNow.getTime()) {
+        clearKeyFromLocalStore(key);
+        return null;
+      }
 
-    if (now.getTime() > expiryTime.getTime()) {
-      clearKeyFromLocalStore(key);
-      return null;
+      if (now.getTime() > expiryTime.getTime()) {
+        clearKeyFromLocalStore(key);
+        return null;
+      }
     }
 
     return item.value;
