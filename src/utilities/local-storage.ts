@@ -36,8 +36,9 @@ export function clearKeyFromLocalStore(key: string): void {
 export function clearExpiredFromLocalStore(): void {
   const storage = getStorage();
   for (let i = storage.length - 1; i >= 0; i--) {
-    if (storage.key(i)?.startsWith('gist.')) {
-      checkKeyForExpiry(storage.key(i));
+    const key = storage.key(i);
+    if (key?.startsWith('gist.')) {
+      checkKeyForExpiry(key);
     }
   }
 }
