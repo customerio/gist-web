@@ -2,13 +2,12 @@ import {
   getKeyFromLocalStore,
   setKeyToLocalStore,
   clearKeyFromLocalStore,
+  STORAGE_KEYS,
 } from '../utilities/local-storage';
 import { log } from '../utilities/log';
 import { v4 as uuidv4 } from 'uuid';
 import type { GistEnv } from '../types';
 
-const userQueueUseSSELocalStoreName = 'gist.web.userQueueUseSSE';
-const userQueueActiveSSEConnectionLocalStoreName = 'gist.web.activeSSEConnection';
 const heartbeatSlop = 5;
 let sseHeartbeat = 30;
 let sdkId: string | undefined;
@@ -59,31 +58,31 @@ export const settings: Settings = {
     return sdkId as string;
   },
   useSSE(): boolean {
-    return (getKeyFromLocalStore(userQueueUseSSELocalStoreName) ?? false) as boolean;
+    return (getKeyFromLocalStore(STORAGE_KEYS.userQueueUseSSE) ?? false) as boolean;
   },
   setUseSSEFlag(useSSE: boolean): void {
     setKeyToLocalStore(
-      userQueueUseSSELocalStoreName,
+      STORAGE_KEYS.userQueueUseSSE,
       useSSE,
       new Date(new Date().getTime() + 60000)
     );
     log(`Set user uses SSE to "${useSSE}"`);
   },
   removeActiveSSEConnection(): void {
-    clearKeyFromLocalStore(userQueueActiveSSEConnectionLocalStoreName);
+    clearKeyFromLocalStore(STORAGE_KEYS.activeSSEConnection);
   },
   setActiveSSEConnection(): void {
     setKeyToLocalStore(
-      userQueueActiveSSEConnectionLocalStoreName,
+      STORAGE_KEYS.activeSSEConnection,
       settings.getSdkId(),
       new Date(new Date().getTime() + settings.getSSEHeartbeat())
     );
   },
   hasActiveSSEConnection(): unknown {
-    return getKeyFromLocalStore(userQueueActiveSSEConnectionLocalStoreName) ?? false;
+    return getKeyFromLocalStore(STORAGE_KEYS.activeSSEConnection) ?? false;
   },
   isSSEConnectionManagedBySDK(): boolean {
-    return getKeyFromLocalStore(userQueueActiveSSEConnectionLocalStoreName) === settings.getSdkId();
+    return getKeyFromLocalStore(STORAGE_KEYS.activeSSEConnection) === settings.getSdkId();
   },
   getSSEHeartbeat(): number {
     return (sseHeartbeat + heartbeatSlop) * 1000;

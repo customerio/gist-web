@@ -19,9 +19,12 @@ vi.mock('../utilities/local-storage', () => ({
   setKeyToLocalStore: vi.fn(),
   getKeyFromLocalStore: vi.fn(() => null),
   clearKeyFromLocalStore: vi.fn(),
-}));
-vi.mock('../services/queue-service', () => ({
-  userQueueNextPullCheckLocalStoreName: 'gist.web.userQueueNextPullCheck',
+  STORAGE_KEYS: {
+    userToken: 'gist.web.userToken',
+    usingGuestUserToken: 'gist.web.usingGuestUserToken',
+    guestUserToken: 'gist.web.guestUserToken',
+    userQueueNextPullCheck: 'gist.web.userQueueNextPullCheck',
+  },
 }));
 vi.mock('uuid', () => ({
   v4: vi.fn(() => 'mock-uuid-1234'),

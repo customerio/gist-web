@@ -4,20 +4,17 @@ import {
   setKeyToLocalStore,
   getKeyFromLocalStore,
   clearKeyFromLocalStore,
+  STORAGE_KEYS,
 } from '../utilities/local-storage';
-import { userQueueNextPullCheckLocalStoreName } from '../services/queue-service';
 
-const userTokenLocalStoreName = 'gist.web.userToken';
-const usingGuestUserTokenLocalStoreName = 'gist.web.usingGuestUserToken';
-const guestUserTokenLocalStoreName = 'gist.web.guestUserToken';
 const defaultExpiryInDays = 30;
 
 export function isUsingGuestUserToken(): boolean {
-  return getKeyFromLocalStore(usingGuestUserTokenLocalStoreName) !== null;
+  return getKeyFromLocalStore(STORAGE_KEYS.usingGuestUserToken) !== null;
 }
 
 export function getUserToken(): string | null {
-  return getKeyFromLocalStore(userTokenLocalStoreName) as string | null;
+  return getKeyFromLocalStore(STORAGE_KEYS.userToken) as string | null;
 }
 
 export function setUserToken(userToken: string, expiryDate?: Date): void {
@@ -25,12 +22,12 @@ export function setUserToken(userToken: string, expiryDate?: Date): void {
     expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + defaultExpiryInDays);
   }
-  setKeyToLocalStore(userTokenLocalStoreName, userToken, expiryDate);
+  setKeyToLocalStore(STORAGE_KEYS.userToken, userToken, expiryDate);
 
   if (isUsingGuestUserToken()) {
     // Removing pull check time key so that we check the queue immediately after the userToken is set.
-    clearKeyFromLocalStore(userQueueNextPullCheckLocalStoreName);
-    clearKeyFromLocalStore(usingGuestUserTokenLocalStoreName);
+    clearKeyFromLocalStore(STORAGE_KEYS.userQueueNextPullCheck);
+    clearKeyFromLocalStore(STORAGE_KEYS.usingGuestUserToken);
   }
   log(`Set user token "${userToken}" with expiry date set to ${expiryDate}`);
 }
@@ -38,15 +35,15 @@ export function setUserToken(userToken: string, expiryDate?: Date): void {
 export function useGuestSession(): void {
   // Guest sessions should never override existing sessions
   if (getUserToken() === null) {
-    let guestUserToken = getKeyFromLocalStore(guestUserTokenLocalStoreName) as string | null;
+    let guestUserToken = getKeyFromLocalStore(STORAGE_KEYS.guestUserToken) as string | null;
     if (guestUserToken == null) {
       guestUserToken = uuidv4();
-      setKeyToLocalStore(guestUserTokenLocalStoreName, guestUserToken);
+      setKeyToLocalStore(STORAGE_KEYS.guestUserToken, guestUserToken);
       log(`Set guest user token "${guestUserToken}" with expiry date set to 1 year from today`);
     }
 
-    setKeyToLocalStore(userTokenLocalStoreName, guestUserToken);
-    setKeyToLocalStore(usingGuestUserTokenLocalStoreName, true);
+    setKeyToLocalStore(STORAGE_KEYS.userToken, guestUserToken);
+    setKeyToLocalStore(STORAGE_KEYS.usingGuestUserToken, true);
     log(`Using anonymous session with token: "${guestUserToken}"`);
   }
 }
@@ -72,7 +69,7 @@ export function getEncodedUserToken(): string | null {
 }
 
 export function clearUserToken(): void {
-  clearKeyFromLocalStore(userTokenLocalStoreName);
+  clearKeyFromLocalStore(STORAGE_KEYS.userToken);
   log(`Cleared user token`);
 }
 

@@ -1,5 +1,5 @@
 import Gist from '../gist';
-import { getKeyFromLocalStore, setKeyToLocalStore } from '../utilities/local-storage';
+import { getKeyFromLocalStore, setKeyToLocalStore, STORAGE_KEYS } from '../utilities/local-storage';
 import { getHashedUserToken } from './user-manager';
 import { log } from '../utilities/log';
 import { logUserMessageView } from '../services/log-service';
@@ -18,7 +18,6 @@ export interface InboxMessage {
 
 const messageInboxUpdatedEventName = 'messageInboxUpdated';
 const inboxMessageEventName = 'inboxMessageAction';
-const inboxMessagesLocalStoreName = 'gist.web.inbox.messages';
 const inboxMessagesLocalStoreCacheInMinutes = 60;
 
 export async function updateInboxMessagesLocalStore(messages: InboxMessage[]): Promise<void> {
@@ -122,5 +121,5 @@ export async function removeInboxMessage(queueId: string): Promise<void> {
 async function getInboxMessagesLocalStoreName(): Promise<string | null> {
   const userToken = await getHashedUserToken();
   if (!userToken) return null;
-  return `${inboxMessagesLocalStoreName}.${userToken}`;
+  return `${STORAGE_KEYS.inboxMessages}.${userToken}`;
 }

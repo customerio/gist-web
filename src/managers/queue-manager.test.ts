@@ -22,7 +22,6 @@ vi.mock('./user-manager', () => ({
 vi.mock('../services/queue-service', () => ({
   getUserQueue: vi.fn(),
   getQueueSSEEndpoint: vi.fn(() => null),
-  userQueueNextPullCheckLocalStoreName: 'gist.web.userQueueNextPullCheck',
 }));
 vi.mock('./message-manager', () => ({
   showMessage: vi.fn(() => Promise.resolve(null)),
@@ -48,6 +47,9 @@ vi.mock('./gist-properties-manager', () => ({
 vi.mock('../utilities/local-storage', () => ({
   clearKeyFromLocalStore: vi.fn(),
   getKeyFromLocalStore: vi.fn(() => null),
+  STORAGE_KEYS: {
+    userQueueNextPullCheck: 'gist.web.userQueueNextPullCheck',
+  },
 }));
 vi.mock('./message-broadcast-manager', () => ({
   updateBroadcastsLocalStore: vi.fn(),

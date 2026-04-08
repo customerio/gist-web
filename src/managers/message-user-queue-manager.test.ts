@@ -23,6 +23,9 @@ vi.mock('../utilities/local-storage', () => ({
   setKeyToLocalStore: vi.fn(),
   getKeyFromLocalStore: vi.fn(() => null),
   clearKeyFromLocalStore: vi.fn(),
+  STORAGE_KEYS: {
+    messageUser: 'gist.web.message.user',
+  },
 }));
 vi.mock('./user-manager', () => ({
   getHashedUserToken: vi.fn(() => Promise.resolve('hashed-token')),
