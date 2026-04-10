@@ -137,7 +137,7 @@ describe('queue-service', () => {
 
   it('getQueueSSEEndpoint() returns correct URL with encoded token and site ID', () => {
     vi.mocked(getEncodedUserToken).mockReturnValue('encoded-token-123');
-    setKeyToLocalStore('gist.web.sessionId', 'session-456', new Date(Date.now() + 1800000));
+    setKeyToLocalStore(STORAGE_KEYS.sessionId, 'session-456', new Date(Date.now() + 1800000));
 
     const result = getQueueSSEEndpoint();
 
