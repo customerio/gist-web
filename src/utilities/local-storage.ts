@@ -2,7 +2,7 @@ import { log } from './log';
 
 const maxExpiryDays = 365;
 
-export const STORAGE_KEYS: Record<string, string> = {
+export const STORAGE_KEYS = {
   userToken: 'gist.web.userToken',
   usingGuestUserToken: 'gist.web.usingGuestUserToken',
   guestUserToken: 'gist.web.guestUserToken',
@@ -19,9 +19,10 @@ export const STORAGE_KEYS: Record<string, string> = {
   inboxMessages: 'gist.web.inbox.messages',
 
   previewBarStep: 'gist.web.previewBarStep',
-  previewBarDisplayType: 'gist.web.previewBarDisplayType',
   previewBarCollapsed: 'gist.previewBar.collapsed',
 };
+
+export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];
 
 interface StoredItem {
   value: unknown;
@@ -33,7 +34,7 @@ export function shouldPersistSession(persisted: boolean | string): void {
 }
 
 export function setKeyToLocalStore(
-  key: keyof typeof STORAGE_KEYS,
+  key: StorageKey | string,
   value: unknown,
   ttl: Date | null = null
 ): void {
@@ -49,11 +50,11 @@ export function setKeyToLocalStore(
   getStorage().setItem(key, JSON.stringify(item));
 }
 
-export function getKeyFromLocalStore(key: keyof typeof STORAGE_KEYS): unknown | null {
+export function getKeyFromLocalStore(key: StorageKey | string): unknown | null {
   return checkKeyForExpiry(key);
 }
 
-export function clearKeyFromLocalStore(key: keyof typeof STORAGE_KEYS): void {
+export function clearKeyFromLocalStore(key: StorageKey | string): void {
   getStorage().removeItem(key);
 }
 
@@ -88,7 +89,7 @@ function getStorage(): Storage {
   return isSessionBeingPersisted() ? localStorage : sessionStorage;
 }
 
-function checkKeyForExpiry(key: keyof typeof STORAGE_KEYS | string | null): unknown | null {
+function checkKeyForExpiry(key: string | null): unknown | null {
   if (!key) return null;
 
   try {
@@ -111,12 +112,12 @@ function checkKeyForExpiry(key: keyof typeof STORAGE_KEYS | string | null): unkn
           !key.endsWith('state'));
       const sixtyMinutesFromNow = new Date(now.getTime() + 61 * 60 * 1000);
       if (isBroadcastOrUserKey && expiryTime.getTime() > sixtyMinutesFromNow.getTime()) {
-        clearKeyFromLocalStore(key as keyof typeof STORAGE_KEYS);
+        clearKeyFromLocalStore(key);
         return null;
       }
 
       if (now.getTime() > expiryTime.getTime()) {
-        clearKeyFromLocalStore(key as keyof typeof STORAGE_KEYS);
+        clearKeyFromLocalStore(key);
         return null;
       }
     }
