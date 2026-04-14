@@ -74,7 +74,11 @@ vi.mock('../services/settings', () => ({
     setUseSSEFlag: vi.fn(),
     setSSEHeartbeat: vi.fn(),
     getSSEHeartbeat: vi.fn(() => 30),
-    RENDERER_HOST: 'https://renderer.test',
+    RENDERER_HOST: {
+      prod: 'https://renderer.test',
+      dev: 'https://renderer.test',
+      local: 'http://localhost',
+    },
     ENGINE_API_ENDPOINT: {
       prod: 'https://api.test',
       dev: 'https://api.test',
