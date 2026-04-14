@@ -28,7 +28,11 @@ vi.mock('../services/log-service', () => ({
 vi.mock('uuid', () => ({ v4: vi.fn(() => 'mock-uuid') }));
 vi.mock('../services/settings', () => ({
   settings: {
-    RENDERER_HOST: 'https://renderer.test',
+    RENDERER_HOST: {
+      prod: 'https://renderer.test',
+      dev: 'https://renderer.test',
+      local: 'http://localhost',
+    },
     ENGINE_API_ENDPOINT: {
       prod: 'https://api.test',
       dev: 'https://api.test',
