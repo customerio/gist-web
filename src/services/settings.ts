@@ -14,7 +14,7 @@ let sseHeartbeat = 30;
 let sdkId: string | undefined;
 
 export interface Settings {
-  RENDERER_HOST: string;
+  RENDERER_HOST: Record<GistEnv, string>;
   ENGINE_API_ENDPOINT: Record<GistEnv, string>;
   GIST_QUEUE_API_ENDPOINT: Record<GistEnv, string>;
   GIST_QUEUE_REALTIME_API_ENDPOINT: Record<GistEnv, string>;
@@ -31,7 +31,11 @@ export interface Settings {
 }
 
 export const settings: Settings = {
-  RENDERER_HOST: 'https://code.gist.build',
+  RENDERER_HOST: {
+    prod: 'https://code.gist.build',
+    dev: 'https://code.gist.build',
+    local: 'http://localhost:9998',
+  },
   ENGINE_API_ENDPOINT: {
     prod: 'https://engine.api.gist.build',
     dev: 'https://engine.api.dev.gist.build',
@@ -50,7 +54,7 @@ export const settings: Settings = {
   GIST_VIEW_ENDPOINT: {
     prod: 'https://renderer.gist.build/3.0',
     dev: 'https://renderer.gist.build/3.0',
-    local: 'http://app.local.gist.build:8080/web',
+    local: 'http://localhost:9998',
   },
   getSdkId(): string {
     if (!sdkId) {

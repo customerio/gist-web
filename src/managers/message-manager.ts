@@ -340,8 +340,9 @@ function handleTouchStartEvents(): void {
 }
 
 async function handleGistEvents(e: MessageEvent): Promise<void> {
+  const env = Gist.config.env as keyof typeof settings.RENDERER_HOST;
   const data = e.data as GistEventData;
-  if (data.gist && e.origin === settings.RENDERER_HOST) {
+  if (data.gist && e.origin === settings.RENDERER_HOST[env]) {
     const currentInstanceId = data.gist.instanceId;
     const currentMessage = fetchMessageByInstanceId(currentInstanceId);
     if (!currentMessage) {
