@@ -44,12 +44,12 @@ export const settings: Settings = {
   GIST_QUEUE_API_ENDPOINT: {
     prod: 'https://consumer.cloud.gist.build',
     dev: 'https://consumer.cloud.dev.gist.build',
-    local: 'http://api.local.gist.build:86',
+    local: 'http://localhost:3010',
   },
   GIST_QUEUE_REALTIME_API_ENDPOINT: {
     prod: 'https://realtime.cloud.gist.build',
     dev: 'https://realtime.cloud.dev.gist.build',
-    local: 'http://api.local.gist.build:3000',
+    local: 'http://localhost:3009',
   },
   GIST_VIEW_ENDPOINT: {
     prod: 'https://renderer.gist.build/3.0',
