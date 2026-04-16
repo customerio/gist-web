@@ -1,9 +1,8 @@
 import { log } from '../utilities/log';
-import { setKeyToLocalStore, getKeyFromLocalStore } from '../utilities/local-storage';
+import { setKeyToLocalStore, getKeyFromLocalStore, STORAGE_KEYS } from '../utilities/local-storage';
 import { getHashedUserToken } from './user-manager';
 import type { GistMessage } from '../types';
 
-const broadcastsLocalStoreName = 'gist.web.message.broadcasts';
 const broadcastsExpiryInMinutes = 60;
 
 interface BroadcastFrequency {
@@ -137,7 +136,7 @@ export function isShowAlwaysBroadcast(message: GistMessage): boolean {
 async function getMessageBroadcastLocalStoreName(): Promise<string | null> {
   const userToken = await getHashedUserToken();
   if (!userToken) return null;
-  return `${broadcastsLocalStoreName}.${userToken}`;
+  return `${STORAGE_KEYS.messageBroadcasts}.${userToken}`;
 }
 
 function getNumberOfTimesShownLocalStoreName(

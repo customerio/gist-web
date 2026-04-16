@@ -4,6 +4,7 @@ import {
   getKeyFromLocalStore,
   setKeyToLocalStore,
   clearKeyFromLocalStore,
+  STORAGE_KEYS,
 } from '../utilities/local-storage';
 import { log } from '../utilities/log';
 import { isUsingGuestUserToken, getEncodedUserToken, getUserToken } from '../managers/user-manager';
@@ -19,9 +20,6 @@ const msPerSecond = 1000;
 
 let currentPollingDelayInSeconds = defaultPollingDelayInSeconds;
 let checkInProgress = false;
-
-export const userQueueNextPullCheckLocalStoreName = 'gist.web.userQueueNextPullCheck';
-export const sessionIdLocalStoreName = 'gist.web.sessionId';
 
 export async function getUserQueue(): Promise<NetworkResponse | undefined> {
   const existingUserToken = getUserToken();
@@ -52,7 +50,7 @@ export async function getUserQueue(): Promise<NetworkResponse | undefined> {
 
   if (existingUserToken !== getUserToken()) {
     log('User token changed, clearing queue next pull check.');
-    clearKeyFromLocalStore(userQueueNextPullCheckLocalStoreName);
+    clearKeyFromLocalStore(STORAGE_KEYS.userQueueNextPullCheck);
     return;
   }
 
@@ -67,12 +65,12 @@ function setQueueUseSSE(response?: NetworkResponse): void {
 }
 
 function getSessionId(): string {
-  let sessionId = getKeyFromLocalStore(sessionIdLocalStoreName) as string | null;
+  let sessionId = getKeyFromLocalStore(STORAGE_KEYS.sessionId) as string | null;
   if (!sessionId) {
     sessionId = uuidv4();
   }
   setKeyToLocalStore(
-    sessionIdLocalStoreName,
+    STORAGE_KEYS.sessionId,
     sessionId,
     new Date(new Date().getTime() + sessionExpiryMs)
   );
@@ -87,11 +85,7 @@ function scheduleNextQueuePull(response?: NetworkResponse): void {
     }
   }
   const expiryDate = new Date(new Date().getTime() + currentPollingDelayInSeconds * msPerSecond);
-  setKeyToLocalStore(
-    userQueueNextPullCheckLocalStoreName,
-    currentPollingDelayInSeconds,
-    expiryDate
-  );
+  setKeyToLocalStore(STORAGE_KEYS.userQueueNextPullCheck, currentPollingDelayInSeconds, expiryDate);
 }
 
 export function getQueueSSEEndpoint(): string | null {

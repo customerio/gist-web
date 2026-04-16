@@ -2,12 +2,12 @@ import {
   getKeyFromLocalStore,
   setKeyToLocalStore,
   clearKeyFromLocalStore,
+  STORAGE_KEYS,
 } from '../utilities/local-storage';
 import { getHashedUserToken } from './user-manager';
 import { log } from '../utilities/log';
 import type { GistMessage, DisplaySettings } from '../types';
 
-const messageQueueLocalStoreName = 'gist.web.message.user';
 const messagesLocalStoreCacheInMinutes = 60;
 
 export async function updateQueueLocalStore(messages: GistMessage[]): Promise<void> {
@@ -73,25 +73,25 @@ async function getSeenMessagesFromLocalStore(): Promise<string[]> {
 async function getUserQueueLocalStoreName(): Promise<string | null> {
   const userToken = await getHashedUserToken();
   if (!userToken) return null;
-  return `${messageQueueLocalStoreName}.${userToken}`;
+  return `${STORAGE_KEYS.messageUser}.${userToken}`;
 }
 
 async function getUserSeenQueueLocalStoreName(): Promise<string | null> {
   const userToken = await getHashedUserToken();
   if (!userToken) return null;
-  return `${messageQueueLocalStoreName}.${userToken}.seen`;
+  return `${STORAGE_KEYS.messageUser}.${userToken}.seen`;
 }
 
 async function getMessageLoadingStateLocalStoreName(queueId: string): Promise<string | null> {
   const userToken = await getHashedUserToken();
   if (!userToken) return null;
-  return `${messageQueueLocalStoreName}.${userToken}.message.${queueId}.loading`;
+  return `${STORAGE_KEYS.messageUser}.${userToken}.message.${queueId}.loading`;
 }
 
 async function getMessageStateLocalStoreName(queueId: string): Promise<string | null> {
   const userToken = await getHashedUserToken();
   if (!userToken) return null;
-  return `${messageQueueLocalStoreName}.${userToken}.message.${queueId}.state`;
+  return `${STORAGE_KEYS.messageUser}.${userToken}.message.${queueId}.state`;
 }
 
 export async function saveMessageState(

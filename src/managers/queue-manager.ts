@@ -1,15 +1,15 @@
 import Gist from '../gist';
 import { log } from '../utilities/log';
 import { getUserToken, isAnonymousUser } from './user-manager';
-import {
-  getUserQueue,
-  getQueueSSEEndpoint,
-  userQueueNextPullCheckLocalStoreName,
-} from '../services/queue-service';
+import { getUserQueue, getQueueSSEEndpoint } from '../services/queue-service';
 import { showMessage, embedMessage, resetMessage } from './message-manager';
 import { resolveMessageProperties } from './gist-properties-manager';
 import { positions } from './page-component-manager';
-import { clearKeyFromLocalStore, getKeyFromLocalStore } from '../utilities/local-storage';
+import {
+  clearKeyFromLocalStore,
+  getKeyFromLocalStore,
+  STORAGE_KEYS,
+} from '../utilities/local-storage';
 import {
   updateBroadcastsLocalStore,
   getEligibleBroadcasts,
@@ -184,7 +184,7 @@ export async function pullMessagesFromQueue(): Promise<void> {
 async function checkQueueThroughPolling(): Promise<void> {
   if (getUserToken()) {
     if (Gist.isDocumentVisible) {
-      if (getKeyFromLocalStore(userQueueNextPullCheckLocalStoreName) === null) {
+      if (getKeyFromLocalStore(STORAGE_KEYS.userQueueNextPullCheck) === null) {
         const response = await getUserQueue();
         if (response) {
           if (response.status === 200 || response.status === 204) {
@@ -245,7 +245,7 @@ async function setupSSEQueueListener(): Promise<void> {
       log(`Failed to parse SSE settings: ${e}`);
     }
 
-    clearKeyFromLocalStore(userQueueNextPullCheckLocalStoreName);
+    clearKeyFromLocalStore(STORAGE_KEYS.userQueueNextPullCheck);
     await checkQueueThroughPolling();
   });
 

@@ -1,13 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  getUserQueue,
-  getQueueSSEEndpoint,
-  userQueueNextPullCheckLocalStoreName,
-} from './queue-service';
+import { getUserQueue, getQueueSSEEndpoint } from './queue-service';
 import {
   getKeyFromLocalStore,
   setKeyToLocalStore,
   shouldPersistSession,
+  STORAGE_KEYS,
 } from '../utilities/local-storage';
 import { getEncodedUserToken, getUserToken } from '../managers/user-manager';
 
@@ -127,7 +124,7 @@ describe('queue-service', () => {
 
     await getUserQueue();
 
-    expect(getKeyFromLocalStore(userQueueNextPullCheckLocalStoreName)).toBeNull();
+    expect(getKeyFromLocalStore(STORAGE_KEYS.userQueueNextPullCheck)).toBeNull();
   });
 
   it('getQueueSSEEndpoint() returns null when no user token', async () => {
@@ -140,7 +137,7 @@ describe('queue-service', () => {
 
   it('getQueueSSEEndpoint() returns correct URL with encoded token and site ID', () => {
     vi.mocked(getEncodedUserToken).mockReturnValue('encoded-token-123');
-    setKeyToLocalStore('gist.web.sessionId', 'session-456', new Date(Date.now() + 1800000));
+    setKeyToLocalStore(STORAGE_KEYS.sessionId, 'session-456', new Date(Date.now() + 1800000));
 
     const result = getQueueSSEEndpoint();
 
@@ -161,7 +158,7 @@ describe('queue-service', () => {
 
     await getUserQueue();
 
-    const storedValue = getKeyFromLocalStore(userQueueNextPullCheckLocalStoreName);
+    const storedValue = getKeyFromLocalStore(STORAGE_KEYS.userQueueNextPullCheck);
     expect(Number(storedValue)).toBe(120);
   });
 });

@@ -12,8 +12,8 @@ import { findElement } from '../utilities/dom';
 import { PREVIEW_BAR_CSS, chevronSvg } from './preview-bar-styles';
 import { savePreviewDisplaySettings, deletePreviewSession } from '../services/preview-service';
 import { PREVIEW_PARAM_ID, teardownPreview } from '../utilities/preview-mode';
+import { STORAGE_KEYS } from '../utilities/local-storage';
 
-const STORAGE_KEY = 'gist.previewBar.collapsed';
 const STYLE_ID = 'gist-pb-styles';
 const BAR_ID = 'gist-preview-bar';
 
@@ -752,7 +752,7 @@ function cancelSessionEnd() {
 function toggleCollapse() {
   isCollapsed = !isCollapsed;
   try {
-    sessionStorage.setItem(STORAGE_KEY, String(isCollapsed));
+    sessionStorage.setItem(STORAGE_KEYS.previewBarCollapsed, String(isCollapsed));
   } catch {
     /* ignore */
   }
@@ -765,7 +765,7 @@ export function initPreviewBar(): void {
   if (document.getElementById(BAR_ID)) return;
   injectStyles();
   try {
-    isCollapsed = sessionStorage.getItem(STORAGE_KEY) === 'true';
+    isCollapsed = sessionStorage.getItem(STORAGE_KEYS.previewBarCollapsed) === 'true';
   } catch {
     isCollapsed = false;
   }

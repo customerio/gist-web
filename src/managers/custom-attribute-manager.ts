@@ -3,15 +3,14 @@ import {
   setKeyToLocalStore,
   getKeyFromLocalStore,
   clearKeyFromLocalStore,
+  STORAGE_KEYS,
 } from '../utilities/local-storage';
-
-const customAttributesLocalStoreName = 'gist.web.customAttributes';
 const defaultExpiryInDays = 30;
 
 let customAttributesMap: Map<string, unknown> = new Map();
 
 function loadCustomAttributesFromStorage(): void {
-  const storedAttributes = getKeyFromLocalStore(customAttributesLocalStoreName);
+  const storedAttributes = getKeyFromLocalStore(STORAGE_KEYS.customAttributes);
   if (storedAttributes) {
     try {
       customAttributesMap = new Map(storedAttributes as Iterable<[string, unknown]>);
@@ -27,7 +26,7 @@ function saveCustomAttributesToStorage(): void {
   const attributesArray = Array.from(customAttributesMap.entries());
   const expiryDate = new Date();
   expiryDate.setDate(expiryDate.getDate() + defaultExpiryInDays);
-  setKeyToLocalStore(customAttributesLocalStoreName, attributesArray, expiryDate);
+  setKeyToLocalStore(STORAGE_KEYS.customAttributes, attributesArray, expiryDate);
   log(
     `Saved ${customAttributesMap.size} custom attributes to storage with TTL of ${defaultExpiryInDays} days`
   );
@@ -60,7 +59,7 @@ export function getAllCustomAttributes(): Map<string, unknown> {
 
 export function clearCustomAttributes(): void {
   customAttributesMap.clear();
-  clearKeyFromLocalStore(customAttributesLocalStoreName);
+  clearKeyFromLocalStore(STORAGE_KEYS.customAttributes);
   log(`Cleared all custom attributes`);
 }
 
@@ -74,7 +73,7 @@ export function removeCustomAttribute(key: string): boolean {
   if (customAttributesMap.size > 0) {
     saveCustomAttributesToStorage();
   } else {
-    clearKeyFromLocalStore(customAttributesLocalStoreName);
+    clearKeyFromLocalStore(STORAGE_KEYS.customAttributes);
   }
   log(`Removed custom attribute "${key}"`);
   return existed;

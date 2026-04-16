@@ -13,6 +13,9 @@ vi.mock('../utilities/local-storage', () => ({
   setKeyToLocalStore: vi.fn(),
   getKeyFromLocalStore: vi.fn(() => null),
   clearKeyFromLocalStore: vi.fn(),
+  STORAGE_KEYS: {
+    customAttributes: 'gist.web.customAttributes',
+  },
 }));
 
 describe('custom-attribute-manager', () => {
