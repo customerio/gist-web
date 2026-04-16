@@ -34,7 +34,13 @@ export default class EventEmitter {
   dispatch(name: string, event: unknown): void {
     const callbacks = this.callbacks[name];
     if (callbacks) {
-      callbacks.forEach((cb) => cb(event));
+      [...callbacks].forEach((cb) => {
+        try {
+          cb(event);
+        } catch (e) {
+          console.warn(`[Gist] Error in "${name}" event listener:`, e);
+        }
+      });
     }
   }
 }
