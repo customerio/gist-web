@@ -71,6 +71,14 @@
     "url": "https://github.com/customerio/gist-web/issues"
   },
   "homepage": "https://github.com/customerio/gist-web",
+  "overrides": {
+    "serialize-javascript": "7.0.3",
+    "vite": "8.0.5",
+    "picomatch": "4.0.4",
+    "minimatch": "8.0.6",
+    "brace-expansion": "5.0.5",
+    "yaml": "1.10.3"
+  },
   "lint-staged": {
     "*.{ts,js}": [
       "eslint --fix"
