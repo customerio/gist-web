@@ -80,11 +80,14 @@ function getSessionId(): string {
 }
 
 function scheduleNextQueuePull(response?: NetworkResponse): void {
-  if (response?.headers) {
-    const pollingInterval = response.headers['x-gist-queue-polling-interval'];
-    if (pollingInterval && Number(pollingInterval) > 0) {
-      currentPollingDelayInSeconds = Number(pollingInterval);
-    }
+  const pollingInterval = response?.headers?.['x-gist-queue-polling-interval'];
+  if (pollingInterval && Number(pollingInterval) > 0) {
+    currentPollingDelayInSeconds = Number(pollingInterval);
+  } else {
+    currentPollingDelayInSeconds = Math.min(
+      currentPollingDelayInSeconds * 2,
+      defaultPollingDelayInSeconds
+    );
   }
   const expiryDate = new Date(new Date().getTime() + currentPollingDelayInSeconds * msPerSecond);
   setKeyToLocalStore(
