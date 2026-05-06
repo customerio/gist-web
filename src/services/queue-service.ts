@@ -24,21 +24,21 @@ export const userQueueNextPullCheckLocalStoreName = 'gist.web.userQueueNextPullC
 export const sessionIdLocalStoreName = 'gist.web.sessionId';
 
 export async function getUserQueue(): Promise<NetworkResponse | undefined> {
+  if (checkInProgress) return;
+  checkInProgress = true;
+
   const existingUserToken = getUserToken();
   let response: NetworkResponse | undefined;
   try {
-    if (!checkInProgress) {
-      checkInProgress = true;
-      const headers: Record<string, string> = {
-        'X-Gist-User-Anonymous': String(isUsingGuestUserToken()),
-        'Content-Language': String(getUserLocale()),
-      };
-      response = await UserNetworkInstance().post(
-        `/api/v4/users?sessionId=${getSessionId()}`,
-        {},
-        { headers }
-      );
-    }
+    const headers: Record<string, string> = {
+      'X-Gist-User-Anonymous': String(isUsingGuestUserToken()),
+      'Content-Language': String(getUserLocale()),
+    };
+    response = await UserNetworkInstance().post(
+      `/api/v4/users?sessionId=${getSessionId()}`,
+      {},
+      { headers }
+    );
   } catch (error) {
     const errorResponse = getNetworkErrorResponse(error);
     if (errorResponse) {
