@@ -1,6 +1,6 @@
 {
   "name": "customerio-gist-web",
-  "version": "3.21.13",
+  "version": "3.21.14",
   "description": "Build beautiful in-app flows with no code and deliver them instantly to your app. http://customer.io",
   "private": false,
   "files": [
@@ -71,6 +71,15 @@
     "url": "https://github.com/customerio/gist-web/issues"
   },
   "homepage": "https://github.com/customerio/gist-web",
+  "overrides": {
+    "serialize-javascript": "7.0.3",
+    "vite": "7.3.2",
+    "lodash": "4.18.1",
+    "flatted": "3.4.2",
+    "@eslint/plugin-kit": "0.3.4",
+    "follow-redirects": "1.16.0",
+    "yaml": "2.8.3"
+  },
   "lint-staged": {
     "*.{ts,js}": [
       "eslint --fix"
