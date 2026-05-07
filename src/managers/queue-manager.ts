@@ -91,6 +91,11 @@ export async function checkCurrentMessagesAfterRouteChange(): Promise<void> {
 export async function handleMessage(message: GistMessage): Promise<boolean> {
   let messageProperties = resolveMessageProperties(message);
   if (messageProperties.hasRouteRule) {
+    if (Gist.currentRoute == null && document.readyState === 'loading') {
+      log(`Deferring message ${message.queueId}, page not fully loaded`);
+      return false;
+    }
+
     const routeRule = new RegExp(messageProperties.routeRule);
     const pathname = new URL(window.location.href).pathname;
 

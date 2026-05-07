@@ -230,6 +230,45 @@ describe('Gist', () => {
       await Gist.setup(baseConfig());
       expect(Gist.isDocumentVisible).toBe(true);
     });
+
+    describe('DOMContentLoaded queue recheck', () => {
+      function simulateReadyState(state: string) {
+        Object.defineProperty(document, 'readyState', {
+          value: state,
+          writable: true,
+          configurable: true,
+        });
+      }
+
+      afterEach(() => {
+        simulateReadyState('complete');
+      });
+
+      it('registers listener when page is loading', async () => {
+        simulateReadyState('loading');
+        const addSpy = vi.spyOn(document, 'addEventListener');
+
+        await Gist.setup(baseConfig());
+
+        expect(addSpy).toHaveBeenCalledWith('DOMContentLoaded', expect.any(Function), {
+          once: true,
+        });
+        addSpy.mockRestore();
+      });
+
+      it('skips listener when page is not loading', async () => {
+        simulateReadyState('complete');
+        const addSpy = vi.spyOn(document, 'addEventListener');
+
+        await Gist.setup(baseConfig());
+
+        const domContentLoadedCalls = addSpy.mock.calls.filter(
+          ([event]) => event === 'DOMContentLoaded'
+        );
+        expect(domContentLoadedCalls).toHaveLength(0);
+        addSpy.mockRestore();
+      });
+    });
   });
 
   describe('setCurrentRoute', () => {
