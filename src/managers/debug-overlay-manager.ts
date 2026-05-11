@@ -17,6 +17,7 @@ const POLL_INTERVAL_MS = 2000;
 
 let eventsSubscribed = false;
 let pollIntervalId: ReturnType<typeof setInterval> | null = null;
+let originalSetCurrentRoute: typeof Gist.setCurrentRoute | null = null;
 
 function getDebugDisplayType(msg: GistMessage): 'modal' | 'overlay' | 'inline' | 'tooltip' {
   const gist = msg.properties?.gist;
@@ -59,7 +60,7 @@ function routeRuleMismatches(rule: string): boolean {
     const matchesPathname = Gist.currentRoute !== pathname && re.test(pathname);
     return !matchesCurrent && !matchesPathname;
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -176,6 +177,7 @@ function buildOverlay(): HTMLElement {
       clearInterval(pollIntervalId);
       pollIntervalId = null;
     }
+    unsubscribeEvents();
   });
   header.appendChild(closeBtn);
   overlay.appendChild(header);
@@ -299,9 +301,13 @@ async function refreshMessages(): Promise<void> {
     ? await Promise.all([getMessagesFromLocalStore(), getEligibleBroadcasts()])
     : [[], []];
   const activeIds = new Set(active.map((m) => m.queueId ?? m.messageId));
-  const queued = [...broadcasts, ...userMsgs].filter(
-    (m) => !activeIds.has(m.queueId ?? m.messageId)
-  );
+  const seen = new Set<string>();
+  const queued = [...broadcasts, ...userMsgs].filter((m) => {
+    const id = m.queueId ?? m.messageId;
+    if (activeIds.has(id) || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
   const total = active.length + queued.length;
 
   label.textContent = `Messages (${total})`;
@@ -310,31 +316,46 @@ async function refreshMessages(): Promise<void> {
   for (const msg of queued) list.appendChild(buildMessageEl(msg, 'queued'));
 }
 
+function onMessageChanged(): void {
+  refreshSync();
+  void refreshMessages();
+}
+
+function onInboxUpdated(): void {
+  void refreshMessages();
+}
+
 // Lazily subscribe to Gist events and patch setCurrentRoute. Called on each
 // poll tick until Gist.events is available (Gist.setup() may run after load).
 function subscribeEvents(): void {
   if (eventsSubscribed || !Gist.events) return;
-  Gist.events.on('messageShown', () => {
-    refreshSync();
-    void refreshMessages();
-  });
-  Gist.events.on('messageDismissed', () => {
-    refreshSync();
-    void refreshMessages();
-  });
-  Gist.events.on('messageInboxUpdated', () => {
-    void refreshMessages();
-  });
+  Gist.events.on('messageShown', onMessageChanged);
+  Gist.events.on('messageDismissed', onMessageChanged);
+  Gist.events.on('messageInboxUpdated', onInboxUpdated);
 
   // No route-changed event exists — intercept setCurrentRoute instead.
-  const originalSetCurrentRoute = Gist.setCurrentRoute.bind(Gist);
+  originalSetCurrentRoute = Gist.setCurrentRoute.bind(Gist);
   Gist.setCurrentRoute = async (route: string) => {
-    await originalSetCurrentRoute(route);
+    await originalSetCurrentRoute!(route);
     refreshSync();
     void refreshMessages();
   };
 
   eventsSubscribed = true;
+}
+
+function unsubscribeEvents(): void {
+  if (!eventsSubscribed) return;
+  if (Gist.events) {
+    Gist.events.off('messageShown', onMessageChanged);
+    Gist.events.off('messageDismissed', onMessageChanged);
+    Gist.events.off('messageInboxUpdated', onInboxUpdated);
+  }
+  if (originalSetCurrentRoute) {
+    Gist.setCurrentRoute = originalSetCurrentRoute;
+    originalSetCurrentRoute = null;
+  }
+  eventsSubscribed = false;
 }
 
 async function refreshAll(): Promise<void> {
