@@ -10,7 +10,6 @@ export function setupDebugOverlay(): void {
   try {
     initDebugOverlay();
   } catch (error) {
-    // Fail silently if the debug overlay fails to initialize, as it should not impact the main functionality of the SDK
     log(`Failed to initialize debug overlay: ${error}`);
   }
 }

@@ -1,5 +1,5 @@
 import Gist from '../gist';
-import { el, injectStylesheet, appendToBody } from '../utilities/dom';
+import { el, findElement, injectStylesheet, appendToBody } from '../utilities/dom';
 import { version as SDK_VERSION } from '../../package.json';
 import { DEBUG_OVERLAY_CSS } from './debug-overlay-styles';
 import { getMessagesFromLocalStore } from './message-user-queue-manager';
@@ -103,7 +103,7 @@ function buildMessageEl(msg: GistMessage, state: 'active' | 'queued'): HTMLEleme
           'Route rule does not match current route. If it should, verify the route is set correctly and that analytics.page() is called on route changes.'
         );
     } else if (key === 'target') {
-      const exists = !!(document.getElementById(value) ?? document.querySelector(value));
+      const exists = !!findElement(value);
       statusClass = exists ? 'gist-debug-element-found' : 'gist-debug-route-mismatch';
       statusText = exists ? '✓' : '✕';
       if (!exists)
@@ -341,7 +341,7 @@ async function refreshAll(): Promise<void> {
 }
 
 export function initDebugOverlay(): void {
-  if (document.getElementById(OVERLAY_ID)) return;
+  if (pollIntervalId !== null) return;
   injectStylesheet(STYLE_ID, DEBUG_OVERLAY_CSS);
   const overlay = buildOverlay();
   appendToBody(overlay);
