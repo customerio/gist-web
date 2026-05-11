@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { GistConfig, GistMessage, DisplaySettings } from './types';
 import type { InboxMessage } from './managers/inbox-message-manager';
 
