@@ -5,9 +5,8 @@ import { DEBUG_OVERLAY_CSS } from './debug-overlay-styles';
 import { getMessagesFromLocalStore } from './message-user-queue-manager';
 import { getEligibleBroadcasts } from './message-broadcast-manager';
 import { getUserToken, isUsingGuestUserToken } from './user-manager';
-import { positions } from './page-component-manager';
 import { settings } from '../services/settings';
-import { mapElementIdToOverlayPosition } from '../utilities/message-utils';
+import { mapElementIdToOverlayPosition, getCurrentDisplayType } from '../utilities/message-utils';
 
 import type { GistMessage } from '../types';
 
@@ -19,14 +18,14 @@ let eventsSubscribed = false;
 let pollIntervalId: ReturnType<typeof setInterval> | null = null;
 let originalSetCurrentRoute: typeof Gist.setCurrentRoute | null = null;
 
-function getDebugDisplayType(msg: GistMessage): 'modal' | 'overlay' | 'inline' | 'tooltip' {
+function getDebugDisplayType(msg: GistMessage): ReturnType<typeof getCurrentDisplayType> {
   const gist = msg.properties?.gist;
-  const tooltipPos = gist?.tooltipPosition ?? msg.tooltipPosition;
-  if (tooltipPos) return 'tooltip';
-  const elementId = gist?.elementId ?? msg.elementId;
-  if (elementId && positions.includes(String(elementId))) return 'overlay';
-  if (elementId) return 'inline';
-  return 'modal';
+  if (!gist) return getCurrentDisplayType(msg);
+  return getCurrentDisplayType({
+    ...msg,
+    tooltipPosition: gist.tooltipPosition ?? msg.tooltipPosition,
+    elementId: gist.elementId != null ? String(gist.elementId) : msg.elementId,
+  });
 }
 
 function formatOverlayPositionLabel(overlayPosition: string): string {
