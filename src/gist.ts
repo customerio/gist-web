@@ -27,6 +27,7 @@ import {
   removeCustomAttribute,
 } from './managers/custom-attribute-manager';
 import { setupPreview } from './utilities/preview-mode';
+import { setupDebugOverlay } from './utilities/debug-mode';
 import {
   getInboxMessagesFromLocalStore,
   updateInboxMessageOpenState,
@@ -65,6 +66,7 @@ export default class Gist {
     this.currentRoute = null;
     this.isDocumentVisible = true;
     this.config.isPreviewSession = setupPreview();
+    setupDebugOverlay();
     clearExpiredFromLocalStore();
 
     log(`Setup complete on ${this.config.env} environment.`);
@@ -91,6 +93,10 @@ export default class Gist {
       },
       false
     );
+  }
+
+  static setupDebugOverlay(): void {
+    setupDebugOverlay();
   }
 
   static async setCurrentRoute(route: string): Promise<void> {

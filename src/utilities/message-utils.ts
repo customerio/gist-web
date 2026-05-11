@@ -45,22 +45,33 @@ export function updateMessageByInstanceId(instanceId: string, message: GistMessa
   Gist.currentMessages.push(message);
 }
 
-export function mapOverlayPositionToElementId(overlayPosition: string | undefined): string {
-  const positionMap: Record<string, string> = {
-    topLeft: 'x-gist-floating-top-left',
-    topCenter: 'x-gist-floating-top',
-    topRight: 'x-gist-floating-top-right',
-    bottomLeft: 'x-gist-floating-bottom-left',
-    bottomCenter: 'x-gist-floating-bottom',
-    bottomRight: 'x-gist-floating-bottom-right',
-  };
+const OVERLAY_POSITION_TO_ELEMENT_ID: Record<string, string> = {
+  topLeft: 'x-gist-floating-top-left',
+  topCenter: 'x-gist-floating-top',
+  topRight: 'x-gist-floating-top-right',
+  bottomLeft: 'x-gist-floating-bottom-left',
+  bottomCenter: 'x-gist-floating-bottom',
+  bottomRight: 'x-gist-floating-bottom-right',
+};
 
-  if (!overlayPosition || !positionMap[overlayPosition]) {
+const ELEMENT_ID_TO_OVERLAY_POSITION: Record<string, string> = Object.fromEntries(
+  Object.entries(OVERLAY_POSITION_TO_ELEMENT_ID).map(([key, value]) => [value, key])
+);
+
+export function mapOverlayPositionToElementId(overlayPosition: string | undefined): string {
+  if (!overlayPosition || !OVERLAY_POSITION_TO_ELEMENT_ID[overlayPosition]) {
     log(`Invalid overlay position "${overlayPosition}", defaulting to "topCenter"`);
-    return positionMap['topCenter'];
+    return OVERLAY_POSITION_TO_ELEMENT_ID['topCenter'];
   }
 
-  return positionMap[overlayPosition];
+  return OVERLAY_POSITION_TO_ELEMENT_ID[overlayPosition];
+}
+
+export function mapElementIdToOverlayPosition(
+  elementId: string | undefined | null
+): string | undefined {
+  if (!elementId) return undefined;
+  return ELEMENT_ID_TO_OVERLAY_POSITION[elementId];
 }
 
 export function getCurrentDisplayType(
