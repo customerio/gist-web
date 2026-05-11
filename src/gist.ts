@@ -79,6 +79,10 @@ export default class Gist {
 
     await startQueueListener();
 
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => void checkMessageQueue(), { once: true });
+    }
+
     document.addEventListener(
       'visibilitychange',
       async () => {
