@@ -12,9 +12,11 @@ import type { GistMessage } from '../types';
 
 const OVERLAY_ID = 'gist-debug-overlay';
 const STYLE_ID = 'gist-debug-overlay-styles';
-const POLL_INTERVAL_MS = 2000;
+const SETUP_POLL_MS = 2000;
+const FALLBACK_POLL_MS = 10000;
 
 let eventsSubscribed = false;
+let refreshing = false;
 let pollIntervalId: ReturnType<typeof setInterval> | null = null;
 let originalSetCurrentRoute: typeof Gist.setCurrentRoute | null = null;
 
@@ -290,29 +292,35 @@ function refreshSync(): void {
 }
 
 async function refreshMessages(): Promise<void> {
+  if (refreshing) return;
   if (!document.getElementById(OVERLAY_ID)) return;
   const label = document.getElementById('gist-debug-messages-label');
   const list = document.getElementById('gist-debug-messages-list');
   if (!label || !list) return;
 
-  const active = Gist.currentMessages ?? [];
-  const [userMsgs, broadcasts] = Gist.config
-    ? await Promise.all([getMessagesFromLocalStore(), getEligibleBroadcasts()])
-    : [[], []];
-  const activeIds = new Set(active.map((m) => m.queueId ?? m.messageId));
-  const seen = new Set<string>();
-  const queued = [...broadcasts, ...userMsgs].filter((m) => {
-    const id = m.queueId ?? m.messageId;
-    if (activeIds.has(id) || seen.has(id)) return false;
-    seen.add(id);
-    return true;
-  });
-  const total = active.length + queued.length;
+  refreshing = true;
+  try {
+    const active = Gist.currentMessages ?? [];
+    const [userMsgs, broadcasts] = Gist.config
+      ? await Promise.all([getMessagesFromLocalStore(), getEligibleBroadcasts()])
+      : [[], []];
+    const activeIds = new Set(active.map((m) => m.queueId ?? m.messageId));
+    const seen = new Set<string>();
+    const queued = [...broadcasts, ...userMsgs].filter((m) => {
+      const id = m.queueId ?? m.messageId;
+      if (activeIds.has(id) || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+    const total = active.length + queued.length;
 
-  label.textContent = `Messages (${total})`;
-  list.innerHTML = '';
-  for (const msg of active) list.appendChild(buildMessageEl(msg, 'active'));
-  for (const msg of queued) list.appendChild(buildMessageEl(msg, 'queued'));
+    label.textContent = `Messages (${total})`;
+    list.innerHTML = '';
+    for (const msg of active) list.appendChild(buildMessageEl(msg, 'active'));
+    for (const msg of queued) list.appendChild(buildMessageEl(msg, 'queued'));
+  } finally {
+    refreshing = false;
+  }
 }
 
 function onMessageChanged(): void {
@@ -358,9 +366,17 @@ function unsubscribeEvents(): void {
 }
 
 async function refreshAll(): Promise<void> {
-  subscribeEvents();
+  if (!eventsSubscribed) {
+    subscribeEvents();
+    if (eventsSubscribed) reschedulePoll(FALLBACK_POLL_MS);
+  }
   refreshSync();
   await refreshMessages();
+}
+
+function reschedulePoll(intervalMs: number): void {
+  if (pollIntervalId !== null) clearInterval(pollIntervalId);
+  pollIntervalId = setInterval(() => void refreshAll(), intervalMs);
 }
 
 export function initDebugOverlay(): void {
@@ -368,6 +384,6 @@ export function initDebugOverlay(): void {
   injectStylesheet(STYLE_ID, DEBUG_OVERLAY_CSS);
   const overlay = buildOverlay();
   appendToBody(overlay);
+  reschedulePoll(SETUP_POLL_MS);
   void refreshAll();
-  pollIntervalId = setInterval(() => void refreshAll(), POLL_INTERVAL_MS);
 }
