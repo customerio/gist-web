@@ -298,7 +298,10 @@ async function refreshMessages(): Promise<void> {
   const [userMsgs, broadcasts] = Gist.config
     ? await Promise.all([getMessagesFromLocalStore(), getEligibleBroadcasts()])
     : [[], []];
-  const queued = [...broadcasts, ...userMsgs];
+  const activeIds = new Set(active.map((m) => m.queueId ?? m.messageId));
+  const queued = [...broadcasts, ...userMsgs].filter(
+    (m) => !activeIds.has(m.queueId ?? m.messageId)
+  );
   const total = active.length + queued.length;
 
   label.textContent = `Messages (${total})`;
