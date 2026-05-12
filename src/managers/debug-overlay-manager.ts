@@ -1,6 +1,5 @@
 import Gist from '../gist';
 import { el, findElement, injectStylesheet, appendToBody } from '../utilities/dom';
-import { version as SDK_VERSION } from '../../package.json';
 import { DEBUG_OVERLAY_CSS } from './debug-overlay-styles';
 import { getMessagesFromLocalStore } from './message-user-queue-manager';
 import { getEligibleBroadcasts } from './message-broadcast-manager';
@@ -30,7 +29,6 @@ let refs: OverlayRefs | null = null;
 let eventsSubscribed = false;
 let refreshing = false;
 let pollIntervalId: ReturnType<typeof setInterval> | null = null;
-let originalSetCurrentRoute: typeof Gist.setCurrentRoute | null = null;
 
 function getDebugDisplayType(msg: GistMessage): ReturnType<typeof getCurrentDisplayType> {
   const gist = msg.properties?.gist;
@@ -171,7 +169,7 @@ function buildOverlay(): OverlayRefs {
   header.appendChild(
     el('span', {
       className: 'gist-debug-title',
-      textContent: `Customer.io In-App SDK ${SDK_VERSION}`,
+      textContent: 'Customer.io In-App SDK Debugger',
     })
   );
   const closeBtn = el('button', {
@@ -296,6 +294,8 @@ async function refreshMessages(): Promise<void> {
       seen.add(id);
       return true;
     });
+    if (!refs) return;
+
     const total = active.length + queued.length;
 
     refs.messagesLabel.textContent = `Messages (${total})`;
@@ -322,12 +322,7 @@ function subscribeEvents(): void {
   Gist.events.on('messageShown', onMessageChanged);
   Gist.events.on('messageDismissed', onMessageChanged);
   Gist.events.on('messageInboxUpdated', onInboxUpdated);
-
-  originalSetCurrentRoute = Gist.setCurrentRoute.bind(Gist);
-  Gist.setCurrentRoute = async (route: string) => {
-    await originalSetCurrentRoute!(route);
-    onMessageChanged();
-  };
+  Gist.events.on('routeChanged', onMessageChanged);
 
   eventsSubscribed = true;
 }
@@ -338,10 +333,7 @@ function unsubscribeEvents(): void {
     Gist.events.off('messageShown', onMessageChanged);
     Gist.events.off('messageDismissed', onMessageChanged);
     Gist.events.off('messageInboxUpdated', onInboxUpdated);
-  }
-  if (originalSetCurrentRoute) {
-    Gist.setCurrentRoute = originalSetCurrentRoute;
-    originalSetCurrentRoute = null;
+    Gist.events.off('routeChanged', onMessageChanged);
   }
   eventsSubscribed = false;
 }

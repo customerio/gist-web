@@ -104,6 +104,7 @@ export default class Gist {
     log(`Current route set to: ${route}`);
     await checkCurrentMessagesAfterRouteChange();
     await checkMessageQueue();
+    this.events?.dispatch('routeChanged', route);
   }
 
   static async setUserToken(userToken: string, expiryDate?: Date): Promise<void> {
