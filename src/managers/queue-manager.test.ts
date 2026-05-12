@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   checkMessageQueue,
   stopSSEListener,
@@ -606,7 +606,7 @@ describe('queue-manager', () => {
 
         await handleMessage(message);
 
-        // pathname /dashboard matches directly
+        // currentRoute http://example.com/dashboard matches .*\/dashboard.*
         expect(showMessage).toHaveBeenCalledWith(message);
       });
 
@@ -712,6 +712,83 @@ describe('queue-manager', () => {
 
         await handleMessage(message);
 
+        expect(showMessage).toHaveBeenCalledWith(message);
+      });
+    });
+
+    // --- Race condition: page still loading ---
+
+    describe('defers messages while page is loading', () => {
+      function simulateReadyState(state: string) {
+        Object.defineProperty(document, 'readyState', {
+          value: state,
+          writable: true,
+          configurable: true,
+        });
+      }
+
+      beforeEach(() => {
+        (Gist as unknown as Record<string, unknown>).currentRoute = null;
+      });
+
+      afterEach(() => {
+        simulateReadyState('complete');
+      });
+
+      it('defers message with route rule when page is loading and route is not set', async () => {
+        simulateReadyState('loading');
+        withRouteRule('^(.*\\/dashboard.*)$');
+        navigateTo('/dashboard');
+
+        const result = await handleMessage(message);
+
+        expect(result).toBe(false);
+        expect(showMessage).not.toHaveBeenCalled();
+      });
+
+      it('evaluates immediately when currentRoute is set even during loading', async () => {
+        simulateReadyState('loading');
+        withRouteRule('^(.*\\/dashboard.*)$');
+        navigateTo('/dashboard');
+        (Gist as unknown as Record<string, unknown>).currentRoute = '/dashboard';
+
+        await handleMessage(message);
+
+        expect(showMessage).toHaveBeenCalledWith(message);
+      });
+
+      it('evaluates once DOM is interactive even if currentRoute is null', async () => {
+        simulateReadyState('interactive');
+        withRouteRule('^(.*\\/dashboard.*)$');
+        navigateTo('/dashboard');
+
+        await handleMessage(message);
+
+        expect(showMessage).toHaveBeenCalledWith(message);
+      });
+
+      it('defers exclusion rule evaluation when page is loading', async () => {
+        simulateReadyState('loading');
+        const origin = window.location.origin;
+        const escaped = origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        withRouteRule(`^(?!.*(?:(^${escaped}\\/dashboard\\/$))).*$`);
+        navigateTo('/dashboard/');
+
+        const result = await handleMessage(message);
+
+        expect(result).toBe(false);
+        expect(showMessage).not.toHaveBeenCalled();
+      });
+
+      it('shows message without route rule even when page is loading', async () => {
+        simulateReadyState('loading');
+        vi.mocked(resolveMessageProperties).mockReturnValue(defaultProperties);
+        navigateTo('/dashboard');
+
+        const result = await handleMessage(message);
+
+        // Not deferred (no route rule), but showMessage mock returns null
+        expect(result).toBe(false);
         expect(showMessage).toHaveBeenCalledWith(message);
       });
     });
