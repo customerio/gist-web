@@ -90,11 +90,18 @@ export async function checkCurrentMessagesAfterRouteChange(): Promise<void> {
 // TODO: Move this to a utility and only return valid messages (from: getEligibleBroadcasts getMessagesFromLocalStore) & to handleMessage
 export async function handleMessage(message: GistMessage): Promise<boolean> {
   let messageProperties = resolveMessageProperties(message);
-  if (messageProperties.hasRouteRule && !matchesRouteRule(messageProperties.routeRule)) {
-    log(
-      `Route ${new URL(window.location.href).pathname} (currentRoute: ${Gist.currentRoute}) does not match rule: ${messageProperties.routeRule}`
-    );
-    return false;
+  if (messageProperties.hasRouteRule) {
+    if (Gist.currentRoute == null && document.readyState === 'loading') {
+      log(`Deferring message ${message.queueId}, page not fully loaded`);
+      return false;
+    }
+
+    if (!matchesRouteRule(messageProperties.routeRule)) {
+      log(
+        `Route ${new URL(window.location.href).pathname} (currentRoute: ${Gist.currentRoute}) does not match rule: ${messageProperties.routeRule}`
+      );
+      return false;
+    }
   }
 
   if (messageProperties.hasPosition) {

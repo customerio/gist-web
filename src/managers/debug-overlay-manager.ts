@@ -64,10 +64,6 @@ function msgProps(msg: GistMessage): Array<[string, string]> {
   return pairs;
 }
 
-function routeRuleMismatches(rule: string): boolean {
-  return !matchesRouteRule(rule);
-}
-
 function buildKvRow(key: string, value: string, error = false): HTMLElement {
   const row = el('div', { className: 'gist-debug-msg-row' });
   row.appendChild(el('span', { className: 'gist-debug-msg-key', textContent: key }));
@@ -116,7 +112,7 @@ function buildMessageEl(msg: GistMessage, state: 'active' | 'queued'): HTMLEleme
     let statusText: string | null = null;
 
     if (key === 'Route Rule') {
-      const mismatch = routeRuleMismatches(value);
+      const mismatch = !matchesRouteRule(value);
       statusClass = mismatch ? 'gist-debug-route-mismatch' : 'gist-debug-element-found';
       statusText = mismatch ? '✕' : '✓';
       if (mismatch)

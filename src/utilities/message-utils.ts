@@ -76,6 +76,9 @@ export function mapElementIdToOverlayPosition(
 
 export function matchesRouteRule(rule: string): boolean {
   try {
+    const routeRule = new RegExp(rule);
+    const pathname = new URL(window.location.href).pathname;
+
     // Route rule evaluation checks two values.
     //
     // Gist.currentRoute (primary): Set by the SDK's analytics.page() call. This is
@@ -88,8 +91,6 @@ export function matchesRouteRule(rule: string): boolean {
     // always a path like "/dashboard", regardless of how analytics.page() was called.
     // Catches cases where currentRoute is null or set to a value that doesn't match.
 
-    const routeRule = new RegExp(rule);
-    const pathname = new URL(window.location.href).pathname;
     const matchesCurrentRoute = Gist.currentRoute != null && routeRule.test(Gist.currentRoute);
     const matchesPathname = Gist.currentRoute !== pathname && routeRule.test(pathname);
     return matchesCurrentRoute || matchesPathname;
