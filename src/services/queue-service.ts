@@ -108,3 +108,7 @@ export function getQueueSSEEndpoint(): string | null {
     `/api/v3/sse?userToken=${encodedUserToken}&siteId=${Gist.config.siteId}&sessionId=${getSessionId()}`
   );
 }
+
+export function getPollingIntervalSeconds(): number {
+  return currentPollingDelayInSeconds;
+}

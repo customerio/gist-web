@@ -67,7 +67,7 @@ export const DEBUG_OVERLAY_CSS = `
     background: rgba(255,255,255,0.06);
     border-radius: 4px;
     padding: 5px 7px;
-    margin-bottom: 4px;
+    margin-bottom: 8px;
   }
   .gist-debug-msg:last-child { margin-bottom: 0; }
   .gist-debug-msg-row {
@@ -187,11 +187,4 @@ export const DEBUG_OVERLAY_CSS = `
   }
   .gist-debug-msg-details li { margin-bottom: 2px; }
   .gist-debug-msg-details li:last-child { margin-bottom: 0; }
-  .gist-debug-inline-code {
-    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-    font-size: 9px;
-    background: rgba(255,255,255,0.1);
-    padding: 1px 3px;
-    border-radius: 2px;
-  }
 `;

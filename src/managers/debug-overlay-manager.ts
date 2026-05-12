@@ -6,15 +6,27 @@ import { getMessagesFromLocalStore } from './message-user-queue-manager';
 import { getEligibleBroadcasts } from './message-broadcast-manager';
 import { getUserToken, isUsingGuestUserToken } from './user-manager';
 import { settings } from '../services/settings';
+import { getPollingIntervalSeconds } from '../services/queue-service';
 import { mapElementIdToOverlayPosition, getCurrentDisplayType } from '../utilities/message-utils';
 
 import type { GistMessage } from '../types';
 
-const OVERLAY_ID = 'gist-debug-overlay';
 const STYLE_ID = 'gist-debug-overlay-styles';
 const SETUP_POLL_MS = 2000;
-const FALLBACK_POLL_MS = 10000;
+const FALLBACK_POLL_MS = 5000;
 
+interface OverlayRefs {
+  root: HTMLElement;
+  configRows: HTMLElement;
+  configDetail: HTMLElement;
+  userValue: HTMLElement;
+  routeValue: HTMLElement;
+  routeDetail: HTMLElement;
+  messagesLabel: HTMLElement;
+  messagesList: HTMLElement;
+}
+
+let refs: OverlayRefs | null = null;
 let eventsSubscribed = false;
 let refreshing = false;
 let pollIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -30,26 +42,23 @@ function getDebugDisplayType(msg: GistMessage): ReturnType<typeof getCurrentDisp
   });
 }
 
-function formatOverlayPositionLabel(overlayPosition: string): string {
-  return overlayPosition.replace(/([A-Z])/g, ' $1').toLowerCase();
-}
-
 function msgProps(msg: GistMessage): Array<[string, string]> {
   const gist = msg.properties?.gist;
   const pairs: Array<[string, string]> = [];
-  if (gist?.routeRuleWeb) pairs.push(['route rule', String(gist.routeRuleWeb)]);
+  if (gist?.routeRuleWeb) pairs.push(['Route Rule', String(gist.routeRuleWeb)]);
   const elementId = gist?.elementId ?? msg.elementId;
   const displayType = getDebugDisplayType(msg);
   if (elementId && displayType === 'overlay') {
     const overlayPosition = mapElementIdToOverlayPosition(String(elementId));
-    if (overlayPosition) pairs.push(['position', formatOverlayPositionLabel(overlayPosition)]);
+    if (overlayPosition)
+      pairs.push(['Position', overlayPosition.replace(/([A-Z])/g, ' $1').toLowerCase()]);
   } else if (elementId && displayType !== 'modal') {
-    pairs.push(['target', String(elementId)]);
+    pairs.push(['Target', String(elementId)]);
   }
   const position = gist?.position ?? msg.position;
-  if (position && displayType !== 'overlay') pairs.push(['position', String(position)]);
+  if (position && displayType !== 'overlay') pairs.push(['Position', String(position)]);
   const tooltip = gist?.tooltipPosition ?? msg.tooltipPosition;
-  if (tooltip) pairs.push(['tooltip', String(tooltip)]);
+  if (tooltip) pairs.push(['Tooltip', String(tooltip)]);
   return pairs;
 }
 
@@ -63,6 +72,22 @@ function routeRuleMismatches(rule: string): boolean {
   } catch {
     return true;
   }
+}
+
+function buildKvRow(key: string, value: string, error = false): HTMLElement {
+  const row = el('div', { className: 'gist-debug-msg-row' });
+  row.appendChild(el('span', { className: 'gist-debug-msg-key', textContent: key }));
+  row.appendChild(
+    el('span', {
+      className: error ? 'gist-debug-msg-val gist-debug-val-error' : 'gist-debug-msg-val',
+      textContent: value,
+    })
+  );
+  return row;
+}
+
+function renderKv(container: HTMLElement, pairs: Array<[string, string]>, error = false): void {
+  container.replaceChildren(...pairs.map(([key, value]) => buildKvRow(key, value, error)));
 }
 
 function buildMessageEl(msg: GistMessage, state: 'active' | 'queued'): HTMLElement {
@@ -96,7 +121,7 @@ function buildMessageEl(msg: GistMessage, state: 'active' | 'queued'): HTMLEleme
     let statusClass: string | null = null;
     let statusText: string | null = null;
 
-    if (key === 'route rule') {
+    if (key === 'Route Rule') {
       const mismatch = routeRuleMismatches(value);
       statusClass = mismatch ? 'gist-debug-route-mismatch' : 'gist-debug-element-found';
       statusText = mismatch ? '✕' : '✓';
@@ -104,7 +129,7 @@ function buildMessageEl(msg: GistMessage, state: 'active' | 'queued'): HTMLEleme
         inlineDetails.push(
           'Route rule does not match current route. If it should, verify the route is set correctly and that analytics.page() is called on route changes.'
         );
-    } else if (key === 'target') {
+    } else if (key === 'Target') {
       const exists = !!findElement(value);
       statusClass = exists ? 'gist-debug-element-found' : 'gist-debug-route-mismatch';
       statusText = exists ? '✓' : '✕';
@@ -131,33 +156,16 @@ function buildMessageEl(msg: GistMessage, state: 'active' | 'queued'): HTMLEleme
   return item;
 }
 
-function buildExpandDetail(items: Array<string | Node[]>): HTMLElement {
+function buildDetailPanel(text: string): HTMLElement {
   const detail = el('div', { className: 'gist-debug-expand-detail' });
   const list = el('ul', { className: 'gist-debug-expand-list' });
-  for (const item of items) {
-    const li = el('li', {});
-    if (typeof item === 'string') {
-      li.textContent = item;
-    } else {
-      for (const node of item)
-        li.appendChild(node instanceof Node ? node : document.createTextNode(String(node)));
-    }
-    list.appendChild(li);
-  }
+  list.appendChild(el('li', { textContent: text }));
   detail.appendChild(list);
   return detail;
 }
 
-function buildSection(labelId?: string, valueId?: string, listId?: string): HTMLElement {
-  const section = el('div', { className: 'gist-debug-section' });
-  if (labelId) section.appendChild(el('div', { className: 'gist-debug-label', id: labelId }));
-  if (valueId) section.appendChild(el('div', { className: 'gist-debug-value', id: valueId }));
-  if (listId) section.appendChild(el('div', { id: listId }));
-  return section;
-}
-
-function buildOverlay(): HTMLElement {
-  const overlay = el('div', { id: OVERLAY_ID });
+function buildOverlay(): OverlayRefs {
+  const root = el('div', { id: 'gist-debug-overlay' });
 
   const header = el('div', { className: 'gist-debug-header' });
   header.appendChild(
@@ -171,132 +179,108 @@ function buildOverlay(): HTMLElement {
     ariaLabel: 'Dismiss debug overlay',
     textContent: '×',
   });
-  closeBtn.addEventListener('click', () => {
-    overlay.remove();
-    document.getElementById(STYLE_ID)?.remove();
-    if (pollIntervalId !== null) {
-      clearInterval(pollIntervalId);
-      pollIntervalId = null;
-    }
-    unsubscribeEvents();
-  });
+  closeBtn.addEventListener('click', teardown);
   header.appendChild(closeBtn);
-  overlay.appendChild(header);
+  root.appendChild(header);
 
-  // Config section
+  // Config
   const configSection = el('div', { className: 'gist-debug-section' });
   const configLabel = el('div', { className: 'gist-debug-label' });
   configLabel.appendChild(el('span', { textContent: 'Config' }));
   configSection.appendChild(configLabel);
-  configSection.appendChild(el('div', { id: 'gist-debug-config-rows' }));
-  const configDetail = buildExpandDetail([
-    "Ensure you're using the correct credentials in the SDK initialization snippet",
-    'Ensure your credentials are active in Journeys',
-  ]);
+  const configRows = el('div', {});
+  configSection.appendChild(configRows);
+  const configDetail = buildDetailPanel('Verify your site ID and credentials are correct.');
   configSection.appendChild(configDetail);
-  overlay.appendChild(configSection);
+  root.appendChild(configSection);
 
-  // User section
-  overlay.appendChild(buildSection('gist-debug-user-label', 'gist-debug-user-value'));
+  // User
+  const userSection = el('div', { className: 'gist-debug-section' });
+  const userLabel = el('div', { className: 'gist-debug-label', textContent: 'User' });
+  userSection.appendChild(userLabel);
+  const userValue = el('div', { className: 'gist-debug-value' });
+  userSection.appendChild(userValue);
+  root.appendChild(userSection);
 
-  // Route section
+  // Route
   const routeSection = el('div', { className: 'gist-debug-section' });
   const routeLabel = el('div', { className: 'gist-debug-label' });
   routeLabel.appendChild(el('span', { textContent: 'Route' }));
   routeSection.appendChild(routeLabel);
-  routeSection.appendChild(
-    el('div', { className: 'gist-debug-value', id: 'gist-debug-route-value' })
+  const routeValue = el('div', { className: 'gist-debug-value' });
+  routeSection.appendChild(routeValue);
+  const routeDetail = buildDetailPanel(
+    'The current route is used to match against potential message page rules.'
   );
-  const inlineCode = el('code', {
-    className: 'gist-debug-inline-code',
-    textContent: 'analytics.page()',
-  });
-  const routeDetail = buildExpandDetail([
-    'The current route is used to match against message page rules if set.',
-    [
-      document.createTextNode('For single-page applications, ensure '),
-      inlineCode,
-      document.createTextNode(' is called on every route change'),
-    ],
-  ]);
   routeSection.appendChild(routeDetail);
-  overlay.appendChild(routeSection);
+  root.appendChild(routeSection);
 
-  overlay.appendChild(
-    buildSection('gist-debug-messages-label', undefined, 'gist-debug-messages-list')
-  );
-  return overlay;
+  // Messages
+  const messagesSection = el('div', { className: 'gist-debug-section' });
+  const messagesLabel = el('div', { className: 'gist-debug-label' });
+  messagesSection.appendChild(messagesLabel);
+  const messagesList = el('div', {});
+  messagesSection.appendChild(messagesList);
+  root.appendChild(messagesSection);
+
+  return {
+    root,
+    configRows,
+    configDetail,
+    userValue,
+    routeValue,
+    routeDetail,
+    messagesLabel,
+    messagesList,
+  };
 }
 
-function buildKvRow(key: string, value: string, error = false): HTMLElement {
-  const row = el('div', { className: 'gist-debug-msg-row' });
-  row.appendChild(el('span', { className: 'gist-debug-msg-key', textContent: key }));
-  row.appendChild(
-    el('span', {
-      className: error ? 'gist-debug-msg-val gist-debug-val-error' : 'gist-debug-msg-val',
-      textContent: value,
-    })
-  );
-  return row;
-}
-
-function renderKv(container: HTMLElement, pairs: Array<[string, string]>, error = false): void {
-  container.innerHTML = '';
-  for (const [key, value] of pairs) container.appendChild(buildKvRow(key, value, error));
+function teardown(): void {
+  if (!refs) return;
+  refs.root.remove();
+  document.getElementById(STYLE_ID)?.remove();
+  if (pollIntervalId !== null) {
+    clearInterval(pollIntervalId);
+    pollIntervalId = null;
+  }
+  unsubscribeEvents();
+  refs = null;
 }
 
 function refreshSync(): void {
-  if (!document.getElementById(OVERLAY_ID)) return;
+  if (!refs) return;
 
-  // Config + init status
-  const configRows = document.getElementById('gist-debug-config-rows');
-  if (configRows) {
-    if (!Gist.config) {
-      renderKv(configRows, [['Status', 'NOT INITIALIZED']], true);
-    } else {
-      renderKv(configRows, [
-        ['Status', 'INITIALIZED'],
-        ['Connection', settings.useSSE() ? 'SSE' : 'polling'],
-        ['Site ID', `${Gist.config.siteId.slice(0, 3)}…`],
-      ]);
-    }
+  if (!Gist.config) {
+    renderKv(refs.configRows, [['Status', 'NOT INITIALIZED']], true);
+  } else {
+    renderKv(refs.configRows, [
+      ['Site ID', Gist.config.siteId],
+      ['Connection', settings.useSSE() ? 'SSE' : `Polling ${getPollingIntervalSeconds()}s`],
+    ]);
+  }
+  refs.configDetail.style.display = Gist.config ? 'none' : '';
+
+  const token = getUserToken();
+  if (!token) {
+    refs.userValue.textContent = '(none)';
+  } else if (isUsingGuestUserToken()) {
+    refs.userValue.textContent = '(anonymous)';
+  } else {
+    refs.userValue.textContent = token.length > 32 ? `${token.slice(0, 32)}…` : token;
   }
 
-  // User
-  const userLabel = document.getElementById('gist-debug-user-label');
-  const userValue = document.getElementById('gist-debug-user-value');
-  if (userLabel && userValue) {
-    userLabel.textContent = 'User';
-    const token = getUserToken();
-    if (!token) {
-      userValue.textContent = '(none)';
-    } else if (isUsingGuestUserToken()) {
-      userValue.textContent = '(anonymous)';
-    } else {
-      userValue.textContent = token.length > 32 ? `${token.slice(0, 32)}…` : token;
-    }
-  }
-
-  // Route — value only, label and detail are static DOM from buildOverlay
-  const routeValue = document.getElementById('gist-debug-route-value');
-  if (routeValue) {
-    const route = Gist.currentRoute;
-    routeValue.innerHTML = '';
-    routeValue.appendChild(
-      el('span', {
-        className: route ? 'gist-debug-msg-val' : 'gist-debug-msg-val gist-debug-val-error',
-        textContent: route ?? 'NONE',
-      })
-    );
-  }
+  const route = Gist.currentRoute;
+  refs.routeValue.replaceChildren(
+    el('span', {
+      className: route ? 'gist-debug-msg-val' : 'gist-debug-msg-val gist-debug-val-error',
+      textContent: route ?? 'NONE',
+    })
+  );
+  refs.routeDetail.style.display = route ? 'none' : '';
 }
 
 async function refreshMessages(): Promise<void> {
-  if (refreshing) return;
-  if (!document.getElementById(OVERLAY_ID)) return;
-  const label = document.getElementById('gist-debug-messages-label');
-  const list = document.getElementById('gist-debug-messages-list');
-  if (!label || !list) return;
+  if (refreshing || !refs) return;
 
   refreshing = true;
   try {
@@ -314,10 +298,11 @@ async function refreshMessages(): Promise<void> {
     });
     const total = active.length + queued.length;
 
-    label.textContent = `Messages (${total})`;
-    list.innerHTML = '';
-    for (const msg of active) list.appendChild(buildMessageEl(msg, 'active'));
-    for (const msg of queued) list.appendChild(buildMessageEl(msg, 'queued'));
+    refs.messagesLabel.textContent = `Messages (${total})`;
+    refs.messagesList.replaceChildren(
+      ...active.map((msg) => buildMessageEl(msg, 'active')),
+      ...queued.map((msg) => buildMessageEl(msg, 'queued'))
+    );
   } finally {
     refreshing = false;
   }
@@ -332,20 +317,16 @@ function onInboxUpdated(): void {
   void refreshMessages();
 }
 
-// Lazily subscribe to Gist events and patch setCurrentRoute. Called on each
-// poll tick until Gist.events is available (Gist.setup() may run after load).
 function subscribeEvents(): void {
   if (eventsSubscribed || !Gist.events) return;
   Gist.events.on('messageShown', onMessageChanged);
   Gist.events.on('messageDismissed', onMessageChanged);
   Gist.events.on('messageInboxUpdated', onInboxUpdated);
 
-  // No route-changed event exists — intercept setCurrentRoute instead.
   originalSetCurrentRoute = Gist.setCurrentRoute.bind(Gist);
   Gist.setCurrentRoute = async (route: string) => {
     await originalSetCurrentRoute!(route);
-    refreshSync();
-    void refreshMessages();
+    onMessageChanged();
   };
 
   eventsSubscribed = true;
@@ -380,10 +361,10 @@ function reschedulePoll(intervalMs: number): void {
 }
 
 export function initDebugOverlay(): void {
-  if (pollIntervalId !== null) return;
+  if (refs || pollIntervalId !== null) return;
   injectStylesheet(STYLE_ID, DEBUG_OVERLAY_CSS);
-  const overlay = buildOverlay();
-  appendToBody(overlay);
+  refs = buildOverlay();
+  appendToBody(refs.root);
   reschedulePoll(SETUP_POLL_MS);
   void refreshAll();
 }
