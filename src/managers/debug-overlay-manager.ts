@@ -6,7 +6,11 @@ import { getEligibleBroadcasts } from './message-broadcast-manager';
 import { getUserToken, isUsingGuestUserToken } from './user-manager';
 import { settings } from '../services/settings';
 import { getPollingIntervalSeconds } from '../services/queue-service';
-import { mapElementIdToOverlayPosition, getCurrentDisplayType } from '../utilities/message-utils';
+import {
+  mapElementIdToOverlayPosition,
+  getCurrentDisplayType,
+  matchesRouteRule,
+} from '../utilities/message-utils';
 
 import type { GistMessage } from '../types';
 
@@ -61,15 +65,7 @@ function msgProps(msg: GistMessage): Array<[string, string]> {
 }
 
 function routeRuleMismatches(rule: string): boolean {
-  try {
-    const re = new RegExp(rule);
-    const pathname = new URL(window.location.href).pathname;
-    const matchesCurrent = Gist.currentRoute != null && re.test(Gist.currentRoute);
-    const matchesPathname = Gist.currentRoute !== pathname && re.test(pathname);
-    return !matchesCurrent && !matchesPathname;
-  } catch {
-    return true;
-  }
+  return !matchesRouteRule(rule);
 }
 
 function buildKvRow(key: string, value: string, error = false): HTMLElement {
