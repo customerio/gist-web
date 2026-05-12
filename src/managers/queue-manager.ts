@@ -25,7 +25,7 @@ import {
 import { updateInboxMessagesLocalStore } from './inbox-message-manager';
 import type { InboxMessage } from './inbox-message-manager';
 import { settings } from '../services/settings';
-import { applyDisplaySettings } from '../utilities/message-utils';
+import { applyDisplaySettings, matchesRouteRule } from '../utilities/message-utils';
 import { findElement } from '../utilities/dom';
 import type { GistMessage, DisplaySettings } from '../types';
 
@@ -96,26 +96,9 @@ export async function handleMessage(message: GistMessage): Promise<boolean> {
       return false;
     }
 
-    const routeRule = new RegExp(messageProperties.routeRule);
-    const pathname = new URL(window.location.href).pathname;
-
-    // Route rule evaluation checks two values.
-    //
-    // Gist.currentRoute (primary): Set by the SDK's analytics.page() call. This is
-    // what customers have historically built their rules against. The value varies
-    // by call style — analytics.page("Name") sets an arbitrary string like "Name",
-    // analytics.page() sets the full URL, and never calling it leaves currentRoute
-    // null. Existing customers have live rules that depend on all of these formats.
-    //
-    // pathname (fallback): The URL path from window.location. Always available and
-    // always a path like "/dashboard", regardless of how analytics.page() was called.
-    // Catches cases where currentRoute is null or set to a value that doesn't match.
-    const matchesCurrentRoute = Gist.currentRoute != null && routeRule.test(Gist.currentRoute);
-    const matchesPathname = Gist.currentRoute !== pathname && routeRule.test(pathname);
-
-    if (!matchesCurrentRoute && !matchesPathname) {
+    if (!matchesRouteRule(messageProperties.routeRule)) {
       log(
-        `Route ${pathname} (currentRoute: ${Gist.currentRoute}) does not match rule: ${messageProperties.routeRule}`
+        `Route ${new URL(window.location.href).pathname} (currentRoute: ${Gist.currentRoute}) does not match rule: ${messageProperties.routeRule}`
       );
       return false;
     }

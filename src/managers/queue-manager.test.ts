@@ -91,9 +91,13 @@ vi.mock('../services/settings', () => ({
     },
   },
 }));
-vi.mock('../utilities/message-utils', () => ({
-  applyDisplaySettings: vi.fn(),
-}));
+vi.mock('../utilities/message-utils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../utilities/message-utils')>();
+  return {
+    ...actual,
+    applyDisplaySettings: vi.fn(),
+  };
+});
 vi.mock('../utilities/dom', () => ({
   findElement: vi.fn(() => null),
 }));

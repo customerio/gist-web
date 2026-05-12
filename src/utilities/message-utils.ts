@@ -45,22 +45,58 @@ export function updateMessageByInstanceId(instanceId: string, message: GistMessa
   Gist.currentMessages.push(message);
 }
 
-export function mapOverlayPositionToElementId(overlayPosition: string | undefined): string {
-  const positionMap: Record<string, string> = {
-    topLeft: 'x-gist-floating-top-left',
-    topCenter: 'x-gist-floating-top',
-    topRight: 'x-gist-floating-top-right',
-    bottomLeft: 'x-gist-floating-bottom-left',
-    bottomCenter: 'x-gist-floating-bottom',
-    bottomRight: 'x-gist-floating-bottom-right',
-  };
+const OVERLAY_POSITION_TO_ELEMENT_ID: Record<string, string> = {
+  topLeft: 'x-gist-floating-top-left',
+  topCenter: 'x-gist-floating-top',
+  topRight: 'x-gist-floating-top-right',
+  bottomLeft: 'x-gist-floating-bottom-left',
+  bottomCenter: 'x-gist-floating-bottom',
+  bottomRight: 'x-gist-floating-bottom-right',
+};
 
-  if (!overlayPosition || !positionMap[overlayPosition]) {
+const ELEMENT_ID_TO_OVERLAY_POSITION: Record<string, string> = Object.fromEntries(
+  Object.entries(OVERLAY_POSITION_TO_ELEMENT_ID).map(([key, value]) => [value, key])
+);
+
+export function mapOverlayPositionToElementId(overlayPosition: string | undefined): string {
+  if (!overlayPosition || !OVERLAY_POSITION_TO_ELEMENT_ID[overlayPosition]) {
     log(`Invalid overlay position "${overlayPosition}", defaulting to "topCenter"`);
-    return positionMap['topCenter'];
+    return OVERLAY_POSITION_TO_ELEMENT_ID['topCenter'];
   }
 
-  return positionMap[overlayPosition];
+  return OVERLAY_POSITION_TO_ELEMENT_ID[overlayPosition];
+}
+
+export function mapElementIdToOverlayPosition(
+  elementId: string | undefined | null
+): string | undefined {
+  if (!elementId) return undefined;
+  return ELEMENT_ID_TO_OVERLAY_POSITION[elementId];
+}
+
+export function matchesRouteRule(rule: string): boolean {
+  try {
+    const routeRule = new RegExp(rule);
+    const pathname = new URL(window.location.href).pathname;
+
+    // Route rule evaluation checks two values.
+    //
+    // Gist.currentRoute (primary): Set by the SDK's analytics.page() call. This is
+    // what customers have historically built their rules against. The value varies
+    // by call style — analytics.page("Name") sets an arbitrary string like "Name",
+    // analytics.page() sets the full URL, and never calling it leaves currentRoute
+    // null. Existing customers have live rules that depend on all of these formats.
+    //
+    // pathname (fallback): The URL path from window.location. Always available and
+    // always a path like "/dashboard", regardless of how analytics.page() was called.
+    // Catches cases where currentRoute is null or set to a value that doesn't match.
+
+    const matchesCurrentRoute = Gist.currentRoute != null && routeRule.test(Gist.currentRoute);
+    const matchesPathname = Gist.currentRoute !== pathname && routeRule.test(pathname);
+    return matchesCurrentRoute || matchesPathname;
+  } catch {
+    return false;
+  }
 }
 
 export function getCurrentDisplayType(

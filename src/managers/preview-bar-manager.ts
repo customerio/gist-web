@@ -8,7 +8,7 @@ import {
   mapOverlayPositionToElementId,
 } from '../utilities/message-utils';
 import { log } from '../utilities/log';
-import { findElement } from '../utilities/dom';
+import { findElement, el, injectStylesheet } from '../utilities/dom';
 import { PREVIEW_BAR_CSS, chevronSvg } from './preview-bar-styles';
 import { savePreviewDisplaySettings, deletePreviewSession } from '../services/preview-service';
 import { PREVIEW_PARAM_ID, teardownPreview } from '../utilities/preview-mode';
@@ -25,14 +25,6 @@ const OVERLAY_POSITION_LABELS: Record<string, string> = {
   bottomCenter: 'Bottom Center',
   bottomRight: 'Bottom Right',
 };
-
-function injectStyles(): void {
-  if (document.getElementById(STYLE_ID)) return;
-  const style = document.createElement('style');
-  style.id = STYLE_ID;
-  style.textContent = PREVIEW_BAR_CSS;
-  document.head.appendChild(style);
-}
 
 // ─── Module state ─────────────────────────────────────────────────────────────
 
@@ -54,19 +46,6 @@ let pendingInitialDisplayType: string | null = null;
 // keyed by CSS selector. Only captured once per selector so re-visits always restore
 // to the true pre-message state.
 const originalElementContent = new Map<string, string>();
-
-// ─── DOM helper ───────────────────────────────────────────────────────────────
-
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  attrs: Partial<HTMLElementTagNameMap[K]> & { [k: string]: unknown } = {}
-): HTMLElementTagNameMap[K] {
-  const element = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) {
-    (element as Record<string, unknown>)[k] = v;
-  }
-  return element;
-}
 
 function labelGroup(labelText: string, control: HTMLElement): HTMLElement {
   const wrapper = el('div', { className: 'gist-pb-label-group' });
@@ -763,7 +742,7 @@ function toggleCollapse() {
 
 export function initPreviewBar(): void {
   if (document.getElementById(BAR_ID)) return;
-  injectStyles();
+  injectStylesheet(STYLE_ID, PREVIEW_BAR_CSS);
   try {
     isCollapsed = sessionStorage.getItem(STORAGE_KEY) === 'true';
   } catch {
