@@ -300,4 +300,5 @@ export function stopSSEListener(disconnectGlobally = false): void {
   log('Stopping SSE queue listener...');
   sseSource.close();
   sseSource = null;
+  clearKeyFromLocalStore(userQueueNextPullCheckLocalStoreName);
 }
