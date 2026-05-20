@@ -44,6 +44,7 @@ export function embedHTMLTemplate(
                 height: 100%;
                 width: 100%;
                 border: none;
+                color-scheme: light only;
             }
             #x-gist-top.${elementId},
             #x-gist-bottom.${elementId},

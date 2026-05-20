@@ -34,6 +34,7 @@ export function messageHTMLTemplate(
                 z-index: 9999999999;
                 left: 50%;
                 transform: translateX(-50%);
+                color-scheme: light only;
             }
             .gist-message.gist-visible {
                 opacity: 1;
