@@ -31,40 +31,6 @@
   color-scheme: light dark;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg-page: #0f172a;
-    --bg-surface: #1e293b;
-    --bg-surface-alt: #1e293b;
-    --bg-inset: #162032;
-    --text-primary: #e2e8f0;
-    --text-secondary: #cbd5e1;
-    --text-muted: #94a3b8;
-    --text-faint: #64748b;
-    --text-heading: #7dd3fc;
-    --border: #334155;
-    --border-light: #334155;
-    --border-dashed: #475569;
-    --accent: #e76f51;
-    --accent-dark: #0f172a;
-    --accent-dark-hover: #1e293b;
-    --accent-teal: #2dd4bf;
-    --shadow: rgba(0,0,0,0.3);
-    --shadow-heavy: rgba(0,0,0,0.4);
-    --inbox-unopened-bg: #0f2942;
-    --inbox-body-color: #94a3b8;
-    --code-bg: #0f172a;
-    --code-alt-bg: #162032;
-    --scroll-btn-bg: #312e81;
-    --scroll-btn-color: #a5b4fc;
-    --input-bg: #0f172a;
-    --input-color: #e2e8f0;
-    --btn-secondary-bg: #475569;
-    --tooltip-log-bg: #0f172a;
-    --tooltip-log-border: #1e293b;
-  }
-}
-
 [data-theme="dark"] {
   --bg-page: #0f172a;
   --bg-surface: #1e293b;
@@ -110,7 +76,6 @@ body {
   padding-top: 40px;
   background-color: var(--bg-page);
   color: var(--text-primary);
-  color-scheme: light dark;
   transition: background-color 0.2s, color 0.2s;
 }
 
