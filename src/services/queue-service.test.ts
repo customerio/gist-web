@@ -10,6 +10,7 @@ import {
   shouldPersistSession,
 } from '../utilities/local-storage';
 import { getEncodedUserToken, getUserToken } from '../managers/user-manager';
+import { processInboxConfig } from '../managers/inbox-config-manager';
 
 const mockPost = vi.fn();
 
@@ -42,6 +43,10 @@ vi.mock('../managers/user-manager', () => ({
 
 vi.mock('../managers/locale-manager', () => ({
   getUserLocale: vi.fn(() => 'en-US'),
+}));
+
+vi.mock('../managers/inbox-config-manager', () => ({
+  processInboxConfig: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock('./settings', () => ({
@@ -148,6 +153,19 @@ describe('queue-service', () => {
     expect(result).toContain('userToken=encoded-token-123');
     expect(result).toContain('siteId=test-site-id');
     expect(result).toContain('sessionId=session-456');
+  });
+
+  it('getUserQueue() calls processInboxConfig with the response', async () => {
+    const responseData = {
+      status: 200,
+      data: {},
+      headers: { 'x-cio-inbox-enabled': 'true' },
+    };
+    mockPost.mockResolvedValue(responseData);
+
+    await getUserQueue();
+
+    expect(processInboxConfig).toHaveBeenCalledWith(responseData);
   });
 
   it('scheduleNextQueuePull sets the correct TTL based on response header', async () => {

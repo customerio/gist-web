@@ -33,6 +33,7 @@ import {
   updateInboxMessageOpenState,
   removeInboxMessage,
 } from './managers/inbox-message-manager';
+import { isInboxEnabled } from './managers/inbox-config-manager';
 import type { GistConfig, GistMessage, DisplaySettings } from './types';
 import type { InboxMessage } from './managers/inbox-message-manager';
 
@@ -219,5 +220,9 @@ export default class Gist {
 
   static async removeInboxMessage(queueId: string): Promise<void> {
     return await removeInboxMessage(queueId);
+  }
+
+  static isInboxEnabled(): boolean {
+    return isInboxEnabled();
   }
 }

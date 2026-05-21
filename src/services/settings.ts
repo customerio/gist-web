@@ -7,6 +7,7 @@ import { log } from '../utilities/log';
 import { v4 as uuidv4 } from 'uuid';
 import type { GistEnv } from '../types';
 
+const inboxEnabledLocalStoreName = 'gist.web.inbox.enabled';
 const userQueueUseSSELocalStoreName = 'gist.web.userQueueUseSSE';
 const userQueueActiveSSEConnectionLocalStoreName = 'gist.web.activeSSEConnection';
 const heartbeatSlop = 5;
@@ -28,6 +29,8 @@ export interface Settings {
   isSSEConnectionManagedBySDK: () => boolean;
   getSSEHeartbeat: () => number;
   setSSEHeartbeat: (heartbeat: number) => void;
+  inboxEnabled: () => boolean;
+  setInboxEnabledFlag: (enabled: boolean) => void;
 }
 
 export const settings: Settings = {
@@ -96,5 +99,16 @@ export const settings: Settings = {
     if (heartbeat && heartbeat > 0) {
       sseHeartbeat = heartbeat;
     }
+  },
+  inboxEnabled(): boolean {
+    return (getKeyFromLocalStore(inboxEnabledLocalStoreName) ?? false) as boolean;
+  },
+  setInboxEnabledFlag(enabled: boolean): void {
+    setKeyToLocalStore(
+      inboxEnabledLocalStoreName,
+      enabled,
+      new Date(new Date().getTime() + 3600000)
+    );
+    log(`Set inbox enabled to "${enabled}"`);
   },
 };

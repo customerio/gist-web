@@ -8,6 +8,7 @@ import {
 import { log } from '../utilities/log';
 import { isUsingGuestUserToken, getEncodedUserToken, getUserToken } from '../managers/user-manager';
 import { getUserLocale } from '../managers/locale-manager';
+import { processInboxConfig } from '../managers/inbox-config-manager';
 import { settings } from './settings';
 import { v4 as uuidv4 } from 'uuid';
 import { getNetworkErrorResponse } from './network';
@@ -58,6 +59,7 @@ export async function getUserQueue(): Promise<NetworkResponse | undefined> {
 
   scheduleNextQueuePull(response);
   setQueueUseSSE(response);
+  await processInboxConfig(response);
   return response;
 }
 
