@@ -27,6 +27,7 @@ vi.mock('./templates-manager', () => ({
 }));
 vi.mock('./inbox-message-manager', () => ({
   getInboxMessagesFromLocalStore: vi.fn(() => Promise.resolve([])),
+  updateInboxMessageOpenState: vi.fn(() => Promise.resolve()),
 }));
 vi.mock('@customerio/jist', () => ({
   default: class MockJistTemplateElement extends HTMLElement {},
@@ -42,7 +43,10 @@ import Gist from '../gist';
 import { injectStylesheet } from '../utilities/dom';
 import { getBranding } from './branding-manager';
 import { getTemplates } from './templates-manager';
-import { getInboxMessagesFromLocalStore } from './inbox-message-manager';
+import {
+  getInboxMessagesFromLocalStore,
+  updateInboxMessageOpenState,
+} from './inbox-message-manager';
 import type { InboxMessage } from './inbox-message-manager';
 import type { Branding, InboxPattern } from '../types';
 
@@ -199,6 +203,48 @@ describe('inbox-component-manager', () => {
 
       const badge = document.getElementById('gist-inbox-badge');
       expect(badge?.textContent).toBe('2');
+    });
+  });
+
+  describe('opening the panel', () => {
+    it('marks all unopened inbox messages as opened when the panel is opened', async () => {
+      vi.mocked(getBranding).mockReturnValue(makeBranding());
+      const messages = [
+        makeInboxMessage({ messageId: 'm1', queueId: 'q1', opened: false }),
+        makeInboxMessage({ messageId: 'm2', queueId: 'q2', opened: true }),
+        makeInboxMessage({ messageId: 'm3', queueId: 'q3', opened: false }),
+      ];
+      vi.mocked(getInboxMessagesFromLocalStore).mockResolvedValue(messages);
+
+      await updateInbox(messages);
+
+      const button = document.getElementById('gist-inbox-button');
+      button!.click();
+      await vi.waitFor(() => {
+        expect(updateInboxMessageOpenState).toHaveBeenCalledTimes(2);
+      });
+
+      expect(updateInboxMessageOpenState).toHaveBeenCalledWith('q1', true);
+      expect(updateInboxMessageOpenState).toHaveBeenCalledWith('q3', true);
+    });
+
+    it('does not mark messages as opened when closing the panel', async () => {
+      vi.mocked(getBranding).mockReturnValue(makeBranding());
+      const messages = [makeInboxMessage({ opened: false })];
+      vi.mocked(getInboxMessagesFromLocalStore).mockResolvedValue(messages);
+
+      await updateInbox(messages);
+
+      const button = document.getElementById('gist-inbox-button');
+      button!.click();
+      await vi.waitFor(() => {
+        expect(updateInboxMessageOpenState).toHaveBeenCalled();
+      });
+      vi.mocked(updateInboxMessageOpenState).mockClear();
+
+      button!.click();
+
+      expect(updateInboxMessageOpenState).not.toHaveBeenCalled();
     });
   });
 

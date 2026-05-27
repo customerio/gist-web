@@ -3,7 +3,10 @@ import { el, injectStylesheet, appendToBody } from '../utilities/dom';
 import { log } from '../utilities/log';
 import { getBranding } from './branding-manager';
 import { getTemplates } from './templates-manager';
-import { getInboxMessagesFromLocalStore } from './inbox-message-manager';
+import {
+  getInboxMessagesFromLocalStore,
+  updateInboxMessageOpenState,
+} from './inbox-message-manager';
 import { INBOX_CSS } from './inbox-component-styles';
 import type { InboxMessage } from './inbox-message-manager';
 import type { InboxPattern } from '../types';
@@ -126,7 +129,14 @@ function openPanel(): void {
   if (!inboxPattern) return;
 
   void getInboxMessagesFromLocalStore().then((messages) => {
-    renderPanel(inboxPattern, filterInboxMessages(messages));
+    const inboxMessages = filterInboxMessages(messages);
+    renderPanel(inboxPattern, inboxMessages);
+
+    for (const message of inboxMessages) {
+      if (!message.opened && message.queueId) {
+        void updateInboxMessageOpenState(message.queueId, true);
+      }
+    }
   });
 }
 
@@ -213,7 +223,7 @@ function renderPanel(pattern: InboxPattern, messages: InboxMessage[]): void {
       const divider = el('div', { className: 'gist-inbox-divider' });
       divider.style.height = '1px';
       divider.style.background = pattern.dividerColor;
-      divider.style.margin = '0 16px';
+      divider.style.margin = '0';
       container!.appendChild(divider);
     }
   });
