@@ -7,6 +7,7 @@ import {
   getInboxMessagesFromLocalStore,
   updateInboxMessageOpenState,
 } from './inbox-message-manager';
+import { getUserLocale } from './locale-manager';
 import { INBOX_CSS } from './inbox-component-styles';
 import type { InboxMessage } from './inbox-message-manager';
 import type { InboxPattern } from '../types';
@@ -192,6 +193,7 @@ function renderPanel(pattern: InboxPattern, messages: InboxMessage[]): void {
       templates: Record<string, unknown>;
       data: Record<string, unknown>;
       theme: Record<string, unknown> | null;
+      formatDate: ((isoString: string, name: string) => string) | null;
       onAction:
         | ((event: { name: string; data: unknown; meta: Record<string, unknown> | null }) => void)
         | null;
@@ -215,6 +217,7 @@ function renderPanel(pattern: InboxPattern, messages: InboxMessage[]): void {
       jist.theme = branding.theme as Record<string, unknown>;
     }
 
+    jist.formatDate = formatRelativeDate;
     jist.data = (message.properties ?? {}) as unknown as Record<string, unknown>;
 
     jist.template = ((message as Record<string, unknown>).type as string) ?? null;
@@ -233,6 +236,34 @@ export function destroyInbox(): void {
   document.getElementById(BUTTON_ID)?.remove();
   document.getElementById(PANEL_ID)?.remove();
   panelOpen = false;
+}
+
+const RELATIVE_TIME_THRESHOLDS: [number, Intl.RelativeTimeFormatUnit][] = [
+  [60, 'second'],
+  [3600, 'minute'],
+  [86400, 'hour'],
+  [2592000, 'day'],
+  [31536000, 'month'],
+  [Infinity, 'year'],
+];
+
+const UNIT_DIVISORS: Record<string, number> = {
+  second: 1,
+  minute: 60,
+  hour: 3600,
+  day: 86400,
+  month: 2592000,
+  year: 31536000,
+};
+
+function formatRelativeDate(isoString: string): string {
+  const diffSeconds = Math.round((Date.now() - new Date(isoString).getTime()) / 1000);
+  const [, unit] = RELATIVE_TIME_THRESHOLDS.find(
+    ([threshold]) => Math.abs(diffSeconds) < threshold
+  )!;
+  const value = -Math.round(diffSeconds / UNIT_DIVISORS[unit]);
+  const formatter = new Intl.RelativeTimeFormat(getUserLocale(), { numeric: 'auto' });
+  return formatter.format(value, unit);
 }
 
 function positionStyles(position: string, isPanel = false): Record<string, string> {
