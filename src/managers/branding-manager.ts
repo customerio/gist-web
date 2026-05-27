@@ -1,6 +1,7 @@
 import { getKeyFromLocalStore, setKeyToLocalStore } from '../utilities/local-storage';
 import { fetchBranding } from '../services/branding-service';
 import { log } from '../utilities/log';
+import type { Branding } from '../types';
 
 const brandingLocalStoreName = 'gist.web.branding';
 const brandingTTLInMinutes = 10;
@@ -20,6 +21,6 @@ export async function fetchBrandingIfNeeded(): Promise<void> {
   }
 }
 
-export function getBranding(): unknown {
-  return getKeyFromLocalStore(brandingLocalStoreName);
+export function getBranding(): Branding | null {
+  return getKeyFromLocalStore(brandingLocalStoreName) as Branding | null;
 }

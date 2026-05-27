@@ -66,6 +66,52 @@ export interface GistProperties {
   [key: string]: unknown;
 }
 
+export interface TextStyle {
+  fontSize: number;
+  fontWeight: number;
+  fontFamily: string;
+  color: string;
+  lineHeight: number;
+}
+
+export interface BoxShadow {
+  color: string;
+  offsetX: number;
+  offsetY: number;
+  blur: number;
+}
+
+export interface InboxFloatingIcon {
+  background: string;
+  color: string;
+  svg: string;
+}
+
+export interface InboxUnreadIndicator {
+  showAlert: boolean;
+  text: TextStyle;
+  background: string;
+}
+
+export interface InboxPattern {
+  floatingIcon: InboxFloatingIcon;
+  background: string;
+  cornerRadius: number;
+  borderColor: string;
+  dividerColor: string;
+  shadow: BoxShadow;
+  position: string;
+  hoverBackground: string;
+  unreadIndicator: InboxUnreadIndicator;
+}
+
+export interface Branding {
+  theme: unknown;
+  patterns: {
+    inbox: InboxPattern;
+  };
+}
+
 export interface ResolvedMessageProperties {
   isEmbedded: boolean;
   elementId: string;

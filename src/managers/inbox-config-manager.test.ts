@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { processInboxConfig, isInboxEnabled } from './inbox-config-manager';
 import { fetchBrandingIfNeeded } from './branding-manager';
 import { fetchTemplatesIfNeeded } from './templates-manager';
+import { initializeInboxComponent } from './inbox-component-manager';
 import { settings } from '../services/settings';
 import type { NetworkResponse } from '../services/network';
 
@@ -11,6 +12,9 @@ vi.mock('./branding-manager', () => ({
 }));
 vi.mock('./templates-manager', () => ({
   fetchTemplatesIfNeeded: vi.fn(() => Promise.resolve()),
+}));
+vi.mock('./inbox-component-manager', () => ({
+  initializeInboxComponent: vi.fn(),
 }));
 vi.mock('../services/settings', () => ({
   settings: {
@@ -64,6 +68,18 @@ describe('inbox-config-manager', () => {
 
       expect(fetchBrandingIfNeeded).toHaveBeenCalled();
       expect(fetchTemplatesIfNeeded).toHaveBeenCalled();
+    });
+
+    it('initializes inbox component after fetching branding and templates', async () => {
+      await processInboxConfig(makeResponse({ 'x-cio-inbox-enabled': 'true' }));
+
+      expect(initializeInboxComponent).toHaveBeenCalled();
+    });
+
+    it('does not initialize inbox component when disabled', async () => {
+      await processInboxConfig(makeResponse({ 'x-cio-inbox-enabled': 'false' }));
+
+      expect(initializeInboxComponent).not.toHaveBeenCalled();
     });
 
     it('does not fetch when inbox is disabled', async () => {
