@@ -6,11 +6,12 @@ import { getTemplates } from './templates-manager';
 import {
   getInboxMessagesFromLocalStore,
   updateInboxMessageOpenState,
+  removeInboxMessage,
 } from './inbox-message-manager';
 import { getUserLocale } from './locale-manager';
 import { INBOX_CSS } from './inbox-component-styles';
 import type { InboxMessage } from './inbox-message-manager';
-import type { InboxPattern } from '../types';
+import type { InboxPattern, InboxActionConfig, InboxActionBehavior } from '../types';
 import JistTemplateElement from '@customerio/jist';
 
 const INBOX_STYLE_ID = 'gist-inbox-styles';
@@ -62,6 +63,12 @@ export async function updateInbox(messages?: InboxMessage[]): Promise<void> {
 
   if (panelOpen) {
     renderPanel(inboxPattern, inboxMessages);
+
+    for (const message of inboxMessages) {
+      if (!message.opened && message.queueId) {
+        void updateInboxMessageOpenState(message.queueId, true);
+      }
+    }
   }
 }
 
@@ -201,12 +208,11 @@ function renderPanel(pattern: InboxPattern, messages: InboxMessage[]): void {
 
     jist.onAction = (event) => {
       log(`Inbox action: ${event.name}`);
-      Gist.events.dispatch('inboxMessageAction', {
-        message,
-        action: event.name,
-        data: event.data,
-        meta: event.meta,
-      });
+
+      const actionConfig = parseActionConfig(event.data);
+      if (!actionConfig) return;
+
+      handleInboxAction(message, actionConfig);
     };
 
     if (templates) {
@@ -236,6 +242,52 @@ export function destroyInbox(): void {
   document.getElementById(BUTTON_ID)?.remove();
   document.getElementById(PANEL_ID)?.remove();
   panelOpen = false;
+}
+
+function handleInboxAction(message: InboxMessage, config: InboxActionConfig): void {
+  if ((config.behavior === 'openUrl' || config.behavior === 'openDeeplink') && config.action) {
+    if (config.newTab) {
+      window.open(config.action, '_blank', 'noopener');
+    } else {
+      window.location.href = config.action;
+    }
+  }
+
+  if (config.behavior === 'dismiss' || config.dismiss) {
+    if (message.queueId) {
+      void removeInboxMessage(message.queueId);
+    }
+  }
+
+  Gist.events.dispatch('inboxMessageAction', {
+    message,
+    action: 'clicked',
+  });
+}
+
+function parseActionConfig(data: unknown): InboxActionConfig | null {
+  if (!data || typeof data !== 'object') return null;
+
+  const obj = data as Record<string, unknown>;
+  const validBehaviors: InboxActionBehavior[] = [
+    'openUrl',
+    'dismiss',
+    'openDeeplink',
+    'performAction',
+  ];
+  if (
+    typeof obj.behavior !== 'string' ||
+    !validBehaviors.includes(obj.behavior as InboxActionBehavior)
+  )
+    return null;
+
+  return {
+    behavior: obj.behavior as InboxActionBehavior,
+    action: typeof obj.action === 'string' ? obj.action : undefined,
+    name: typeof obj.name === 'string' ? obj.name : undefined,
+    dismiss: typeof obj.dismiss === 'boolean' ? obj.dismiss : undefined,
+    newTab: typeof obj.newTab === 'boolean' ? obj.newTab : undefined,
+  };
 }
 
 const RELATIVE_TIME_THRESHOLDS: [number, Intl.RelativeTimeFormatUnit][] = [

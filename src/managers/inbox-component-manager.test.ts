@@ -28,6 +28,7 @@ vi.mock('./templates-manager', () => ({
 vi.mock('./inbox-message-manager', () => ({
   getInboxMessagesFromLocalStore: vi.fn(() => Promise.resolve([])),
   updateInboxMessageOpenState: vi.fn(() => Promise.resolve()),
+  removeInboxMessage: vi.fn(() => Promise.resolve()),
 }));
 vi.mock('@customerio/jist', () => ({
   default: class MockJistTemplateElement extends HTMLElement {},
@@ -46,6 +47,7 @@ import { getTemplates } from './templates-manager';
 import {
   getInboxMessagesFromLocalStore,
   updateInboxMessageOpenState,
+  removeInboxMessage,
 } from './inbox-message-manager';
 import type { InboxMessage } from './inbox-message-manager';
 import type { Branding, InboxPattern } from '../types';
@@ -228,6 +230,28 @@ describe('inbox-component-manager', () => {
       expect(updateInboxMessageOpenState).toHaveBeenCalledWith('q3', true);
     });
 
+    it('marks new unopened messages as opened when panel is already open', async () => {
+      vi.mocked(getBranding).mockReturnValue(makeBranding());
+      const initialMessages = [makeInboxMessage({ messageId: 'm1', queueId: 'q1', opened: false })];
+      vi.mocked(getInboxMessagesFromLocalStore).mockResolvedValue(initialMessages);
+
+      await updateInbox(initialMessages);
+      document.getElementById('gist-inbox-button')!.click();
+      await vi.waitFor(() => {
+        expect(updateInboxMessageOpenState).toHaveBeenCalledWith('q1', true);
+      });
+      vi.mocked(updateInboxMessageOpenState).mockClear();
+
+      const updatedMessages = [
+        makeInboxMessage({ messageId: 'm1', queueId: 'q1', opened: true }),
+        makeInboxMessage({ messageId: 'm2', queueId: 'q2', opened: false }),
+      ];
+      await updateInbox(updatedMessages);
+
+      expect(updateInboxMessageOpenState).toHaveBeenCalledTimes(1);
+      expect(updateInboxMessageOpenState).toHaveBeenCalledWith('q2', true);
+    });
+
     it('does not mark messages as opened when closing the panel', async () => {
       vi.mocked(getBranding).mockReturnValue(makeBranding());
       const messages = [makeInboxMessage({ opened: false })];
@@ -245,6 +269,120 @@ describe('inbox-component-manager', () => {
       button!.click();
 
       expect(updateInboxMessageOpenState).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('inbox action handling', () => {
+    function setupPanelWithMessage(message: InboxMessage) {
+      vi.mocked(getBranding).mockReturnValue(makeBranding());
+      vi.mocked(getInboxMessagesFromLocalStore).mockResolvedValue([message]);
+      return message;
+    }
+
+    async function openPanelAndGetJist(): Promise<HTMLElement> {
+      await updateInbox(await getInboxMessagesFromLocalStore());
+      const button = document.getElementById('gist-inbox-button')!;
+      button.click();
+      await vi.waitFor(() => {
+        expect(document.getElementById('gist-inbox-panel')).not.toBeNull();
+      });
+      return document.querySelector('jist-template')!;
+    }
+
+    function fireAction(jistEl: HTMLElement, actionName: string, data: unknown) {
+      const jist = jistEl as unknown as {
+        onAction: (event: { name: string; data: unknown; meta: null }) => void;
+      };
+      jist.onAction({ name: actionName, data, meta: null });
+    }
+
+    it('dismiss behavior removes the message from the queue', async () => {
+      setupPanelWithMessage(makeInboxMessage({ queueId: 'q1' }));
+      const jistEl = await openPanelAndGetJist();
+
+      fireAction(jistEl, 'myButton', { behavior: 'dismiss' });
+
+      expect(removeInboxMessage).toHaveBeenCalledWith('q1');
+      expect(Gist.events.dispatch).toHaveBeenCalledWith('inboxMessageAction', {
+        message: expect.objectContaining({ queueId: 'q1' }),
+        action: 'clicked',
+      });
+    });
+
+    it('openUrl behavior navigates to the URL', async () => {
+      setupPanelWithMessage(makeInboxMessage());
+      const jistEl = await openPanelAndGetJist();
+
+      const hrefSpy = vi.spyOn(window, 'location', 'get').mockReturnValue({
+        ...window.location,
+        set href(url: string) {},
+      } as Location);
+      const assignSpy = vi.fn();
+      Object.defineProperty(window.location, 'href', { set: assignSpy, configurable: true });
+
+      fireAction(jistEl, 'myLink', { behavior: 'openUrl', action: 'https://example.com' });
+
+      expect(assignSpy).toHaveBeenCalledWith('https://example.com');
+      expect(removeInboxMessage).not.toHaveBeenCalled();
+      hrefSpy.mockRestore();
+    });
+
+    it('openUrl with newTab opens in a new tab', async () => {
+      setupPanelWithMessage(makeInboxMessage());
+      const jistEl = await openPanelAndGetJist();
+
+      const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+
+      fireAction(jistEl, 'myLink', {
+        behavior: 'openUrl',
+        action: 'https://example.com',
+        newTab: true,
+      });
+
+      expect(openSpy).toHaveBeenCalledWith('https://example.com', '_blank', 'noopener');
+      openSpy.mockRestore();
+    });
+
+    it('dismiss property chains with openUrl to also remove the message', async () => {
+      setupPanelWithMessage(makeInboxMessage({ queueId: 'q1' }));
+      const jistEl = await openPanelAndGetJist();
+
+      const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+
+      fireAction(jistEl, 'myLink', {
+        behavior: 'openUrl',
+        action: 'https://example.com',
+        dismiss: true,
+      });
+
+      expect(removeInboxMessage).toHaveBeenCalledWith('q1');
+      openSpy.mockRestore();
+    });
+
+    it('performAction dispatches event without extra side effects', async () => {
+      setupPanelWithMessage(makeInboxMessage({ queueId: 'q1' }));
+      const jistEl = await openPanelAndGetJist();
+
+      fireAction(jistEl, 'myAction', { behavior: 'performAction' });
+
+      expect(removeInboxMessage).not.toHaveBeenCalled();
+      expect(Gist.events.dispatch).toHaveBeenCalledWith('inboxMessageAction', {
+        message: expect.objectContaining({ queueId: 'q1' }),
+        action: 'clicked',
+      });
+    });
+
+    it('ignores action when event data has no valid behavior', async () => {
+      setupPanelWithMessage(makeInboxMessage());
+      const jistEl = await openPanelAndGetJist();
+
+      fireAction(jistEl, 'myAction', null);
+
+      expect(removeInboxMessage).not.toHaveBeenCalled();
+      expect(Gist.events.dispatch).not.toHaveBeenCalledWith(
+        'inboxMessageAction',
+        expect.objectContaining({ action: 'clicked' })
+      );
     });
   });
 

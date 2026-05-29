@@ -130,3 +130,13 @@ export interface ResolvedMessageProperties {
   exitClick: boolean;
   hasCustomWidth: boolean;
 }
+
+export type InboxActionBehavior = 'openUrl' | 'dismiss' | 'openDeeplink' | 'performAction';
+
+export interface InboxActionConfig {
+  behavior: InboxActionBehavior;
+  action?: string;
+  name?: string;
+  dismiss?: boolean;
+  newTab?: boolean;
+}
