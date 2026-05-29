@@ -67,10 +67,11 @@ export async function updateInbox(messages?: InboxMessage[]): Promise<void> {
     renderPanel(inboxPattern, inboxMessages);
 
     for (const message of inboxMessages) {
-      if (!message.opened && message.queueId && !pendingOpenStateUpdates.has(message.queueId)) {
-        pendingOpenStateUpdates.add(message.queueId);
-        void updateInboxMessageOpenState(message.queueId, true).finally(() => {
-          pendingOpenStateUpdates.delete(message.queueId);
+      const queueId = message.queueId;
+      if (!message.opened && queueId && !pendingOpenStateUpdates.has(queueId)) {
+        pendingOpenStateUpdates.add(queueId);
+        void updateInboxMessageOpenState(queueId, true).finally(() => {
+          pendingOpenStateUpdates.delete(queueId);
         });
       }
     }
@@ -152,6 +153,7 @@ function renderPanel(pattern: InboxPattern, messages: InboxMessage[]): void {
     panel = el('div', { id: PANEL_ID });
     appendToBody(panel);
   }
+  panel = panel!;
 
   const pos = positionStyles(pattern.position, true);
   panel.style.background = pattern.background;

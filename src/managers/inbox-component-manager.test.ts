@@ -286,7 +286,7 @@ describe('inbox-component-manager', () => {
       await vi.waitFor(() => {
         expect(document.getElementById('gist-inbox-panel')).not.toBeNull();
       });
-      return document.querySelector('jist-template')!;
+      return document.querySelector('jist-template')! as HTMLElement;
     }
 
     function fireAction(jistEl: HTMLElement, actionName: string, data: unknown) {
@@ -315,8 +315,8 @@ describe('inbox-component-manager', () => {
 
       const hrefSpy = vi.spyOn(window, 'location', 'get').mockReturnValue({
         ...window.location,
-        set href(url: string) {},
-      } as Location);
+        href: '',
+      } as unknown as Location);
       const assignSpy = vi.fn();
       Object.defineProperty(window.location, 'href', { set: assignSpy, configurable: true });
 
