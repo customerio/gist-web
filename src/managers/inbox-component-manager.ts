@@ -22,10 +22,12 @@ const MESSAGES_CONTAINER_ID = 'gist-inbox-messages';
 
 let initialized = false;
 let panelOpen = false;
+const pendingOpenStateUpdates = new Set<string>();
 
 export function resetInboxComponentState(): void {
   initialized = false;
   panelOpen = false;
+  pendingOpenStateUpdates.clear();
 }
 
 export function initializeInboxComponent(): void {
@@ -65,8 +67,11 @@ export async function updateInbox(messages?: InboxMessage[]): Promise<void> {
     renderPanel(inboxPattern, inboxMessages);
 
     for (const message of inboxMessages) {
-      if (!message.opened && message.queueId) {
-        void updateInboxMessageOpenState(message.queueId, true);
+      if (!message.opened && message.queueId && !pendingOpenStateUpdates.has(message.queueId)) {
+        pendingOpenStateUpdates.add(message.queueId);
+        void updateInboxMessageOpenState(message.queueId, true).finally(() => {
+          pendingOpenStateUpdates.delete(message.queueId);
+        });
       }
     }
   }
@@ -131,32 +136,19 @@ function togglePanel(): void {
 
 function openPanel(): void {
   panelOpen = true;
-
-  const branding = getBranding();
-  const inboxPattern = branding?.patterns?.inbox;
-  if (!inboxPattern) return;
-
-  void getInboxMessagesFromLocalStore().then((messages) => {
-    const inboxMessages = filterInboxMessages(messages);
-    renderPanel(inboxPattern, inboxMessages);
-
-    for (const message of inboxMessages) {
-      if (!message.opened && message.queueId) {
-        void updateInboxMessageOpenState(message.queueId, true);
-      }
-    }
-  });
+  void updateInbox();
 }
 
 function closePanel(): void {
   panelOpen = false;
-  document.getElementById(PANEL_ID)?.remove();
+  document.getElementById(PANEL_ID)?.classList.remove('gist-inbox-panel--open');
 }
 
 function renderPanel(pattern: InboxPattern, messages: InboxMessage[]): void {
   let panel = document.getElementById(PANEL_ID);
 
-  if (!panel) {
+  const isNew = !panel;
+  if (isNew) {
     panel = el('div', { id: PANEL_ID });
     appendToBody(panel);
   }
@@ -236,6 +228,14 @@ function renderPanel(pattern: InboxPattern, messages: InboxMessage[]): void {
       container!.appendChild(divider);
     }
   });
+
+  if (isNew) {
+    requestAnimationFrame(() => {
+      panel!.classList.add('gist-inbox-panel--open');
+    });
+  } else {
+    panel.classList.add('gist-inbox-panel--open');
+  }
 }
 
 export function destroyInbox(): void {
@@ -244,9 +244,20 @@ export function destroyInbox(): void {
   panelOpen = false;
 }
 
+function isSafeUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url, window.location.href);
+    return parsed.protocol !== 'javascript:';
+  } catch {
+    return false;
+  }
+}
+
 function handleInboxAction(message: InboxMessage, config: InboxActionConfig): void {
   if ((config.behavior === 'openUrl' || config.behavior === 'openDeeplink') && config.action) {
-    if (config.newTab) {
+    if (!isSafeUrl(config.action)) {
+      log(`Blocked unsafe URL: ${config.action}`);
+    } else if (config.newTab) {
       window.open(config.action, '_blank', 'noopener');
     } else {
       window.location.href = config.action;
@@ -290,32 +301,34 @@ function parseActionConfig(data: unknown): InboxActionConfig | null {
   };
 }
 
-const RELATIVE_TIME_THRESHOLDS: [number, Intl.RelativeTimeFormatUnit][] = [
-  [60, 'second'],
-  [3600, 'minute'],
-  [86400, 'hour'],
-  [2592000, 'day'],
-  [31536000, 'month'],
-  [Infinity, 'year'],
+const RELATIVE_TIME_UNITS: [number, Intl.RelativeTimeFormatUnit, number][] = [
+  [60, 'second', 1],
+  [3600, 'minute', 60],
+  [86400, 'hour', 3600],
+  [2592000, 'day', 86400],
+  [31536000, 'month', 2592000],
+  [Infinity, 'year', 31536000],
 ];
 
-const UNIT_DIVISORS: Record<string, number> = {
-  second: 1,
-  minute: 60,
-  hour: 3600,
-  day: 86400,
-  month: 2592000,
-  year: 31536000,
-};
+let cachedFormatter: Intl.RelativeTimeFormat | null = null;
+let cachedLocale: string | null = null;
+
+function getRelativeTimeFormatter(): Intl.RelativeTimeFormat {
+  const locale = getUserLocale();
+  if (cachedFormatter && cachedLocale === locale) return cachedFormatter;
+  cachedLocale = locale;
+  cachedFormatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+  return cachedFormatter;
+}
 
 function formatRelativeDate(isoString: string): string {
   const diffSeconds = Math.round((Date.now() - new Date(isoString).getTime()) / 1000);
-  const [, unit] = RELATIVE_TIME_THRESHOLDS.find(
+  if (Number.isNaN(diffSeconds)) return isoString;
+
+  const [, unit, divisor] = RELATIVE_TIME_UNITS.find(
     ([threshold]) => Math.abs(diffSeconds) < threshold
   )!;
-  const value = -Math.round(diffSeconds / UNIT_DIVISORS[unit]);
-  const formatter = new Intl.RelativeTimeFormat(getUserLocale(), { numeric: 'auto' });
-  return formatter.format(value, unit);
+  return getRelativeTimeFormatter().format(-Math.round(diffSeconds / divisor), unit);
 }
 
 function positionStyles(position: string, isPanel = false): Record<string, string> {

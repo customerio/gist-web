@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { processInboxConfig, isInboxEnabled } from './inbox-config-manager';
-import { fetchBrandingIfNeeded } from './branding-manager';
-import { fetchTemplatesIfNeeded } from './templates-manager';
+import {
+  processInboxConfig,
+  isInboxEnabled,
+  initializeInboxFromCache,
+} from './inbox-config-manager';
+import { fetchBrandingIfNeeded, getBranding } from './branding-manager';
+import { fetchTemplatesIfNeeded, getTemplates } from './templates-manager';
 import { initializeInboxComponent } from './inbox-component-manager';
 import { settings } from '../services/settings';
 import type { NetworkResponse } from '../services/network';
@@ -9,9 +13,11 @@ import type { NetworkResponse } from '../services/network';
 vi.mock('../utilities/log', () => ({ log: vi.fn() }));
 vi.mock('./branding-manager', () => ({
   fetchBrandingIfNeeded: vi.fn(() => Promise.resolve()),
+  getBranding: vi.fn(() => null),
 }));
 vi.mock('./templates-manager', () => ({
   fetchTemplatesIfNeeded: vi.fn(() => Promise.resolve()),
+  getTemplates: vi.fn(() => null),
 }));
 vi.mock('./inbox-component-manager', () => ({
   initializeInboxComponent: vi.fn(),
@@ -94,6 +100,48 @@ describe('inbox-config-manager', () => {
 
       expect(fetchBrandingIfNeeded).not.toHaveBeenCalled();
       expect(fetchTemplatesIfNeeded).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('initializeInboxFromCache', () => {
+    it('initializes inbox when enabled flag and cached data are present', () => {
+      vi.mocked(settings.inboxEnabled).mockReturnValue(true);
+      vi.mocked(getBranding).mockReturnValue({ theme: {}, patterns: { inbox: {} } } as never);
+      vi.mocked(getTemplates).mockReturnValue({ basic: {} });
+
+      initializeInboxFromCache();
+
+      expect(initializeInboxComponent).toHaveBeenCalled();
+    });
+
+    it('does not initialize when inbox is not enabled', () => {
+      vi.mocked(settings.inboxEnabled).mockReturnValue(false);
+      vi.mocked(getBranding).mockReturnValue({ theme: {}, patterns: { inbox: {} } } as never);
+      vi.mocked(getTemplates).mockReturnValue({ basic: {} });
+
+      initializeInboxFromCache();
+
+      expect(initializeInboxComponent).not.toHaveBeenCalled();
+    });
+
+    it('does not initialize when branding is not cached', () => {
+      vi.mocked(settings.inboxEnabled).mockReturnValue(true);
+      vi.mocked(getBranding).mockReturnValue(null);
+      vi.mocked(getTemplates).mockReturnValue({ basic: {} });
+
+      initializeInboxFromCache();
+
+      expect(initializeInboxComponent).not.toHaveBeenCalled();
+    });
+
+    it('does not initialize when templates are not cached', () => {
+      vi.mocked(settings.inboxEnabled).mockReturnValue(true);
+      vi.mocked(getBranding).mockReturnValue({ theme: {}, patterns: { inbox: {} } } as never);
+      vi.mocked(getTemplates).mockReturnValue(null);
+
+      initializeInboxFromCache();
+
+      expect(initializeInboxComponent).not.toHaveBeenCalled();
     });
   });
 

@@ -58,6 +58,7 @@ vi.mock('./managers/inbox-message-manager', () => ({
 }));
 vi.mock('./managers/inbox-config-manager', () => ({
   isInboxEnabled: vi.fn(() => false),
+  initializeInboxFromCache: vi.fn(),
 }));
 
 import Gist from './gist';
