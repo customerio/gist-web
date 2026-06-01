@@ -25,6 +25,9 @@ vi.mock('./branding-manager', () => ({
 vi.mock('./templates-manager', () => ({
   getTemplates: vi.fn(() => null),
 }));
+vi.mock('./inbox-config-manager', () => ({
+  ensureInboxDependencies: vi.fn(() => Promise.resolve()),
+}));
 vi.mock('./inbox-message-manager', () => ({
   getInboxMessagesFromLocalStore: vi.fn(() => Promise.resolve([])),
   updateInboxMessageOpenState: vi.fn(() => Promise.resolve()),

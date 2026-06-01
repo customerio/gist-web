@@ -11,6 +11,8 @@ export interface InboxMessage {
   queueId?: string;
   opened?: boolean;
   expiry?: string;
+  priority?: number;
+  sentAt?: string;
   topics?: string[];
   properties?: MessageProperties;
   [key: string]: unknown;
@@ -101,14 +103,6 @@ export async function removeInboxMessage(queueId: string): Promise<void> {
   const inboxLocalStoreName = await getInboxMessagesLocalStoreName();
   if (!inboxLocalStoreName) return;
 
-  const response = await logUserMessageView(queueId);
-
-  if (!response || response.status < 200 || response.status >= 300) {
-    const errorMsg = `Failed to remove inbox message: ${response?.status ?? 'unknown error'}`;
-    log(errorMsg);
-    throw new Error(errorMsg);
-  }
-
   const messages = await getInboxMessagesFromLocalStore();
   const filteredMessages = messages.filter((message) => message.queueId !== queueId);
 
@@ -117,6 +111,11 @@ export async function removeInboxMessage(queueId: string): Promise<void> {
   setKeyToLocalStore(inboxLocalStoreName, filteredMessages, expiryDate);
 
   Gist.events.dispatch(messageInboxUpdatedEventName, await getInboxMessagesFromLocalStore());
+
+  const response = await logUserMessageView(queueId);
+  if (!response || response.status < 200 || response.status >= 300) {
+    log(`Failed to log inbox message view: ${response?.status ?? 'unknown error'}`);
+  }
 }
 
 async function getInboxMessagesLocalStoreName(): Promise<string | null> {

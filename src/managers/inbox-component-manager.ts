@@ -3,6 +3,7 @@ import { el, injectStylesheet, appendToBody } from '../utilities/dom';
 import { log } from '../utilities/log';
 import { getBranding } from './branding-manager';
 import { getTemplates } from './templates-manager';
+import { ensureInboxDependencies } from './inbox-config-manager';
 import {
   getInboxMessagesFromLocalStore,
   updateInboxMessageOpenState,
@@ -53,10 +54,19 @@ export async function updateInbox(messages?: InboxMessage[]): Promise<void> {
   }
 
   const inboxMessages = filterInboxMessages(messages);
-  const branding = getBranding();
-  const inboxPattern = branding?.patterns?.inbox;
+  if (inboxMessages.length === 0) {
+    destroyInbox();
+    return;
+  }
 
-  if (inboxMessages.length === 0 || !inboxPattern) {
+  let branding = getBranding();
+  if (!branding) {
+    await ensureInboxDependencies();
+    branding = getBranding();
+  }
+
+  const inboxPattern = branding?.patterns?.inbox;
+  if (!inboxPattern) {
     destroyInbox();
     return;
   }
@@ -79,7 +89,14 @@ export async function updateInbox(messages?: InboxMessage[]): Promise<void> {
 }
 
 function filterInboxMessages(messages: InboxMessage[]): InboxMessage[] {
-  return messages.filter((msg) => msg.topics?.some((t) => t.startsWith('cio_inbox')));
+  return messages
+    .filter((msg) => msg.topics?.some((t) => t.startsWith('cio_inbox')))
+    .sort((a, b) => {
+      const priorityDiff =
+        (a.priority ?? Number.MAX_SAFE_INTEGER) - (b.priority ?? Number.MAX_SAFE_INTEGER);
+      if (priorityDiff !== 0) return priorityDiff;
+      return new Date(b.sentAt ?? 0).getTime() - new Date(a.sentAt ?? 0).getTime();
+    });
 }
 
 function renderButton(pattern: InboxPattern, messages: InboxMessage[]): void {
