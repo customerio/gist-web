@@ -155,9 +155,18 @@ describe('inbox-message-manager', () => {
     expect(Gist.events.dispatch).toHaveBeenCalledWith('messageInboxUpdated', afterRemove);
   });
 
-  it('removeInboxMessage throws on API failure', async () => {
+  it('removeInboxMessage removes from store even when API fails', async () => {
     vi.mocked(logUserMessageView).mockResolvedValue({ status: 404 } as never);
+    const stored: InboxMessage[] = [{ messageId: 'm1', queueId: 'q1' }];
+    vi.mocked(getKeyFromLocalStore).mockReturnValueOnce(stored).mockReturnValueOnce([]);
 
-    await expect(removeInboxMessage('q1')).rejects.toThrow('Failed to remove inbox message: 404');
+    await removeInboxMessage('q1');
+
+    expect(setKeyToLocalStore).toHaveBeenCalledWith(
+      'gist.web.inbox.messages.hashed-token',
+      [],
+      expect.any(Date)
+    );
+    expect(Gist.events.dispatch).toHaveBeenCalledWith('messageInboxUpdated', []);
   });
 });

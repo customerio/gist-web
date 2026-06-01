@@ -56,6 +56,10 @@ vi.mock('./managers/inbox-message-manager', () => ({
   updateInboxMessageOpenState: vi.fn(() => Promise.resolve()),
   removeInboxMessage: vi.fn(() => Promise.resolve()),
 }));
+vi.mock('./managers/inbox-config-manager', () => ({
+  isInboxEnabled: vi.fn(() => false),
+  initializeInboxFromCache: vi.fn(),
+}));
 
 import Gist from './gist';
 import { clearExpiredFromLocalStore } from './utilities/local-storage';
@@ -90,6 +94,7 @@ import {
   updateInboxMessageOpenState,
   removeInboxMessage,
 } from './managers/inbox-message-manager';
+import { isInboxEnabled } from './managers/inbox-config-manager';
 
 function resetGist() {
   Gist.initialized = false;
@@ -592,6 +597,14 @@ describe('Gist', () => {
     it('delegates to inbox message manager', async () => {
       await Gist.removeInboxMessage('q-1');
       expect(removeInboxMessage).toHaveBeenCalledWith('q-1');
+    });
+  });
+
+  describe('isInboxEnabled', () => {
+    it('delegates to inbox config manager', () => {
+      vi.mocked(isInboxEnabled).mockReturnValue(true);
+      expect(Gist.isInboxEnabled()).toBe(true);
+      expect(isInboxEnabled).toHaveBeenCalled();
     });
   });
 });

@@ -33,6 +33,7 @@ import {
   updateInboxMessageOpenState,
   removeInboxMessage,
 } from './managers/inbox-message-manager';
+import { isInboxEnabled, initializeInboxFromCache } from './managers/inbox-config-manager';
 import type { GistConfig, GistMessage, DisplaySettings } from './types';
 import type { InboxMessage } from './managers/inbox-message-manager';
 
@@ -68,6 +69,7 @@ export default class Gist {
     this.config.isPreviewSession = setupPreview();
     setupDebugOverlay();
     clearExpiredFromLocalStore();
+    initializeInboxFromCache();
 
     log(`Setup complete on ${this.config.env} environment.`);
 
@@ -219,5 +221,9 @@ export default class Gist {
 
   static async removeInboxMessage(queueId: string): Promise<void> {
     return await removeInboxMessage(queueId);
+  }
+
+  static isInboxEnabled(): boolean {
+    return isInboxEnabled();
   }
 }

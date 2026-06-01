@@ -72,6 +72,14 @@ describe('settings', () => {
     expect(settings.getSSEHeartbeat()).toBe(before);
   });
 
+  it('inboxEnabled() / setInboxEnabledFlag() round-trip', () => {
+    expect(settings.inboxEnabled()).toBe(false);
+    settings.setInboxEnabledFlag(true);
+    expect(settings.inboxEnabled()).toBe(true);
+    settings.setInboxEnabledFlag(false);
+    expect(settings.inboxEnabled()).toBe(false);
+  });
+
   it('endpoint objects have correct keys (prod, dev, local)', () => {
     const endpointKeys: Array<keyof typeof settings.ENGINE_API_ENDPOINT> = ['prod', 'dev', 'local'];
     expect(Object.keys(settings.ENGINE_API_ENDPOINT).sort()).toEqual(endpointKeys.sort());
