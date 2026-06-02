@@ -80,3 +80,7 @@ refreshInboxMessages();
 window.Gist.events.on('messageInboxUpdated', async function(messages) {
     await refreshInboxMessages(messages);
 });
+
+window.Gist.events.on('inboxMessageAction', function(payload) {
+    console.log('[inboxMessageAction]', { action: payload.action, message: payload.message, actionConfig: payload.actionConfig });
+});

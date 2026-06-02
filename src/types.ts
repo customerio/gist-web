@@ -134,6 +134,7 @@ export interface ResolvedMessageProperties {
 export type InboxActionBehavior = 'openUrl' | 'dismiss' | 'openDeeplink' | 'performAction';
 
 export interface InboxActionConfig {
+  id: string;
   behavior: InboxActionBehavior;
   action?: string;
   name?: string;

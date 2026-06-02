@@ -220,7 +220,7 @@ function renderPanel(pattern: InboxPattern, messages: InboxMessage[]): void {
     jist.onAction = (event) => {
       log(`Inbox action: ${event.name}`);
 
-      const actionConfig = parseActionConfig(event.data);
+      const actionConfig = parseActionConfig(event.name, event.data);
       if (!actionConfig) return;
 
       handleInboxAction(message, actionConfig);
@@ -292,10 +292,11 @@ function handleInboxAction(message: InboxMessage, config: InboxActionConfig): vo
   Gist.events.dispatch('inboxMessageAction', {
     message,
     action: 'clicked',
+    actionConfig: config,
   });
 }
 
-function parseActionConfig(data: unknown): InboxActionConfig | null {
+function parseActionConfig(id: string, data: unknown): InboxActionConfig | null {
   if (!data || typeof data !== 'object') return null;
 
   const obj = data as Record<string, unknown>;
@@ -312,6 +313,7 @@ function parseActionConfig(data: unknown): InboxActionConfig | null {
     return null;
 
   return {
+    id,
     behavior: obj.behavior as InboxActionBehavior,
     action: typeof obj.action === 'string' ? obj.action : undefined,
     name: typeof obj.name === 'string' ? obj.name : undefined,
