@@ -104,11 +104,19 @@ export async function removeInboxMessage(queueId: string): Promise<void> {
   if (!inboxLocalStoreName) return;
 
   const messages = await getInboxMessagesFromLocalStore();
+  const removedMessage = messages.find((message) => message.queueId === queueId) ?? null;
   const filteredMessages = messages.filter((message) => message.queueId !== queueId);
 
   const expiryDate = new Date();
   expiryDate.setMinutes(expiryDate.getMinutes() + inboxMessagesLocalStoreCacheInMinutes);
   setKeyToLocalStore(inboxLocalStoreName, filteredMessages, expiryDate);
+
+  if (removedMessage) {
+    Gist.events.dispatch(inboxMessageEventName, {
+      message: removedMessage,
+      action: 'dismissed',
+    });
+  }
 
   Gist.events.dispatch(messageInboxUpdatedEventName, await getInboxMessagesFromLocalStore());
 

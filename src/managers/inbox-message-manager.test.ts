@@ -135,7 +135,7 @@ describe('inbox-message-manager', () => {
     );
   });
 
-  it('removeInboxMessage logs view, removes from store, dispatches event', async () => {
+  it('removeInboxMessage logs view, removes from store, dispatches dismissed and updated events', async () => {
     vi.mocked(logUserMessageView).mockResolvedValue({ status: 200 } as never);
     const stored: InboxMessage[] = [
       { messageId: 'm1', queueId: 'q1' },
@@ -152,6 +152,10 @@ describe('inbox-message-manager', () => {
       [{ messageId: 'm2', queueId: 'q2' }],
       expect.any(Date)
     );
+    expect(Gist.events.dispatch).toHaveBeenCalledWith('inboxMessageAction', {
+      message: { messageId: 'm1', queueId: 'q1' },
+      action: 'dismissed',
+    });
     expect(Gist.events.dispatch).toHaveBeenCalledWith('messageInboxUpdated', afterRemove);
   });
 
@@ -167,6 +171,10 @@ describe('inbox-message-manager', () => {
       [],
       expect.any(Date)
     );
+    expect(Gist.events.dispatch).toHaveBeenCalledWith('inboxMessageAction', {
+      message: { messageId: 'm1', queueId: 'q1' },
+      action: 'dismissed',
+    });
     expect(Gist.events.dispatch).toHaveBeenCalledWith('messageInboxUpdated', []);
   });
 });
