@@ -274,7 +274,7 @@
       });
 
       Gist.events.on("inboxMessageAction", params => {
-        console.log(`onInboxMessageAction, Action: ${params.action}, Inbox Message:`, params.message);
+        console.log(`onInboxMessageAction, Action: ${params.action}, Inbox Message:`, params.message, params.actionConfig);
       });
 
       function showHTMLMessage() {
