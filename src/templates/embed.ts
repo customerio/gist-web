@@ -3,7 +3,8 @@ import type { ResolvedMessageProperties } from '../types';
 export function embedHTMLTemplate(
   elementId: string,
   messageProperties: ResolvedMessageProperties,
-  url: string
+  url: string,
+  colorSchemeCss: string = 'light only'
 ): string {
   let maxWidthBreakpoint = 800;
   if (messageProperties.messageWidth > maxWidthBreakpoint) {
@@ -44,7 +45,7 @@ export function embedHTMLTemplate(
                 height: 100%;
                 width: 100%;
                 border: none;
-                color-scheme: light only;
+                color-scheme: ${colorSchemeCss};
             }
             #x-gist-top.${elementId},
             #x-gist-bottom.${elementId},

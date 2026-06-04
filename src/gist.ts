@@ -19,6 +19,8 @@ import { fetchMessageByInstanceId } from './utilities/message-utils';
 import {
   sendDisplaySettingsToIframe,
   clearAllTooltipHandles,
+  startColorSchemeObserver,
+  applyColorSchemeChange,
 } from './managers/message-component-manager';
 import { setUserLocale } from './managers/locale-manager';
 import {
@@ -34,7 +36,7 @@ import {
   removeInboxMessage,
 } from './managers/inbox-message-manager';
 import { isInboxEnabled, initializeInboxFromCache } from './managers/inbox-config-manager';
-import type { GistConfig, GistMessage, DisplaySettings } from './types';
+import type { GistConfig, GistMessage, DisplaySettings, ColorScheme } from './types';
 import type { InboxMessage } from './managers/inbox-message-manager';
 
 export default class Gist {
@@ -60,6 +62,7 @@ export default class Gist {
       env: config.env ?? 'prod',
       logging: config.logging ?? false,
       experiments: config.experiments ?? false,
+      colorScheme: config.colorScheme ?? 'default',
     };
     this.currentMessages = [];
     clearAllTooltipHandles();
@@ -70,6 +73,9 @@ export default class Gist {
     setupDebugOverlay();
     clearExpiredFromLocalStore();
     initializeInboxFromCache();
+    if (this.config.colorScheme === 'auto') {
+      startColorSchemeObserver();
+    }
 
     log(`Setup complete on ${this.config.env} environment.`);
 
@@ -122,6 +128,12 @@ export default class Gist {
 
   static setUserLocale(userLocale: string): void {
     setUserLocale(userLocale);
+  }
+
+  static setColorScheme(colorScheme: ColorScheme): void {
+    this.config.colorScheme = colorScheme;
+    applyColorSchemeChange();
+    log(`Color scheme set to: ${colorScheme}`);
   }
 
   static setCustomAttribute(key: string, value: unknown): boolean {

@@ -21,7 +21,8 @@ export function tooltipHTMLTemplate(
   elementId: string,
   messageProperties: ResolvedMessageProperties,
   url: string,
-  wrapperId: string = ''
+  wrapperId: string = '',
+  colorSchemeCss: string = 'light only'
 ): string {
   let maxWidthBreakpoint = 600;
   if (messageProperties.messageWidth > maxWidthBreakpoint) {
@@ -55,7 +56,7 @@ export function tooltipHTMLTemplate(
                 width: ${messageProperties.messageWidth}px;
                 border: none;
                 transition: height 0.1s ease-in-out;
-                color-scheme: light only;
+                color-scheme: ${colorSchemeCss};
             }
             ${scope}.gist-tooltip-arrow {
                 width: 0;

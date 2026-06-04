@@ -14,11 +14,16 @@ import {
 import { log } from '../utilities/log';
 import { resolveMessageProperties } from './gist-properties-manager';
 import { positionTooltip, ensureTargetInView } from './tooltip-position-manager';
+import { tooltipHTMLTemplate } from '../templates/tooltip';
 import type { GistMessage } from '../types';
 
 vi.mock('../utilities/log', () => ({ log: vi.fn() }));
+const { mockGist } = vi.hoisted(() => {
+  const mockGist: Record<string, unknown> = { dismissMessage: vi.fn(), config: undefined };
+  return { mockGist };
+});
 vi.mock('../gist', () => ({
-  default: { dismissMessage: vi.fn() },
+  default: mockGist,
 }));
 vi.mock('./gist-properties-manager', () => ({
   resolveMessageProperties: vi.fn(() => ({
@@ -72,6 +77,7 @@ describe('message-component-manager', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     vi.clearAllMocks();
+    mockGist.config = undefined;
   });
 
   it('showEmbedComponent adds gist-visible class', () => {
@@ -562,6 +568,127 @@ describe('message-component-manager', () => {
       expect(() => {
         hideTooltipComponent({ messageId: 'msg-1', instanceId: 'inst-1' });
       }).not.toThrow();
+    });
+  });
+
+  describe('color scheme resolution', () => {
+    const baseOptions = {
+      endpoint: 'https://api.example.com',
+      siteId: 'site-1',
+      messageId: 'msg-1',
+      instanceId: 'inst-1',
+      livePreview: false,
+    };
+    const message: GistMessage = { messageId: 'msg-1', instanceId: 'inst-1' };
+
+    it('passes light only when colorScheme is default', () => {
+      mockGist.config = { colorScheme: 'default' };
+
+      loadTooltipComponent('https://example.com', message, baseOptions);
+
+      expect(tooltipHTMLTemplate).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Object),
+        'https://example.com',
+        expect.any(String),
+        'light only'
+      );
+    });
+
+    it('passes light only when config is undefined', () => {
+      mockGist.config = undefined;
+
+      loadTooltipComponent('https://example.com', message, baseOptions);
+
+      expect(tooltipHTMLTemplate).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Object),
+        'https://example.com',
+        expect.any(String),
+        'light only'
+      );
+    });
+
+    it('passes light dark when colorScheme is system', () => {
+      mockGist.config = { colorScheme: 'system' };
+
+      loadTooltipComponent('https://example.com', message, baseOptions);
+
+      expect(tooltipHTMLTemplate).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Object),
+        'https://example.com',
+        expect.any(String),
+        'light dark'
+      );
+    });
+
+    it('reads parent color-scheme when colorScheme is auto', () => {
+      mockGist.config = { colorScheme: 'auto' };
+      document.documentElement.style.colorScheme = 'dark';
+
+      loadTooltipComponent('https://example.com', message, baseOptions);
+
+      expect(tooltipHTMLTemplate).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Object),
+        'https://example.com',
+        expect.any(String),
+        'dark'
+      );
+
+      document.documentElement.style.colorScheme = '';
+    });
+
+    it('falls back to body color-scheme when html is normal', () => {
+      mockGist.config = { colorScheme: 'auto' };
+      document.documentElement.style.colorScheme = '';
+      document.body.style.colorScheme = 'dark';
+
+      loadTooltipComponent('https://example.com', message, baseOptions);
+
+      expect(tooltipHTMLTemplate).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Object),
+        'https://example.com',
+        expect.any(String),
+        'dark'
+      );
+
+      document.body.style.colorScheme = '';
+    });
+
+    it('falls back to light dark when neither html nor body declare a color-scheme', () => {
+      mockGist.config = { colorScheme: 'auto' };
+      document.documentElement.style.colorScheme = '';
+      document.body.style.colorScheme = '';
+
+      loadTooltipComponent('https://example.com', message, baseOptions);
+
+      expect(tooltipHTMLTemplate).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Object),
+        'https://example.com',
+        expect.any(String),
+        'light dark'
+      );
+    });
+
+    it('treats light dark as undeclared — falls back to light dark CSS', () => {
+      mockGist.config = { colorScheme: 'auto' };
+      document.documentElement.style.colorScheme = 'light dark';
+
+      loadTooltipComponent('https://example.com', message, baseOptions);
+
+      expect(tooltipHTMLTemplate).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Object),
+        'https://example.com',
+        expect.any(String),
+        'light dark'
+      );
+
+      document.documentElement.style.colorScheme = '';
     });
   });
 

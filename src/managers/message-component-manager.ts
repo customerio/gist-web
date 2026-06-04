@@ -13,7 +13,111 @@ import {
   type TooltipPosition,
   type TooltipHandle,
 } from './tooltip-position-manager';
-import type { GistMessage, ResolvedMessageProperties } from '../types';
+import type { GistMessage, ResolvedMessageProperties, ColorScheme } from '../types';
+
+function readParentColorScheme(): string | undefined {
+  const htmlScheme = getComputedStyle(document.documentElement).colorScheme;
+  if (htmlScheme && htmlScheme !== 'normal') return htmlScheme;
+  if (document.body) {
+    const bodyScheme = getComputedStyle(document.body).colorScheme;
+    if (bodyScheme && bodyScheme !== 'normal') return bodyScheme;
+  }
+  return undefined;
+}
+
+function parseSingleScheme(value: string): 'light' | 'dark' | undefined {
+  const hasDark = value.includes('dark');
+  const hasLight = value.includes('light');
+  if (hasDark && hasLight) return undefined;
+  if (hasDark) return 'dark';
+  if (hasLight) return 'light';
+  return undefined;
+}
+
+function resolveColorSchemeCss(colorScheme: ColorScheme | undefined): string {
+  if (colorScheme === 'system') return 'light dark';
+  if (colorScheme === 'auto') return readParentColorScheme() ?? 'light dark';
+  return 'light only';
+}
+
+function resolveRendererColorScheme(
+  colorScheme: ColorScheme | undefined
+): 'light' | 'dark' | undefined {
+  if (!colorScheme || colorScheme === 'default') return 'light';
+  if (colorScheme === 'system') return undefined;
+  const raw = readParentColorScheme();
+  return raw ? parseSingleScheme(raw) : undefined;
+}
+
+let colorSchemeObserver: MutationObserver | null = null;
+let lastRendererColorScheme: 'light' | 'dark' | undefined;
+
+function stopColorSchemeObserver(): void {
+  if (colorSchemeObserver) {
+    colorSchemeObserver.disconnect();
+    colorSchemeObserver = null;
+  }
+}
+
+export function applyColorSchemeChange(): void {
+  const colorScheme = Gist.config?.colorScheme;
+
+  if (colorScheme === 'auto') {
+    startColorSchemeObserver();
+  } else {
+    stopColorSchemeObserver();
+  }
+
+  const rendererScheme = resolveRendererColorScheme(colorScheme);
+  lastRendererColorScheme = rendererScheme;
+  updateColorSchemeOnLiveIframes(rendererScheme);
+
+  const cssProp = resolveColorSchemeCss(colorScheme);
+  for (const msg of Gist.currentMessages ?? []) {
+    const iframeId = getMessageElementId(msg.instanceId ?? '');
+    const iframe = document.getElementById(iframeId) as HTMLIFrameElement | null;
+    if (iframe) {
+      iframe.style.colorScheme = cssProp;
+    }
+  }
+}
+
+export function startColorSchemeObserver(): void {
+  if (colorSchemeObserver) return;
+
+  lastRendererColorScheme = resolveRendererColorScheme(Gist.config?.colorScheme);
+
+  const check = () => {
+    const current = resolveRendererColorScheme(Gist.config?.colorScheme);
+    if (current !== lastRendererColorScheme) {
+      lastRendererColorScheme = current;
+      updateColorSchemeOnLiveIframes(current);
+    }
+  };
+
+  colorSchemeObserver = new MutationObserver(check);
+  colorSchemeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['style', 'class'],
+  });
+  if (document.body) {
+    colorSchemeObserver.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['style', 'class'],
+    });
+  }
+}
+
+function updateColorSchemeOnLiveIframes(scheme: 'light' | 'dark' | undefined): void {
+  const value = scheme ?? 'normal';
+  for (const msg of Gist.currentMessages ?? []) {
+    const iframeId = getMessageElementId(msg.instanceId ?? '');
+    const iframe = document.getElementById(iframeId) as HTMLIFrameElement | null;
+    if (iframe?.contentWindow) {
+      iframe.contentWindow.postMessage({ action: 'updateColorScheme', colorScheme: value }, '*');
+    }
+  }
+}
 
 interface MessageOptions {
   endpoint: string;
@@ -146,13 +250,17 @@ export function sendOptionsToIframe(
 ): void {
   const iframe = document.getElementById(iframeId) as HTMLIFrameElement | null;
   if (iframe?.contentWindow) {
+    if (stepName) {
+      options.stepId = stepName;
+    }
+    const rendererScheme = resolveRendererColorScheme(Gist.config?.colorScheme);
+    if (rendererScheme) {
+      options.colorScheme = rendererScheme;
+    }
     const message = {
       options,
       capabilities: SDK_CAPABILITIES,
     };
-    if (stepName) {
-      options.stepId = stepName;
-    }
     iframe.contentWindow.postMessage(message, '*');
   }
 }
@@ -247,7 +355,14 @@ export function loadTooltipComponent(
   const wrapperId = `gist-tooltip-${instanceId}`;
   const wrapper = document.createElement('div');
   wrapper.id = wrapperId;
-  wrapper.innerHTML = tooltipHTMLTemplate(messageElementId, messageProperties, url, wrapperId);
+  const colorSchemeCss = resolveColorSchemeCss(Gist.config?.colorScheme);
+  wrapper.innerHTML = tooltipHTMLTemplate(
+    messageElementId,
+    messageProperties,
+    url,
+    wrapperId,
+    colorSchemeCss
+  );
   document.body.appendChild(wrapper);
 
   attachIframeLoadEvent(messageElementId, options, stepName);
@@ -390,10 +505,22 @@ function embed(
   message: GistMessage,
   messageProperties: ResolvedMessageProperties
 ): string {
-  return embedHTMLTemplate(getMessageElementId(message.instanceId ?? ''), messageProperties, url);
+  const colorSchemeCss = resolveColorSchemeCss(Gist.config?.colorScheme);
+  return embedHTMLTemplate(
+    getMessageElementId(message.instanceId ?? ''),
+    messageProperties,
+    url,
+    colorSchemeCss
+  );
 }
 
 function component(url: string, message: GistMessage): string {
   const messageProperties = resolveMessageProperties(message);
-  return messageHTMLTemplate(getMessageElementId(message.instanceId ?? ''), messageProperties, url);
+  const colorSchemeCss = resolveColorSchemeCss(Gist.config?.colorScheme);
+  return messageHTMLTemplate(
+    getMessageElementId(message.instanceId ?? ''),
+    messageProperties,
+    url,
+    colorSchemeCss
+  );
 }

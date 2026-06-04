@@ -95,4 +95,17 @@ describe('embedHTMLTemplate', () => {
     expect(container).not.toBeNull();
     expect(embed).not.toBeNull();
   });
+
+  it('defaults to color-scheme: light only', () => {
+    const html = embedHTMLTemplate('el', makeProps(), 'https://example.com');
+
+    expect(html).toContain('color-scheme: light only');
+  });
+
+  it('uses color-scheme: light dark when colorSchemeCss is light dark', () => {
+    const html = embedHTMLTemplate('el', makeProps(), 'https://example.com', 'light dark');
+
+    expect(html).toContain('color-scheme: light dark');
+    expect(html).not.toContain('color-scheme: light only');
+  });
 });

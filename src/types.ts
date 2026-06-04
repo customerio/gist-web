@@ -1,5 +1,7 @@
 export type GistEnv = 'prod' | 'dev' | 'local';
 
+export type ColorScheme = 'default' | 'auto' | 'system';
+
 export interface GistConfig {
   siteId: string;
   dataCenter?: string;
@@ -8,6 +10,7 @@ export interface GistConfig {
   experiments?: boolean;
   useAnonymousSession?: boolean;
   isPreviewSession?: boolean;
+  colorScheme?: ColorScheme;
 }
 
 export interface GistMessage {
