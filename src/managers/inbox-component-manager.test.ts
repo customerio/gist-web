@@ -309,6 +309,7 @@ describe('inbox-component-manager', () => {
       expect(Gist.events.dispatch).toHaveBeenCalledWith('inboxMessageAction', {
         message: expect.objectContaining({ queueId: 'q1' }),
         action: 'clicked',
+        actionConfig: expect.objectContaining({ behavior: 'dismiss' }),
       });
     });
 
@@ -372,6 +373,7 @@ describe('inbox-component-manager', () => {
       expect(Gist.events.dispatch).toHaveBeenCalledWith('inboxMessageAction', {
         message: expect.objectContaining({ queueId: 'q1' }),
         action: 'clicked',
+        actionConfig: expect.objectContaining({ behavior: 'performAction' }),
       });
     });
 

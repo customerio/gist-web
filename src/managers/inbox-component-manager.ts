@@ -292,6 +292,7 @@ function handleInboxAction(message: InboxMessage, config: InboxActionConfig): vo
   Gist.events.dispatch('inboxMessageAction', {
     message,
     action: 'clicked',
+    actionConfig: config,
   });
 }
 
