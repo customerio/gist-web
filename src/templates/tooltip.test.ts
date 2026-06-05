@@ -210,6 +210,19 @@ describe('tooltipHTMLTemplate', () => {
     expect(html).toMatch(/^\s+\.gist-tooltip-outer\s*\{/m);
   });
 
+  it('defaults to color-scheme: light only', () => {
+    const html = tooltipHTMLTemplate('el', makeProps(), 'https://example.com');
+
+    expect(html).toContain('color-scheme: light only');
+  });
+
+  it('uses color-scheme: light dark when colorSchemeCss is light dark', () => {
+    const html = tooltipHTMLTemplate('el', makeProps(), 'https://example.com', '', 'light dark');
+
+    expect(html).toContain('color-scheme: light dark');
+    expect(html).not.toContain('color-scheme: light only');
+  });
+
   it('isolates styles between two tooltips with different configs', () => {
     const htmlA = tooltipHTMLTemplate(
       'el-a',

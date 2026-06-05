@@ -2,4 +2,11 @@ import { setupDebugOverlay } from './utilities/debug-mode';
 if (typeof window !== 'undefined') setupDebugOverlay();
 
 export { default } from './gist';
-export type { GistConfig, GistEnv, GistMessage, DisplaySettings, MessageProperties } from './types';
+export type {
+  ColorScheme,
+  GistConfig,
+  GistEnv,
+  GistMessage,
+  DisplaySettings,
+  MessageProperties,
+} from './types';

@@ -3,7 +3,8 @@ import type { ResolvedMessageProperties } from '../types';
 export function messageHTMLTemplate(
   elementId: string,
   messageProperties: ResolvedMessageProperties,
-  url: string
+  url: string,
+  colorSchemeCss: string = 'light only'
 ): string {
   let maxWidthBreakpoint = 600;
   if (messageProperties.messageWidth > maxWidthBreakpoint) {
@@ -34,7 +35,7 @@ export function messageHTMLTemplate(
                 z-index: 9999999999;
                 left: 50%;
                 transform: translateX(-50%);
-                color-scheme: light only;
+                color-scheme: ${colorSchemeCss};
             }
             .gist-message.gist-visible {
                 opacity: 1;

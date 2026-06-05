@@ -39,6 +39,8 @@ vi.mock('./utilities/message-utils', () => ({
 vi.mock('./managers/message-component-manager', () => ({
   sendDisplaySettingsToIframe: vi.fn(),
   clearAllTooltipHandles: vi.fn(),
+  startColorSchemeObserver: vi.fn(),
+  applyColorSchemeChange: vi.fn(),
 }));
 vi.mock('./managers/locale-manager', () => ({
   setUserLocale: vi.fn(),
@@ -81,6 +83,8 @@ import { fetchMessageByInstanceId } from './utilities/message-utils';
 import {
   sendDisplaySettingsToIframe,
   clearAllTooltipHandles,
+  startColorSchemeObserver,
+  applyColorSchemeChange,
 } from './managers/message-component-manager';
 import { setUserLocale } from './managers/locale-manager';
 import {
@@ -145,6 +149,7 @@ describe('Gist', () => {
       expect(Gist.config.experiments).toBe(false);
       expect(Gist.config.useAnonymousSession).toBe(false);
       expect(Gist.config.siteId).toBe('test-site');
+      expect(Gist.config.colorScheme).toBe('default');
     });
 
     it('respects provided config values', async () => {
@@ -154,6 +159,7 @@ describe('Gist', () => {
           logging: true,
           experiments: true,
           useAnonymousSession: true,
+          colorScheme: 'system',
         })
       );
 
@@ -161,6 +167,7 @@ describe('Gist', () => {
       expect(Gist.config.logging).toBe(true);
       expect(Gist.config.experiments).toBe(true);
       expect(Gist.config.useAnonymousSession).toBe(true);
+      expect(Gist.config.colorScheme).toBe('system');
     });
 
     it('is idempotent — second call is a no-op', async () => {
@@ -229,6 +236,16 @@ describe('Gist', () => {
     it('clears all tooltip handles during setup', async () => {
       await Gist.setup(baseConfig());
       expect(clearAllTooltipHandles).toHaveBeenCalled();
+    });
+
+    it('starts color scheme observer when colorScheme is auto', async () => {
+      await Gist.setup(baseConfig({ colorScheme: 'auto' }));
+      expect(startColorSchemeObserver).toHaveBeenCalled();
+    });
+
+    it('does not start color scheme observer when colorScheme is default', async () => {
+      await Gist.setup(baseConfig());
+      expect(startColorSchemeObserver).not.toHaveBeenCalled();
     });
 
     it('sets isDocumentVisible to true', async () => {
@@ -525,6 +542,18 @@ describe('Gist', () => {
     it('delegates to locale manager', () => {
       Gist.setUserLocale('fr-FR');
       expect(setUserLocale).toHaveBeenCalledWith('fr-FR');
+    });
+  });
+
+  describe('setColorScheme', () => {
+    it('updates config and applies the change', async () => {
+      await Gist.setup(baseConfig());
+      expect(Gist.config.colorScheme).toBe('default');
+
+      Gist.setColorScheme('auto');
+
+      expect(Gist.config.colorScheme).toBe('auto');
+      expect(applyColorSchemeChange).toHaveBeenCalled();
     });
   });
 

@@ -83,4 +83,17 @@ describe('messageHTMLTemplate', () => {
     const wrapper = doc.querySelector('#gist-embed-message');
     expect(wrapper).not.toBeNull();
   });
+
+  it('defaults to color-scheme: light only', () => {
+    const html = messageHTMLTemplate('el', makeProps(), 'https://example.com');
+
+    expect(html).toContain('color-scheme: light only');
+  });
+
+  it('uses color-scheme: light dark when colorSchemeCss is light dark', () => {
+    const html = messageHTMLTemplate('el', makeProps(), 'https://example.com', 'light dark');
+
+    expect(html).toContain('color-scheme: light dark');
+    expect(html).not.toContain('color-scheme: light only');
+  });
 });
