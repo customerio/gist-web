@@ -70,15 +70,6 @@ export function applyColorSchemeChange(): void {
   const rendererScheme = resolveRendererColorScheme(colorScheme);
   lastRendererColorScheme = rendererScheme;
   updateColorSchemeOnLiveIframes(rendererScheme);
-
-  const cssProp = resolveColorSchemeCss(colorScheme);
-  for (const msg of Gist.currentMessages ?? []) {
-    const iframeId = getMessageElementId(msg.instanceId ?? '');
-    const iframe = document.getElementById(iframeId) as HTMLIFrameElement | null;
-    if (iframe) {
-      iframe.style.colorScheme = cssProp;
-    }
-  }
 }
 
 export function startColorSchemeObserver(): void {
