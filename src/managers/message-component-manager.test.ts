@@ -609,7 +609,7 @@ describe('message-component-manager', () => {
       );
     });
 
-    it('passes light dark when colorScheme is system', () => {
+    it('passes normal when colorScheme is system', () => {
       mockGist.config = { colorScheme: 'system' };
 
       loadTooltipComponent('https://example.com', message, baseOptions);
@@ -619,11 +619,11 @@ describe('message-component-manager', () => {
         expect.any(Object),
         'https://example.com',
         expect.any(String),
-        'light dark'
+        'normal'
       );
     });
 
-    it('reads parent color-scheme when colorScheme is auto', () => {
+    it('passes normal when colorScheme is auto', () => {
       mockGist.config = { colorScheme: 'auto' };
       document.documentElement.style.colorScheme = 'dark';
 
@@ -634,58 +634,7 @@ describe('message-component-manager', () => {
         expect.any(Object),
         'https://example.com',
         expect.any(String),
-        'dark'
-      );
-
-      document.documentElement.style.colorScheme = '';
-    });
-
-    it('falls back to body color-scheme when html is normal', () => {
-      mockGist.config = { colorScheme: 'auto' };
-      document.documentElement.style.colorScheme = '';
-      document.body.style.colorScheme = 'dark';
-
-      loadTooltipComponent('https://example.com', message, baseOptions);
-
-      expect(tooltipHTMLTemplate).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.any(Object),
-        'https://example.com',
-        expect.any(String),
-        'dark'
-      );
-
-      document.body.style.colorScheme = '';
-    });
-
-    it('falls back to light dark when neither html nor body declare a color-scheme', () => {
-      mockGist.config = { colorScheme: 'auto' };
-      document.documentElement.style.colorScheme = '';
-      document.body.style.colorScheme = '';
-
-      loadTooltipComponent('https://example.com', message, baseOptions);
-
-      expect(tooltipHTMLTemplate).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.any(Object),
-        'https://example.com',
-        expect.any(String),
-        'light dark'
-      );
-    });
-
-    it('treats light dark as undeclared — falls back to light dark CSS', () => {
-      mockGist.config = { colorScheme: 'auto' };
-      document.documentElement.style.colorScheme = 'light dark';
-
-      loadTooltipComponent('https://example.com', message, baseOptions);
-
-      expect(tooltipHTMLTemplate).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.any(Object),
-        'https://example.com',
-        expect.any(String),
-        'light dark'
+        'normal'
       );
 
       document.documentElement.style.colorScheme = '';

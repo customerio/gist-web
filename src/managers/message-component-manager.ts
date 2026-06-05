@@ -35,8 +35,7 @@ function parseSingleScheme(value: string): 'light' | 'dark' | undefined {
 }
 
 function resolveColorSchemeCss(colorScheme: ColorScheme | undefined): string {
-  if (colorScheme === 'system') return 'light dark';
-  if (colorScheme === 'auto') return readParentColorScheme() ?? 'light dark';
+  if (colorScheme === 'system' || colorScheme === 'auto') return 'normal';
   return 'light only';
 }
 
@@ -110,11 +109,15 @@ export function startColorSchemeObserver(): void {
 
 function updateColorSchemeOnLiveIframes(scheme: 'light' | 'dark' | undefined): void {
   const value = scheme ?? 'normal';
+  const cssProp = resolveColorSchemeCss(Gist.config?.colorScheme);
   for (const msg of Gist.currentMessages ?? []) {
     const iframeId = getMessageElementId(msg.instanceId ?? '');
     const iframe = document.getElementById(iframeId) as HTMLIFrameElement | null;
-    if (iframe?.contentWindow) {
-      iframe.contentWindow.postMessage({ action: 'updateColorScheme', colorScheme: value }, '*');
+    if (iframe) {
+      iframe.style.colorScheme = cssProp;
+      if (iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ action: 'updateColorScheme', colorScheme: value }, '*');
+      }
     }
   }
 }
