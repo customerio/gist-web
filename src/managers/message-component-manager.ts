@@ -39,7 +39,7 @@ function resolveColorSchemeCss(colorScheme: ColorScheme | undefined): string {
   return 'light only';
 }
 
-function resolveRendererColorScheme(
+export function resolveRendererColorScheme(
   colorScheme: ColorScheme | undefined
 ): 'light' | 'dark' | undefined {
   if (!colorScheme || colorScheme === 'default') return 'light';
@@ -111,6 +111,7 @@ function updateColorSchemeOnLiveIframes(scheme: 'light' | 'dark' | undefined): v
       }
     }
   }
+  Gist.events?.dispatch('colorSchemeChanged', scheme);
 }
 
 interface MessageOptions {

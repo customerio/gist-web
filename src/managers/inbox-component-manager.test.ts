@@ -33,6 +33,9 @@ vi.mock('./inbox-message-manager', () => ({
   updateInboxMessageOpenState: vi.fn(() => Promise.resolve()),
   removeInboxMessage: vi.fn(() => Promise.resolve()),
 }));
+vi.mock('./message-component-manager', () => ({
+  resolveRendererColorScheme: vi.fn(() => 'light'),
+}));
 vi.mock('@customerio/jist', () => ({
   default: class MockJistTemplateElement extends HTMLElement {},
 }));
@@ -52,10 +55,14 @@ import {
   updateInboxMessageOpenState,
   removeInboxMessage,
 } from './inbox-message-manager';
+import { resolveRendererColorScheme } from './message-component-manager';
 import type { InboxMessage } from './inbox-message-manager';
 import type { Branding, InboxPattern } from '../types';
 
-function makeBranding(overrides: Partial<InboxPattern> = {}): Branding {
+function makeBranding(
+  overrides: Partial<InboxPattern> = {},
+  darkOverrides?: Partial<InboxPattern>
+): Branding {
   return {
     theme: { heading: {} },
     patterns: {
@@ -81,6 +88,7 @@ function makeBranding(overrides: Partial<InboxPattern> = {}): Branding {
         },
         ...overrides,
       },
+      ...(darkOverrides ? { modes: { dark: { inbox: darkOverrides } } } : {}),
     },
   };
 }
@@ -95,6 +103,16 @@ function makeInboxMessage(overrides: Partial<InboxMessage> = {}): InboxMessage {
   };
 }
 
+function mockMatchMedia(matches = false) {
+  return vi.fn().mockImplementation((query: string) => ({
+    matches,
+    media: query,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+}
+
 describe('inbox-component-manager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -103,6 +121,7 @@ describe('inbox-component-manager', () => {
     vi.mocked(getBranding).mockReturnValue(null);
     vi.mocked(getTemplates).mockReturnValue(null);
     vi.mocked(getInboxMessagesFromLocalStore).mockResolvedValue([]);
+    window.matchMedia = mockMatchMedia();
   });
 
   describe('initializeInboxComponent', () => {
@@ -402,6 +421,124 @@ describe('inbox-component-manager', () => {
 
       expect(document.getElementById('gist-inbox-button')).toBeNull();
       expect(document.getElementById('gist-inbox-panel')).toBeNull();
+    });
+  });
+
+  describe('color scheme integration', () => {
+    async function openPanelAndGetJist(
+      brandingOverrides?: Partial<InboxPattern>,
+      darkOverrides?: Partial<InboxPattern>
+    ): Promise<HTMLElement> {
+      vi.mocked(getBranding).mockReturnValue(makeBranding(brandingOverrides, darkOverrides));
+      const messages = [makeInboxMessage()];
+      vi.mocked(getInboxMessagesFromLocalStore).mockResolvedValue(messages);
+      await updateInbox(messages);
+      document.getElementById('gist-inbox-button')!.click();
+      await vi.waitFor(() => {
+        expect(document.getElementById('gist-inbox-panel')).not.toBeNull();
+      });
+      return document.querySelector('jist-template')! as HTMLElement;
+    }
+
+    it('sets jist mode to light when colorScheme resolves to light', async () => {
+      vi.mocked(resolveRendererColorScheme).mockReturnValue('light');
+      const jistEl = await openPanelAndGetJist();
+      expect((jistEl as unknown as { mode: string }).mode).toBe('light');
+    });
+
+    it('sets jist mode to dark when colorScheme resolves to dark', async () => {
+      vi.mocked(resolveRendererColorScheme).mockReturnValue('dark');
+      const jistEl = await openPanelAndGetJist();
+      expect((jistEl as unknown as { mode: string }).mode).toBe('dark');
+    });
+
+    it('sets jist mode to auto when colorScheme resolves to undefined', async () => {
+      vi.mocked(resolveRendererColorScheme).mockReturnValue(undefined);
+      const jistEl = await openPanelAndGetJist();
+      expect((jistEl as unknown as { mode: string }).mode).toBe('auto');
+    });
+
+    it('registers colorSchemeChanged event listener on init', () => {
+      initializeInboxComponent();
+      expect(Gist.events.on).toHaveBeenCalledWith('colorSchemeChanged', expect.any(Function));
+    });
+
+    it('applies dark overrides to button when scheme is dark', async () => {
+      vi.mocked(resolveRendererColorScheme).mockReturnValue('dark');
+      vi.mocked(getBranding).mockReturnValue(
+        makeBranding({}, { floatingIcon: { background: '#ffffff', color: '#000000', svg: '' } })
+      );
+
+      await updateInbox([makeInboxMessage()]);
+
+      const button = document.getElementById('gist-inbox-button')!;
+      expect(button.style.background).toBe('rgb(255, 255, 255)');
+      expect(button.style.color).toBe('rgb(0, 0, 0)');
+    });
+
+    it('applies dark overrides to panel when scheme is dark', async () => {
+      vi.mocked(resolveRendererColorScheme).mockReturnValue('dark');
+      await openPanelAndGetJist({}, { background: '#1a1a1a', borderColor: '#666666' });
+
+      const panel = document.getElementById('gist-inbox-panel')!;
+      expect(panel.style.background).toBe('rgb(26, 26, 26)');
+      expect(panel.style.border).toBe('1px solid rgb(102, 102, 102)');
+    });
+
+    it('uses base pattern when scheme is light even with dark overrides', async () => {
+      vi.mocked(resolveRendererColorScheme).mockReturnValue('light');
+      vi.mocked(getBranding).mockReturnValue(makeBranding({}, { background: '#1a1a1a' }));
+
+      await updateInbox([makeInboxMessage()]);
+
+      const button = document.getElementById('gist-inbox-button')!;
+      expect(button.style.background).toBe('rgb(1, 1, 1)');
+    });
+
+    it('deep merges nested dark overrides preserving unoverridden values', async () => {
+      vi.mocked(resolveRendererColorScheme).mockReturnValue('dark');
+      vi.mocked(getBranding).mockReturnValue(
+        makeBranding(
+          {},
+          { unreadIndicator: { background: '#ff9900' } as InboxPattern['unreadIndicator'] }
+        )
+      );
+
+      await updateInbox([makeInboxMessage()]);
+
+      const badge = document.getElementById('gist-inbox-badge')!;
+      expect(badge.style.background).toBe('rgb(255, 153, 0)');
+      expect(badge.style.color).toBe('rgb(255, 255, 255)');
+    });
+
+    it('re-renders inbox on colorSchemeChanged event', async () => {
+      vi.mocked(resolveRendererColorScheme).mockReturnValue('light');
+      vi.mocked(getBranding).mockReturnValue(
+        makeBranding({}, { floatingIcon: { background: '#ffffff', color: '#000000', svg: '' } })
+      );
+      const messages = [makeInboxMessage()];
+      vi.mocked(getInboxMessagesFromLocalStore).mockResolvedValue(messages);
+
+      initializeInboxComponent();
+      await vi.waitFor(() => {
+        expect(document.getElementById('gist-inbox-button')).not.toBeNull();
+      });
+
+      expect(document.getElementById('gist-inbox-button')!.style.background).toBe('rgb(1, 1, 1)');
+
+      vi.mocked(resolveRendererColorScheme).mockReturnValue('dark');
+
+      const onCall = vi
+        .mocked(Gist.events.on)
+        .mock.calls.find(([event]) => event === 'colorSchemeChanged');
+      const handler = onCall![1] as () => void;
+      handler();
+
+      await vi.waitFor(() => {
+        expect(document.getElementById('gist-inbox-button')!.style.background).toBe(
+          'rgb(255, 255, 255)'
+        );
+      });
     });
   });
 });

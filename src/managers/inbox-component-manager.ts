@@ -10,10 +10,18 @@ import {
   removeInboxMessage,
 } from './inbox-message-manager';
 import { getUserLocale } from './locale-manager';
+import { resolveRendererColorScheme } from './message-component-manager';
 import { INBOX_CSS } from './inbox-component-styles';
 import type { InboxMessage } from './inbox-message-manager';
-import type { InboxPattern, InboxActionConfig, InboxActionBehavior } from '../types';
+import type {
+  InboxPattern,
+  InboxActionConfig,
+  InboxActionBehavior,
+  Branding,
+  DeepPartial,
+} from '../types';
 import JistTemplateElement from '@customerio/jist';
+import type { JistMode } from '@customerio/jist';
 
 const INBOX_STYLE_ID = 'gist-inbox-styles';
 const BUTTON_ID = 'gist-inbox-button';
@@ -24,11 +32,58 @@ const MESSAGES_CONTAINER_ID = 'gist-inbox-messages';
 let initialized = false;
 let panelOpen = false;
 const pendingOpenStateUpdates = new Set<string>();
+let systemSchemeQuery: MediaQueryList | null = null;
+let systemSchemeHandler: (() => void) | null = null;
+
+function deepMerge<T extends object>(base: T, overrides: DeepPartial<T>): T {
+  const result = { ...base } as Record<string, unknown>;
+  const over = overrides as Record<string, unknown>;
+  for (const key of Object.keys(over)) {
+    const baseVal = result[key];
+    const overrideVal = over[key];
+    if (
+      baseVal != null &&
+      typeof baseVal === 'object' &&
+      !Array.isArray(baseVal) &&
+      overrideVal != null &&
+      typeof overrideVal === 'object' &&
+      !Array.isArray(overrideVal)
+    ) {
+      result[key] = deepMerge(
+        baseVal as Record<string, unknown>,
+        overrideVal as Record<string, unknown>
+      );
+    } else if (overrideVal !== undefined) {
+      result[key] = overrideVal;
+    }
+  }
+  return result as T;
+}
+
+function resolveInboxPattern(
+  branding: Branding | null,
+  rendererScheme: 'light' | 'dark' | undefined
+): InboxPattern | null {
+  const base = branding?.patterns?.inbox;
+  if (!base) return null;
+  const darkOverrides = branding?.patterns?.modes?.dark?.inbox;
+  const isDark =
+    rendererScheme === 'dark' || (rendererScheme == null && (systemSchemeQuery?.matches ?? false));
+  if (isDark && darkOverrides) {
+    return deepMerge(base, darkOverrides);
+  }
+  return base;
+}
 
 export function resetInboxComponentState(): void {
   initialized = false;
   panelOpen = false;
   pendingOpenStateUpdates.clear();
+  if (systemSchemeQuery && systemSchemeHandler) {
+    systemSchemeQuery.removeEventListener('change', systemSchemeHandler);
+  }
+  systemSchemeQuery = null;
+  systemSchemeHandler = null;
 }
 
 export function initializeInboxComponent(): void {
@@ -44,6 +99,18 @@ export function initializeInboxComponent(): void {
   Gist.events.on('messageInboxUpdated', (messages: unknown) => {
     void updateInbox(messages as InboxMessage[]);
   });
+
+  Gist.events.on('colorSchemeChanged', () => {
+    void updateInbox();
+  });
+
+  systemSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  systemSchemeHandler = () => {
+    if (Gist.config?.colorScheme === 'system') {
+      void updateInbox();
+    }
+  };
+  systemSchemeQuery.addEventListener('change', systemSchemeHandler);
 
   void updateInbox();
 }
@@ -65,7 +132,8 @@ export async function updateInbox(messages?: InboxMessage[]): Promise<void> {
     branding = getBranding();
   }
 
-  const inboxPattern = branding?.patterns?.inbox;
+  const rendererScheme = resolveRendererColorScheme(Gist.config?.colorScheme);
+  const inboxPattern = resolveInboxPattern(branding, rendererScheme);
   if (!inboxPattern) {
     destroyInbox();
     return;
@@ -74,7 +142,7 @@ export async function updateInbox(messages?: InboxMessage[]): Promise<void> {
   renderButton(inboxPattern, inboxMessages);
 
   if (panelOpen) {
-    renderPanel(inboxPattern, inboxMessages);
+    renderPanel(inboxPattern, inboxMessages, branding, rendererScheme ?? 'auto');
 
     for (const message of inboxMessages) {
       const queueId = message.queueId;
@@ -162,7 +230,12 @@ function closePanel(): void {
   document.getElementById(PANEL_ID)?.classList.remove('gist-inbox-panel--open');
 }
 
-function renderPanel(pattern: InboxPattern, messages: InboxMessage[]): void {
+function renderPanel(
+  pattern: InboxPattern,
+  messages: InboxMessage[],
+  branding: Branding | null,
+  jistMode: JistMode
+): void {
   let panel = document.getElementById(PANEL_ID);
 
   const isNew = !panel;
@@ -187,7 +260,6 @@ function renderPanel(pattern: InboxPattern, messages: InboxMessage[]): void {
 
   container.innerHTML = '';
 
-  const branding = getBranding();
   const templates = getTemplates() as Record<string, unknown> | null;
 
   messages.forEach((message, index) => {
@@ -211,6 +283,7 @@ function renderPanel(pattern: InboxPattern, messages: InboxMessage[]): void {
       templates: Record<string, unknown>;
       data: Record<string, unknown>;
       theme: Record<string, unknown> | null;
+      mode: JistMode;
       formatDate: ((isoString: string, name: string) => string) | null;
       onAction:
         | ((event: { name: string; data: unknown; meta: Record<string, unknown> | null }) => void)
@@ -234,6 +307,7 @@ function renderPanel(pattern: InboxPattern, messages: InboxMessage[]): void {
       jist.theme = branding.theme as Record<string, unknown>;
     }
 
+    jist.mode = jistMode;
     jist.formatDate = formatRelativeDate;
     jist.data = (message.properties ?? {}) as unknown as Record<string, unknown>;
 
