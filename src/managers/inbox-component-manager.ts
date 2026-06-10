@@ -105,7 +105,11 @@ export function initializeInboxComponent(): void {
   });
 
   systemSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
-  systemSchemeHandler = () => void updateInbox();
+  systemSchemeHandler = () => {
+    if (Gist.config?.colorScheme === 'system') {
+      void updateInbox();
+    }
+  };
   systemSchemeQuery.addEventListener('change', systemSchemeHandler);
 
   void updateInbox();
