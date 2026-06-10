@@ -108,10 +108,19 @@ export interface InboxPattern {
   unreadIndicator: InboxUnreadIndicator;
 }
 
+export type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+};
+
 export interface Branding {
   theme: unknown;
   patterns: {
     inbox: InboxPattern;
+    modes?: {
+      dark?: {
+        inbox?: DeepPartial<InboxPattern>;
+      };
+    };
   };
 }
 

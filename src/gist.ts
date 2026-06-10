@@ -36,6 +36,7 @@ import {
   removeInboxMessage,
 } from './managers/inbox-message-manager';
 import { isInboxEnabled, initializeInboxFromCache } from './managers/inbox-config-manager';
+import { destroyInbox } from './managers/inbox-component-manager';
 import type { GistConfig, GistMessage, DisplaySettings, ColorScheme } from './types';
 import type { InboxMessage } from './managers/inbox-message-manager';
 
@@ -151,6 +152,7 @@ export default class Gist {
   static async clearUserToken(): Promise<void> {
     if (this.config.isPreviewSession) return;
     clearUserToken();
+    destroyInbox();
     if (this.config.useAnonymousSession) {
       useGuestSession();
     }

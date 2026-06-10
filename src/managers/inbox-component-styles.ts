@@ -24,6 +24,9 @@ export const INBOX_CSS = `
   width: 24px;
   height: 24px;
 }
+#gist-inbox-button svg [fill]:not([fill="none"]) {
+  fill: currentColor;
+}
 #gist-inbox-badge {
   position: absolute;
   top: -4px;
@@ -64,5 +67,12 @@ export const INBOX_CSS = `
 }
 .gist-inbox-message-row {
   transition: background-color 0.15s ease;
+}
+@media (max-width: 424px) {
+  #gist-inbox-panel {
+    width: auto !important;
+    left: 12px !important;
+    right: 12px !important;
+  }
 }
 `;
