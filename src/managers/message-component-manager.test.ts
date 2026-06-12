@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   showEmbedComponent,
   hideEmbedComponent,
   elementHasHeight,
   resizeComponent,
+  showOverlayComponent,
   removeOverlayComponent,
   changeOverlayTitle,
   loadTooltipComponent,
@@ -139,6 +140,95 @@ describe('message-component-manager', () => {
     removeOverlayComponent();
 
     expect(document.getElementById('gist-embed-message')).toBeNull();
+  });
+
+  describe('showOverlayComponent dismiss listeners', () => {
+    const resolvedProperties = {
+      isEmbedded: false,
+      elementId: '',
+      hasRouteRule: false,
+      routeRule: '',
+      position: '',
+      hasPosition: false,
+      tooltipPosition: '',
+      hasTooltipPosition: false,
+      tooltipArrowColor: '#fff',
+      shouldScale: false,
+      campaignId: null,
+      messageWidth: 414,
+      overlayColor: '#00000033',
+      persistent: false,
+      exitClick: false,
+      hasCustomWidth: false,
+    };
+
+    function setupOverlay(exitClick: boolean): GistMessage {
+      vi.mocked(resolveMessageProperties).mockReturnValue({ ...resolvedProperties, exitClick });
+      document.body.innerHTML =
+        '<div id="gist-embed-message"><div id="gist-overlay"><div class="gist-message"></div></div></div>';
+      const message: GistMessage = { messageId: 'msg-1', instanceId: 'inst-1' };
+      showOverlayComponent(message);
+      return message;
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      removeOverlayComponent();
+      vi.useRealTimers();
+    });
+
+    it('dismisses the message on overlay click when exitClick is enabled', () => {
+      setupOverlay(true);
+      vi.advanceTimersByTime(1000);
+
+      document.getElementById('gist-overlay')?.dispatchEvent(new Event('click'));
+
+      expect(mockGist.dismissMessage).toHaveBeenCalledWith('inst-1');
+    });
+
+    it('does not dismiss on overlay click before the arming delay has elapsed', () => {
+      setupOverlay(true);
+
+      document.getElementById('gist-overlay')?.dispatchEvent(new Event('click'));
+
+      expect(mockGist.dismissMessage).not.toHaveBeenCalled();
+    });
+
+    it('dismisses the message on Escape key immediately when exitClick is enabled', () => {
+      setupOverlay(true);
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+
+      expect(mockGist.dismissMessage).toHaveBeenCalledWith('inst-1');
+    });
+
+    it('does not dismiss on other keys when exitClick is enabled', () => {
+      setupOverlay(true);
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+
+      expect(mockGist.dismissMessage).not.toHaveBeenCalled();
+    });
+
+    it('does not dismiss on Escape key when exitClick is disabled', () => {
+      setupOverlay(false);
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+
+      expect(mockGist.dismissMessage).not.toHaveBeenCalled();
+    });
+
+    it('stops listening for Escape after the overlay is removed', () => {
+      setupOverlay(true);
+
+      removeOverlayComponent();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+
+      expect(mockGist.dismissMessage).not.toHaveBeenCalled();
+    });
   });
 
   it('changeOverlayTitle sets the iframe title attribute', () => {
