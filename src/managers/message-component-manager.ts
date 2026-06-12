@@ -216,6 +216,7 @@ export function loadOverlayComponent(
   options: MessageOptions,
   stepName: string | null = null
 ): void {
+  removeEscapeKeyListener();
   document.querySelectorAll('#gist-embed-message').forEach((el) => {
     el.parentNode?.removeChild(el);
   });
@@ -293,6 +294,7 @@ export function showOverlayComponent(message: GistMessage): void {
     }
     setTimeout(showMessage, 100);
     if (messageProperties.exitClick) {
+      addEscapeKeyListener(message.instanceId ?? '');
       setTimeout(() => addDismissListener(message.instanceId ?? ''), 1000);
     }
   } else {
@@ -309,6 +311,25 @@ function addDismissListener(instanceId: string): void {
   }
 }
 
+let escapeKeyListener: ((event: KeyboardEvent) => void) | null = null;
+
+function addEscapeKeyListener(instanceId: string): void {
+  removeEscapeKeyListener();
+  escapeKeyListener = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      Gist.dismissMessage(instanceId);
+    }
+  };
+  document.addEventListener('keydown', escapeKeyListener);
+}
+
+function removeEscapeKeyListener(): void {
+  if (escapeKeyListener) {
+    document.removeEventListener('keydown', escapeKeyListener);
+    escapeKeyListener = null;
+  }
+}
+
 export async function hideOverlayComponent(): Promise<void> {
   const message = document.querySelector('.gist-message');
   if (message) {
@@ -319,6 +340,7 @@ export async function hideOverlayComponent(): Promise<void> {
 }
 
 export function removeOverlayComponent(): void {
+  removeEscapeKeyListener();
   const mainMessageElement = document.querySelector('#gist-embed-message');
   if (mainMessageElement) {
     mainMessageElement.parentNode?.removeChild(mainMessageElement);
