@@ -40,6 +40,8 @@ import { destroyInbox } from './managers/inbox-component-manager';
 import type { GistConfig, GistMessage, DisplaySettings, ColorScheme } from './types';
 import type { InboxMessage } from './managers/inbox-message-manager';
 
+const ROUTE_INIT_GRACE_PERIOD_MS = 2000;
+
 export default class Gist {
   static events: EventEmitter;
   static config: GistConfig;
@@ -47,6 +49,7 @@ export default class Gist {
   static currentMessages: GistMessage[];
   static overlayInstanceId: string | null;
   static currentRoute: string | null;
+  static routeInitialized: boolean;
   static isDocumentVisible: boolean;
 
   static async setup(config: GistConfig): Promise<void> {
@@ -69,6 +72,7 @@ export default class Gist {
     clearAllTooltipHandles();
     this.overlayInstanceId = null;
     this.currentRoute = null;
+    this.routeInitialized = false;
     this.isDocumentVisible = true;
     this.config.isPreviewSession = setupPreview();
     setupDebugOverlay();
@@ -90,9 +94,12 @@ export default class Gist {
 
     await startQueueListener();
 
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => void checkMessageQueue(), { once: true });
-    }
+    setTimeout(() => {
+      if (!this.routeInitialized) {
+        this.routeInitialized = true;
+        void checkMessageQueue();
+      }
+    }, ROUTE_INIT_GRACE_PERIOD_MS);
 
     document.addEventListener(
       'visibilitychange',
@@ -113,6 +120,7 @@ export default class Gist {
   }
 
   static async setCurrentRoute(route: string): Promise<void> {
+    this.routeInitialized = true;
     this.currentRoute = route;
     log(`Current route set to: ${route}`);
     await checkCurrentMessagesAfterRouteChange();

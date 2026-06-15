@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { GistConfig, GistMessage, DisplaySettings } from './types';
 import type { InboxMessage } from './managers/inbox-message-manager';
 
@@ -105,6 +105,7 @@ function resetGist() {
   Gist.currentMessages = [];
   Gist.overlayInstanceId = null;
   Gist.currentRoute = null;
+  Gist.routeInitialized = false;
   Gist.isDocumentVisible = true;
   Gist.config = undefined as unknown as GistConfig;
   Gist.events = undefined as unknown as typeof Gist.events;
@@ -253,43 +254,37 @@ describe('Gist', () => {
       expect(Gist.isDocumentVisible).toBe(true);
     });
 
-    describe('DOMContentLoaded queue recheck', () => {
-      function simulateReadyState(state: string) {
-        Object.defineProperty(document, 'readyState', {
-          value: state,
-          writable: true,
-          configurable: true,
-        });
-      }
+    it('sets routeInitialized to false', async () => {
+      await Gist.setup(baseConfig());
+      expect(Gist.routeInitialized).toBe(false);
+    });
 
-      afterEach(() => {
-        simulateReadyState('complete');
-      });
+    it('sets routeInitialized to true after grace period', async () => {
+      vi.useFakeTimers();
+      await Gist.setup(baseConfig());
 
-      it('registers listener when page is loading', async () => {
-        simulateReadyState('loading');
-        const addSpy = vi.spyOn(document, 'addEventListener');
+      expect(Gist.routeInitialized).toBe(false);
+      vi.advanceTimersByTime(2000);
+      expect(Gist.routeInitialized).toBe(true);
+      expect(checkMessageQueue).toHaveBeenCalled();
 
-        await Gist.setup(baseConfig());
+      vi.useRealTimers();
+    });
 
-        expect(addSpy).toHaveBeenCalledWith('DOMContentLoaded', expect.any(Function), {
-          once: true,
-        });
-        addSpy.mockRestore();
-      });
+    it('does not override routeInitialized if setCurrentRoute was called before grace period', async () => {
+      vi.useFakeTimers();
+      await Gist.setup(baseConfig());
+      vi.mocked(checkMessageQueue).mockClear();
 
-      it('skips listener when page is not loading', async () => {
-        simulateReadyState('complete');
-        const addSpy = vi.spyOn(document, 'addEventListener');
+      await Gist.setCurrentRoute('/cart');
+      expect(Gist.routeInitialized).toBe(true);
 
-        await Gist.setup(baseConfig());
+      vi.mocked(checkMessageQueue).mockClear();
+      vi.advanceTimersByTime(2000);
+      // Timer fires but is a no-op since routeInitialized is already true
+      expect(checkMessageQueue).not.toHaveBeenCalled();
 
-        const domContentLoadedCalls = addSpy.mock.calls.filter(
-          ([event]) => event === 'DOMContentLoaded'
-        );
-        expect(domContentLoadedCalls).toHaveLength(0);
-        addSpy.mockRestore();
-      });
+      vi.useRealTimers();
     });
   });
 
@@ -304,6 +299,15 @@ describe('Gist', () => {
       expect(Gist.currentRoute).toBe('/home');
       expect(checkCurrentMessagesAfterRouteChange).toHaveBeenCalled();
       expect(checkMessageQueue).toHaveBeenCalled();
+    });
+
+    it('sets routeInitialized to true', async () => {
+      await Gist.setup(baseConfig());
+      expect(Gist.routeInitialized).toBe(false);
+
+      await Gist.setCurrentRoute('/home');
+
+      expect(Gist.routeInitialized).toBe(true);
     });
   });
 
