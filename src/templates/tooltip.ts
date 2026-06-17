@@ -54,6 +54,7 @@ export function tooltipHTMLTemplate(
             ${scope}.gist-tooltip-frame {
                 display: block;
                 width: ${messageProperties.messageWidth}px;
+                height: 0;
                 border: none;
                 transition: height 0.1s ease-in-out;
                 color-scheme: ${colorSchemeCss};
@@ -105,7 +106,7 @@ export function tooltipHTMLTemplate(
         <div class="gist-tooltip-container">
             <div class="gist-tooltip-arrow ${arrowClass}"></div>
             <div class="gist-tooltip-frame-clip">
-                <iframe id="${elementId}" class="gist-tooltip-frame" src="${url}"></iframe>
+                <iframe id="${elementId}" class="gist-tooltip-frame" src="${url}" scrolling="no"></iframe>
             </div>
         </div>
     </div>`;
