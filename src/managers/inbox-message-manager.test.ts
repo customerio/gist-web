@@ -51,6 +51,26 @@ describe('inbox-message-manager', () => {
     expect(Gist.events.dispatch).toHaveBeenCalledWith('messageInboxUpdated', messages);
   });
 
+  it('updateInboxMessagesLocalStore dispatches inboxMessageReceived only for newly arrived messages', async () => {
+    const existing: InboxMessage[] = [
+      { messageId: 'm1', queueId: 'q1', topics: ['cio_inbox_default'] },
+    ];
+    vi.mocked(getKeyFromLocalStore).mockReturnValue(existing);
+
+    const incoming: InboxMessage[] = [
+      { messageId: 'm1', queueId: 'q1', topics: ['cio_inbox_default'] },
+      { messageId: 'm2', queueId: 'q2', topics: ['cio_inbox_default'] },
+    ];
+    await updateInboxMessagesLocalStore(incoming);
+
+    expect(Gist.events.dispatch).toHaveBeenCalledWith('inboxMessageReceived', {
+      message: incoming[1],
+    });
+    expect(Gist.events.dispatch).not.toHaveBeenCalledWith('inboxMessageReceived', {
+      message: incoming[0],
+    });
+  });
+
   it('getInboxMessagesFromLocalStore filters out expired messages', async () => {
     const pastDate = new Date(Date.now() - 60000).toISOString();
     const futureDate = new Date(Date.now() + 60000).toISOString();

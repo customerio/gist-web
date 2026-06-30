@@ -20,6 +20,7 @@ export interface InboxMessage {
 
 const messageInboxUpdatedEventName = 'messageInboxUpdated';
 const inboxMessageEventName = 'inboxMessageAction';
+const inboxMessageReceivedEventName = 'inboxMessageReceived';
 const inboxMessagesLocalStoreName = 'gist.web.inbox.messages';
 const inboxMessagesLocalStoreCacheInMinutes = 60;
 
@@ -27,10 +28,19 @@ export async function updateInboxMessagesLocalStore(messages: InboxMessage[]): P
   const inboxLocalStoreName = await getInboxMessagesLocalStoreName();
   if (!inboxLocalStoreName) return;
 
+  const existingMessages = await getInboxMessagesFromLocalStore();
+  const existingQueueIds = new Set(existingMessages.map((message) => message.queueId));
+
   const expiryDate = new Date();
   expiryDate.setMinutes(expiryDate.getMinutes() + inboxMessagesLocalStoreCacheInMinutes);
 
   setKeyToLocalStore(inboxLocalStoreName, messages, expiryDate);
+
+  for (const message of messages) {
+    if (message.queueId && !existingQueueIds.has(message.queueId)) {
+      Gist.events.dispatch(inboxMessageReceivedEventName, { message });
+    }
+  }
 
   Gist.events.dispatch(messageInboxUpdatedEventName, messages);
 }
