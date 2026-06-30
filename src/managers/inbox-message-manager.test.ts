@@ -71,6 +71,21 @@ describe('inbox-message-manager', () => {
     });
   });
 
+  it('updateInboxMessagesLocalStore emits inboxMessageReceived once per queueId within a single payload', async () => {
+    vi.mocked(getKeyFromLocalStore).mockReturnValue(null);
+
+    const incoming: InboxMessage[] = [
+      { messageId: 'm1', queueId: 'dup', topics: ['cio_inbox_default'] },
+      { messageId: 'm1', queueId: 'dup', topics: ['cio_inbox_default'] },
+    ];
+    await updateInboxMessagesLocalStore(incoming);
+
+    const receivedDispatches = vi
+      .mocked(Gist.events.dispatch)
+      .mock.calls.filter(([name]) => name === 'inboxMessageReceived');
+    expect(receivedDispatches).toHaveLength(1);
+  });
+
   it('updateInboxMessagesLocalStore does not re-emit inboxMessageReceived for an already-stored but expired message', async () => {
     const pastDate = new Date(Date.now() - 60000).toISOString();
     const stored: InboxMessage[] = [

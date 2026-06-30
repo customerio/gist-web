@@ -38,8 +38,12 @@ export async function updateInboxMessagesLocalStore(messages: InboxMessage[]): P
 
   setKeyToLocalStore(inboxLocalStoreName, messages, expiryDate);
 
+  // Track ids emitted in this batch too, so a duplicate queueId in the incoming
+  // payload only dispatches once.
+  const emittedQueueIds = new Set(existingQueueIds);
   for (const message of messages) {
-    if (message.queueId && !existingQueueIds.has(message.queueId)) {
+    if (message.queueId && !emittedQueueIds.has(message.queueId)) {
+      emittedQueueIds.add(message.queueId);
       Gist.events.dispatch(inboxMessageReceivedEventName, { message });
     }
   }
