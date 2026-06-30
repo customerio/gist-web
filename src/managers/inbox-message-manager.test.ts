@@ -71,6 +71,20 @@ describe('inbox-message-manager', () => {
     });
   });
 
+  it('updateInboxMessagesLocalStore does not re-emit inboxMessageReceived for an already-stored but expired message', async () => {
+    const pastDate = new Date(Date.now() - 60000).toISOString();
+    const stored: InboxMessage[] = [
+      { messageId: 'm1', queueId: 'q1', topics: ['cio_inbox_default'], expiry: pastDate },
+    ];
+    vi.mocked(getKeyFromLocalStore).mockReturnValue(stored);
+
+    await updateInboxMessagesLocalStore(stored);
+
+    expect(Gist.events.dispatch).not.toHaveBeenCalledWith('inboxMessageReceived', {
+      message: stored[0],
+    });
+  });
+
   it('getInboxMessagesFromLocalStore filters out expired messages', async () => {
     const pastDate = new Date(Date.now() - 60000).toISOString();
     const futureDate = new Date(Date.now() + 60000).toISOString();

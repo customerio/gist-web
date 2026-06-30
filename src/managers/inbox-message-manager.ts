@@ -28,8 +28,10 @@ export async function updateInboxMessagesLocalStore(messages: InboxMessage[]): P
   const inboxLocalStoreName = await getInboxMessagesLocalStoreName();
   if (!inboxLocalStoreName) return;
 
-  const existingMessages = await getInboxMessagesFromLocalStore();
-  const existingQueueIds = new Set(existingMessages.map((message) => message.queueId));
+  // Dedup against the raw stored queueIds (not the expiry-filtered view) so an
+  // already-received message that has since expired is not re-emitted as "received".
+  const storedMessages = (getKeyFromLocalStore(inboxLocalStoreName) as InboxMessage[] | null) ?? [];
+  const existingQueueIds = new Set(storedMessages.map((message) => message.queueId));
 
   const expiryDate = new Date();
   expiryDate.setMinutes(expiryDate.getMinutes() + inboxMessagesLocalStoreCacheInMinutes);
