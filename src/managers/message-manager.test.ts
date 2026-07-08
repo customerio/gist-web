@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { showMessage, embedMessage, hideMessage } from './message-manager';
 import type { GistMessage } from '../types';
 
@@ -133,6 +133,52 @@ describe('message-manager', () => {
     mockGist.currentMessages = [];
     mockGist.isDocumentVisible = true;
     mockGist.config.isPreviewSession = false;
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('showMessage loads renderer without coi flag on regular pages', async () => {
+    const { loadOverlayComponent } = await import('./message-component-manager');
+    const message: GistMessage = { messageId: 'msg-1' };
+    await showMessage(message);
+
+    expect(vi.mocked(loadOverlayComponent)).toHaveBeenCalledWith(
+      'https://view.test/index.html',
+      message,
+      expect.anything(),
+      null
+    );
+  });
+
+  it('showMessage loads renderer with coi flag on cross-origin-isolated pages', async () => {
+    vi.stubGlobal('crossOriginIsolated', true);
+    const { loadOverlayComponent } = await import('./message-component-manager');
+    const message: GistMessage = { messageId: 'msg-1' };
+    await showMessage(message);
+
+    expect(vi.mocked(loadOverlayComponent)).toHaveBeenCalledWith(
+      'https://view.test/index.html?coi=1',
+      message,
+      expect.anything(),
+      null
+    );
+  });
+
+  it('embedMessage loads renderer with coi flag on cross-origin-isolated pages', async () => {
+    vi.stubGlobal('crossOriginIsolated', true);
+    const { loadEmbedComponent } = await import('./message-component-manager');
+    const message: GistMessage = { messageId: 'msg-1' };
+    embedMessage(message, 'my-element');
+
+    expect(vi.mocked(loadEmbedComponent)).toHaveBeenCalledWith(
+      'my-element',
+      'https://view.test/index.html?coi=1',
+      message,
+      expect.anything(),
+      null
+    );
   });
 
   it('embedMessage assigns instanceId, sets overlay: false, stores elementId', () => {
