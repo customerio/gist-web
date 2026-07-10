@@ -8,9 +8,10 @@ if (typeof window !== 'undefined') {
     console.warn(
       'Gist: the SDK has been loaded more than once on this page; check for duplicate snippets or bundles.'
     );
+  } else {
+    w.__gistWebLoaded = true;
+    setupDebugOverlay();
   }
-  w.__gistWebLoaded = true;
-  setupDebugOverlay();
 }
 
 export { default } from './gist';
