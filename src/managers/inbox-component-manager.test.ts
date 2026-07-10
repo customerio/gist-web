@@ -36,9 +36,19 @@ vi.mock('./inbox-message-manager', () => ({
 vi.mock('./message-component-manager', () => ({
   resolveRendererColorScheme: vi.fn(() => 'light'),
 }));
-vi.mock('@customerio/jist', () => ({
-  default: class MockJistTemplateElement extends HTMLElement {},
-}));
+vi.mock('@customerio/jist', () => {
+  class MockJistTemplateElement extends HTMLElement {}
+  return {
+    default: MockJistTemplateElement,
+    // Mirrors the real register(): guarded, so the many initializeInboxComponent
+    // calls across this file don't attempt a second define in the shared registry
+    register: vi.fn(() => {
+      if (!customElements.get('jist-template')) {
+        customElements.define('jist-template', MockJistTemplateElement);
+      }
+    }),
+  };
+});
 
 import {
   initializeInboxComponent,
@@ -46,6 +56,7 @@ import {
   destroyInbox,
   resetInboxComponentState,
 } from './inbox-component-manager';
+import { register as registerJistTemplate } from '@customerio/jist';
 import Gist from '../gist';
 import { injectStylesheet } from '../utilities/dom';
 import { getBranding } from './branding-manager';
@@ -135,6 +146,12 @@ describe('inbox-component-manager', () => {
       initializeInboxComponent();
 
       expect(Gist.events.on).toHaveBeenCalledWith('messageInboxUpdated', expect.any(Function));
+    });
+
+    it('registers the jist-template custom element', () => {
+      initializeInboxComponent();
+
+      expect(registerJistTemplate).toHaveBeenCalledTimes(1);
     });
   });
 

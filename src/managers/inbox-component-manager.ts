@@ -20,7 +20,7 @@ import type {
   Branding,
   DeepPartial,
 } from '../types';
-import JistTemplateElement from '@customerio/jist';
+import { register as registerJistTemplate } from '@customerio/jist';
 import type { JistMode } from '@customerio/jist';
 
 const INBOX_STYLE_ID = 'gist-inbox-styles';
@@ -90,9 +90,7 @@ export function initializeInboxComponent(): void {
   if (initialized) return;
   initialized = true;
 
-  if (!customElements.get('jist-template')) {
-    customElements.define('jist-template', JistTemplateElement);
-  }
+  registerJistTemplate();
 
   injectStylesheet(INBOX_STYLE_ID, INBOX_CSS);
 
