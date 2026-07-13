@@ -50,7 +50,7 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "@customerio/jist": "^0.1.6",
+    "@customerio/jist": "^0.3.0",
     "uuid": "^14.0.0"
   },
   "repository": {
