@@ -298,7 +298,13 @@ function loadMessageComponent(
     customAttributes: Object.fromEntries(getAllCustomAttributes()),
   };
 
-  const url = `${settings.GIST_VIEW_ENDPOINT[env]}/index.html`;
+  let url = `${settings.GIST_VIEW_ENDPOINT[env]}/index.html`;
+  if (typeof window !== 'undefined' && window.crossOriginIsolated) {
+    // The coi flag makes the CDN serve the renderer with the CORP/COEP headers
+    // required for embedding inside cross-origin-isolated (COOP+COEP) pages.
+    url = `${url}?coi=1`;
+    log('Cross-origin-isolated page detected, requesting renderer with COEP headers');
+  }
   window.addEventListener('message', handleGistEvents);
   window.addEventListener('touchstart', handleTouchStartEvents);
 
