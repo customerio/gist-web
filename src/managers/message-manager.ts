@@ -293,7 +293,9 @@ function loadMessageComponent(
     dataCenter: Gist.config.dataCenter,
     messageId: message.messageId,
     instanceId: message.instanceId ?? '',
-    livePreview: false,
+    // Live previews must never navigate on a cross-page step — a preview
+    // message isn't queued, so it can't resume on the destination page.
+    livePreview: Boolean(Gist.config.isPreviewSession && message.properties?.gist?.livePreview),
     properties: message.properties,
     customAttributes: Object.fromEntries(getAllCustomAttributes()),
   };
@@ -482,6 +484,25 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
               case 'loadPage': {
                 const redirectUrl = actionUrl.href.substring(actionUrl.href.indexOf('?url=') + 5);
                 if (redirectUrl) {
+                  // Cross-page step change (INAPP-14575): the renderer defers
+                  // to us with the target step in the tap options. Persist the
+                  // step before leaving — the assignment below only starts the
+                  // navigation, so awaiting the save keeps the order safe —
+                  // and the queue restores it on the destination page.
+                  const tapOptions = data.gist.parameters.options as
+                    | { stepId?: string; displaySettings?: DisplaySettings }
+                    | undefined;
+                  if (
+                    tapOptions?.stepId &&
+                    (messageProperties.persistent || isShowAlwaysBroadcast(currentMessage))
+                  ) {
+                    log(`Saving step "${tapOptions.stepId}" before navigating to ${redirectUrl}`);
+                    await saveMessageState(
+                      currentMessage.queueId ?? '',
+                      tapOptions.stepId,
+                      tapOptions.displaySettings
+                    );
+                  }
                   if (
                     redirectUrl.startsWith('mailto:') ||
                     redirectUrl.startsWith('https://') ||

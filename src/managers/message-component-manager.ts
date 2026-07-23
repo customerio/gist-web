@@ -237,7 +237,7 @@ function attachIframeLoadEvent(
   }
 }
 
-const SDK_CAPABILITIES = ['MultiStepDisplayTypes'] as const;
+const SDK_CAPABILITIES = ['MultiStepDisplayTypes', 'CrossPageStepNavigation'] as const;
 
 export function sendOptionsToIframe(
   iframeId: string,
@@ -253,11 +253,30 @@ export function sendOptionsToIframe(
     if (rendererScheme) {
       options.colorScheme = rendererScheme;
     }
+    // The iframe's own location is the renderer host; the renderer needs the
+    // customer page URL to detect cross-page steps (INAPP-14575).
+    options.currentPageUrl = window.location.href;
     const message = {
       options,
       capabilities: SDK_CAPABILITIES,
     };
     iframe.contentWindow.postMessage(message, '*');
+  }
+}
+
+/**
+ * Pushes the current page URL to every live message iframe. SPA hosts route
+ * without reloading, so a message that stays mounted across a route change
+ * would otherwise compare step page-urls against a stale URL.
+ */
+export function sendCurrentPageUrlToIframes(): void {
+  for (const msg of Gist.currentMessages ?? []) {
+    const iframeId = getMessageElementId(msg.instanceId ?? '');
+    const iframe = document.getElementById(iframeId) as HTMLIFrameElement | null;
+    iframe?.contentWindow?.postMessage(
+      { action: 'updateCurrentPageUrl', currentPageUrl: window.location.href },
+      '*'
+    );
   }
 }
 

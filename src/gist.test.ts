@@ -38,6 +38,7 @@ vi.mock('./utilities/message-utils', () => ({
 }));
 vi.mock('./managers/message-component-manager', () => ({
   sendDisplaySettingsToIframe: vi.fn(),
+  sendCurrentPageUrlToIframes: vi.fn(),
   clearAllTooltipHandles: vi.fn(),
   startColorSchemeObserver: vi.fn(),
   applyColorSchemeChange: vi.fn(),
@@ -82,6 +83,7 @@ import {
 import { fetchMessageByInstanceId } from './utilities/message-utils';
 import {
   sendDisplaySettingsToIframe,
+  sendCurrentPageUrlToIframes,
   clearAllTooltipHandles,
   startColorSchemeObserver,
   applyColorSchemeChange,
@@ -299,6 +301,9 @@ describe('Gist', () => {
       expect(Gist.currentRoute).toBe('/home');
       expect(checkCurrentMessagesAfterRouteChange).toHaveBeenCalled();
       expect(checkMessageQueue).toHaveBeenCalled();
+      // SPA route changes must refresh the page URL that live message iframes
+      // compare step page-urls against (INAPP-14575).
+      expect(sendCurrentPageUrlToIframes).toHaveBeenCalled();
     });
 
     it('sets routeInitialized to true', async () => {

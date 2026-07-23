@@ -42,6 +42,11 @@ export interface DisplaySettings {
   maxWidth?: number;
   overlayColor?: string;
   dismissOutsideClick?: boolean;
+  /**
+   * Page the step belongs to (product tours). Saved with the step state so a
+   * restored step is only re-shown on its own page (INAPP-14575).
+   */
+  pageUrl?: string;
 }
 
 export interface StepDisplayConfig {

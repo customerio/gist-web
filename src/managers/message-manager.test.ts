@@ -387,6 +387,158 @@ describe('message-manager', () => {
     });
   });
 
+  describe('handleGistEvents loadPage cross-page continuation (INAPP-14575)', () => {
+    let originalLocation: Location;
+
+    beforeEach(() => {
+      originalLocation = window.location;
+      Object.defineProperty(window, 'location', {
+        value: {
+          href: 'https://app.example.com/start',
+          toString: () => 'https://app.example.com/start',
+        },
+        writable: true,
+        configurable: true,
+      });
+    });
+
+    afterEach(() => {
+      Object.defineProperty(window, 'location', {
+        value: originalLocation,
+        writable: true,
+        configurable: true,
+      });
+    });
+
+    async function setupMessage(persistent: boolean): Promise<GistMessage> {
+      const { fetchMessageByInstanceId } = await import('../utilities/message-utils');
+      const { resolveMessageProperties } = await import('./gist-properties-manager');
+
+      vi.mocked(resolveMessageProperties).mockReturnValue({
+        isEmbedded: false,
+        elementId: '',
+        hasRouteRule: false,
+        routeRule: '',
+        position: '',
+        hasPosition: false,
+        tooltipPosition: '',
+        hasTooltipPosition: false,
+        tooltipArrowColor: '#fff',
+        shouldScale: false,
+        campaignId: null,
+        messageWidth: 414,
+        overlayColor: '#00000033',
+        persistent,
+        exitClick: false,
+        hasCustomWidth: false,
+      });
+
+      const message: GistMessage = {
+        messageId: 'tour-msg',
+        queueId: 'q-tour',
+        properties: { gist: {} },
+      };
+      await showMessage(message);
+      vi.mocked(fetchMessageByInstanceId).mockReturnValue(message);
+      return message;
+    }
+
+    function dispatchLoadPageTap(
+      instanceId: string | undefined,
+      url: string,
+      options?: Record<string, unknown>
+    ) {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: {
+            gist: {
+              method: 'tap',
+              instanceId,
+              parameters: { action: `gist://loadPage?url=${url}`, name: 'next', options },
+            },
+          },
+          origin: 'https://renderer.test',
+        })
+      );
+    }
+
+    it('saves the target step before navigating when the tap carries a stepId', async () => {
+      const { saveMessageState } = await import('./message-user-queue-manager');
+      const message = await setupMessage(true);
+
+      let resolveSave: () => void = () => {};
+      vi.mocked(saveMessageState).mockReturnValue(
+        new Promise<void>((resolve) => {
+          resolveSave = resolve;
+        })
+      );
+
+      const displaySettings = { displayType: 'tooltip', pageUrl: '/settings' };
+      dispatchLoadPageTap(message.instanceId, '/settings', {
+        stepId: 'step-2',
+        displaySettings,
+      });
+
+      await vi.waitFor(() => {
+        expect(saveMessageState).toHaveBeenCalledWith('q-tour', 'step-2', displaySettings);
+      });
+      // Still on the original page: navigation must wait for the save.
+      expect(window.location.href).toBe('https://app.example.com/start');
+
+      resolveSave();
+      await vi.waitFor(() => {
+        expect(window.location.href).toBe('/settings');
+      });
+    });
+
+    it('navigates without saving when the tap has no stepId (plain openUrl)', async () => {
+      const { saveMessageState } = await import('./message-user-queue-manager');
+      const message = await setupMessage(true);
+
+      dispatchLoadPageTap(message.instanceId, '/pricing', { name: 'cta' });
+
+      await vi.waitFor(() => {
+        expect(window.location.href).toBe('/pricing');
+      });
+      expect(saveMessageState).not.toHaveBeenCalled();
+    });
+
+    it('navigates without saving when the message is not persistent', async () => {
+      const { saveMessageState } = await import('./message-user-queue-manager');
+      const message = await setupMessage(false);
+
+      dispatchLoadPageTap(message.instanceId, '/pricing', {
+        stepId: 'step-2',
+        displaySettings: { displayType: 'modal' },
+      });
+
+      await vi.waitFor(() => {
+        expect(window.location.href).toBe('/pricing');
+      });
+      expect(saveMessageState).not.toHaveBeenCalled();
+    });
+
+    it('keeps legacy raw url parsing intact for urls with query params', async () => {
+      const { saveMessageState } = await import('./message-user-queue-manager');
+      const message = await setupMessage(true);
+      vi.mocked(saveMessageState).mockResolvedValue(undefined);
+
+      dispatchLoadPageTap(message.instanceId, 'https://other.example.com/a?b=1&c=2', {
+        stepId: 'step-3',
+        displaySettings: { displayType: 'modal' },
+      });
+
+      await vi.waitFor(() => {
+        // Everything after ?url= is the redirect target — the stepId rides in
+        // the structured tap options, never in the action URL.
+        expect(window.location.href).toBe('https://other.example.com/a?b=1&c=2');
+      });
+      expect(saveMessageState).toHaveBeenCalledWith('q-tour', 'step-3', {
+        displayType: 'modal',
+      });
+    });
+  });
+
   describe('tooltip flow', () => {
     function addTargetElement(selector: string): HTMLElement {
       const id = selector.replace(/^#/, '');

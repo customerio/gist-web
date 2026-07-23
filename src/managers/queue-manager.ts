@@ -25,8 +25,8 @@ import {
 import { updateInboxMessagesLocalStore } from './inbox-message-manager';
 import type { InboxMessage } from './inbox-message-manager';
 import { settings } from '../services/settings';
-import { applyDisplaySettings, matchesRouteRule } from '../utilities/message-utils';
-import { findElement } from '../utilities/dom';
+import { applyDisplaySettings, matchesPageUrl, matchesRouteRule } from '../utilities/message-utils';
+import { findElement, waitForElement } from '../utilities/dom';
 import type { GistMessage, DisplaySettings } from '../types';
 
 const sleep = (time: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, time));
@@ -37,6 +37,53 @@ const poll = (promiseFn: () => Promise<unknown>, time: number): Promise<unknown>
 
 let pollingSetup = false;
 let sseSource: EventSource | null = null;
+
+const CONTINUATION_ANCHOR_WAIT_MS = 10000;
+const pendingAnchorWaits = new Set<string>();
+
+/**
+ * The app-rendered element a continuation (restored step) must anchor to:
+ * the tooltip target, or the embed target for inline messages. Overlay
+ * positions are SDK-created containers, never app-rendered anchors.
+ */
+function continuationAnchorSelector(
+  message: GistMessage,
+  messageProperties: ReturnType<typeof resolveMessageProperties>
+): string | null {
+  let selector: string | null | undefined = null;
+  if (messageProperties.hasTooltipPosition || message.tooltipPosition) {
+    selector = messageProperties.elementId || message.elementId;
+  } else if (messageProperties.isEmbedded) {
+    selector = messageProperties.elementId;
+  }
+  if (!selector || positions.includes(selector)) {
+    return null;
+  }
+  return selector;
+}
+
+function waitForContinuationAnchor(message: GistMessage, selector: string): void {
+  const queueId = message.queueId ?? '';
+  if (pendingAnchorWaits.has(queueId)) {
+    return;
+  }
+  pendingAnchorWaits.add(queueId);
+  log(
+    `Anchor "${selector}" not present for saved step "${message.savedStepName}" of queueId ${queueId}, waiting up to ${CONTINUATION_ANCHOR_WAIT_MS}ms`
+  );
+  void waitForElement(selector, CONTINUATION_ANCHOR_WAIT_MS).then(async (element) => {
+    pendingAnchorWaits.delete(queueId);
+    if (element) {
+      log(`Anchor "${selector}" appeared, re-checking message queue`);
+      await checkMessageQueue();
+    } else {
+      log(
+        `Anchor "${selector}" did not appear within ${CONTINUATION_ANCHOR_WAIT_MS}ms, tour step for queueId ${queueId} cannot continue`
+      );
+      Gist.messageError(message);
+    }
+  });
+}
 
 export async function startQueueListener(): Promise<void> {
   if (!pollingSetup) {
@@ -118,12 +165,38 @@ export async function handleMessage(message: GistMessage): Promise<boolean> {
       displaySettings?: DisplaySettings;
     } | null;
     if (savedState) {
+      // Cross-page tours: the saved step belongs to a specific page. Anywhere
+      // else, keep the message queued and wait — every route change re-checks
+      // the queue, so the tour resumes when the visitor reaches that page
+      // (INAPP-14575).
+      const savedPageUrl = savedState.displaySettings?.pageUrl;
+      if (savedPageUrl && !matchesPageUrl(savedPageUrl)) {
+        log(
+          `Saved step for queueId ${message.queueId} belongs to page ${savedPageUrl}, not showing on ${new URL(window.location.href).pathname}`
+        );
+        return false;
+      }
       log(`Restoring saved state for queueId ${message.queueId}`);
       if (savedState.displaySettings) {
         applyDisplaySettings(message, savedState.displaySettings);
         messageProperties = resolveMessageProperties(message);
       }
       message.savedStepName = savedState.stepName ?? null;
+    }
+  }
+
+  // Tour continuation: tooltip/inline steps need their anchor element, and
+  // right after a cross-page hop the queue check usually beats the app
+  // rendering it — especially on SPAs. Wait for the anchor (bounded) instead
+  // of erroring the message out (INAPP-14575).
+  if (message.savedStepName) {
+    const anchorSelector = continuationAnchorSelector(message, messageProperties);
+    if (anchorSelector && !findElement(anchorSelector)) {
+      const isLivePreview = Gist.config.isPreviewSession && message.properties?.gist?.livePreview;
+      if (!isLivePreview) {
+        waitForContinuationAnchor(message, anchorSelector);
+        return false;
+      }
     }
   }
 
