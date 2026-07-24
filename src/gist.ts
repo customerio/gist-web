@@ -18,7 +18,6 @@ import {
 import { fetchMessageByInstanceId } from './utilities/message-utils';
 import {
   sendDisplaySettingsToIframe,
-  sendCurrentPageUrlToIframes,
   clearAllTooltipHandles,
   startColorSchemeObserver,
   applyColorSchemeChange,
@@ -124,7 +123,6 @@ export default class Gist {
     this.routeInitialized = true;
     this.currentRoute = route;
     log(`Current route set to: ${route}`);
-    sendCurrentPageUrlToIframes();
     await checkCurrentMessagesAfterRouteChange();
     await checkMessageQueue();
     this.events?.dispatch('routeChanged', route);

@@ -16,6 +16,7 @@ import {
   elementHasHeight,
   changeOverlayTitle,
   sendDisplaySettingsToIframe,
+  sendShowStepToIframe,
   loadTooltipComponent,
   showTooltipComponent,
   hideTooltipComponent,
@@ -46,6 +47,7 @@ import {
   hasDisplayChanged,
   applyDisplaySettings,
   getCurrentDisplayType,
+  matchesPageUrl,
 } from '../utilities/message-utils';
 import {
   updatePreviewBarMessage,
@@ -293,9 +295,7 @@ function loadMessageComponent(
     dataCenter: Gist.config.dataCenter,
     messageId: message.messageId,
     instanceId: message.instanceId ?? '',
-    // Live previews must never navigate on a cross-page step — a preview
-    // message isn't queued, so it can't resume on the destination page.
-    livePreview: Boolean(Gist.config.isPreviewSession && message.properties?.gist?.livePreview),
+    livePreview: false,
     properties: message.properties,
     customAttributes: Object.fromEntries(getAllCustomAttributes()),
   };
@@ -345,6 +345,22 @@ async function reportMessageView(message: GistMessage): Promise<void> {
 
 function handleTouchStartEvents(): void {
   // Added this to avoid errors in the console
+}
+
+// Shared by loadPage taps and cross-page step navigation: absolute URLs,
+// mailto and root-relative paths navigate as-is; anything else is appended to
+// the current location (legacy behavior).
+function navigateToPage(url: string): void {
+  if (
+    url.startsWith('mailto:') ||
+    url.startsWith('https://') ||
+    url.startsWith('http://') ||
+    url.startsWith('/')
+  ) {
+    window.location.href = url;
+  } else {
+    window.location.href = window.location + url;
+  }
 }
 
 async function handleGistEvents(e: MessageEvent): Promise<void> {
@@ -484,35 +500,7 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
               case 'loadPage': {
                 const redirectUrl = actionUrl.href.substring(actionUrl.href.indexOf('?url=') + 5);
                 if (redirectUrl) {
-                  // Cross-page step change (INAPP-14575): the renderer defers
-                  // to us with the target step in the tap options. Persist the
-                  // step before leaving — the assignment below only starts the
-                  // navigation, so awaiting the save keeps the order safe —
-                  // and the queue restores it on the destination page.
-                  const tapOptions = data.gist.parameters.options as
-                    | { stepId?: string; displaySettings?: DisplaySettings }
-                    | undefined;
-                  if (
-                    tapOptions?.stepId &&
-                    (messageProperties.persistent || isShowAlwaysBroadcast(currentMessage))
-                  ) {
-                    log(`Saving step "${tapOptions.stepId}" before navigating to ${redirectUrl}`);
-                    await saveMessageState(
-                      currentMessage.queueId ?? '',
-                      tapOptions.stepId,
-                      tapOptions.displaySettings
-                    );
-                  }
-                  if (
-                    redirectUrl.startsWith('mailto:') ||
-                    redirectUrl.startsWith('https://') ||
-                    redirectUrl.startsWith('http://') ||
-                    redirectUrl.startsWith('/')
-                  ) {
-                    window.location.href = redirectUrl;
-                  } else {
-                    window.location.href = window.location + redirectUrl;
-                  }
+                  navigateToPage(redirectUrl);
                 }
                 break;
               }
@@ -522,6 +510,41 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
           // If the action is not a URL, we don't need to do anything.
         }
 
+        break;
+      }
+      case 'stepChangeRequested': {
+        // A tap targeted a step that declares a page-url; the renderer
+        // withheld its local toggle and deferred the decision to us
+        // (INAPP-14575). Either the step belongs to another page — persist it,
+        // then navigate; the assignment only starts the navigation, so
+        // awaiting the save keeps the order safe — or it belongs here (or
+        // this is a live preview, which must never navigate) and the renderer
+        // is instructed to show it locally.
+        const displaySettings = data.gist.parameters.displaySettings as DisplaySettings | undefined;
+        const messageStepName = data.gist.parameters.messageStepName as string | undefined;
+        if (!messageStepName) {
+          break;
+        }
+        const stepPageUrl = displaySettings?.pageUrl;
+        const isLivePreview =
+          Gist.config.isPreviewSession && currentMessage.properties?.gist?.livePreview;
+        if (stepPageUrl && !matchesPageUrl(stepPageUrl) && !isLivePreview) {
+          // Parity with plain openUrl buttons: the navigation surfaces as the
+          // same loadPage message action.
+          Gist.messageAction(
+            currentMessage,
+            `gist://loadPage?url=${stepPageUrl}`,
+            (data.gist.parameters.name as string | undefined) ?? ''
+          );
+          if (messageProperties.persistent || isShowAlwaysBroadcast(currentMessage)) {
+            log(`Saving step "${messageStepName}" before navigating to ${stepPageUrl}`);
+            await saveMessageState(currentMessage.queueId ?? '', messageStepName, displaySettings);
+          }
+          navigateToPage(stepPageUrl);
+        } else {
+          log(`Step "${messageStepName}" stays on this page, instructing renderer to show it`);
+          sendShowStepToIframe(currentMessage, messageStepName);
+        }
         break;
       }
       case 'changeMessageStep': {

@@ -58,6 +58,7 @@ vi.mock('./message-component-manager', () => ({
   elementHasHeight: vi.fn(() => false),
   changeOverlayTitle: vi.fn(),
   sendDisplaySettingsToIframe: vi.fn(),
+  sendShowStepToIframe: vi.fn(),
   loadTooltipComponent: vi.fn(),
   showTooltipComponent: vi.fn(() => Promise.resolve(true)),
   hideTooltipComponent: vi.fn(),
@@ -104,16 +105,22 @@ vi.mock('./message-user-queue-manager', () => ({
   clearMessageState: vi.fn(),
   setMessageLoaded: vi.fn(),
 }));
-vi.mock('../utilities/message-utils', () => ({
-  fetchMessageByInstanceId: vi.fn(),
-  fetchMessageByElementId: vi.fn(() => null),
-  isQueueIdAlreadyShowing: vi.fn(() => false),
-  removeMessageByInstanceId: vi.fn(),
-  updateMessageByInstanceId: vi.fn(),
-  hasDisplayChanged: vi.fn(() => false),
-  applyDisplaySettings: vi.fn(),
-  getCurrentDisplayType: vi.fn(() => 'modal'),
-}));
+// Keeps the real matchesPageUrl so cross-page decision tests exercise the
+// actual pathname semantics; everything else stays mocked as before.
+vi.mock('../utilities/message-utils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../utilities/message-utils')>();
+  return {
+    ...actual,
+    fetchMessageByInstanceId: vi.fn(),
+    fetchMessageByElementId: vi.fn(() => null),
+    isQueueIdAlreadyShowing: vi.fn(() => false),
+    removeMessageByInstanceId: vi.fn(),
+    updateMessageByInstanceId: vi.fn(),
+    hasDisplayChanged: vi.fn(() => false),
+    applyDisplaySettings: vi.fn(),
+    getCurrentDisplayType: vi.fn(() => 'modal'),
+  };
+});
 vi.mock('./preview-bar-manager', () => ({
   updatePreviewBarMessage: vi.fn(),
   updatePreviewBarStep: vi.fn(),
@@ -387,7 +394,7 @@ describe('message-manager', () => {
     });
   });
 
-  describe('handleGistEvents loadPage cross-page continuation (INAPP-14575)', () => {
+  describe('handleGistEvents stepChangeRequested (INAPP-14575)', () => {
     let originalLocation: Location;
 
     beforeEach(() => {
@@ -410,7 +417,10 @@ describe('message-manager', () => {
       });
     });
 
-    async function setupMessage(persistent: boolean): Promise<GistMessage> {
+    async function setupMessage(
+      persistent: boolean,
+      gistProperties: Record<string, unknown> = {}
+    ): Promise<GistMessage> {
       const { fetchMessageByInstanceId } = await import('../utilities/message-utils');
       const { resolveMessageProperties } = await import('./gist-properties-manager');
 
@@ -436,25 +446,25 @@ describe('message-manager', () => {
       const message: GistMessage = {
         messageId: 'tour-msg',
         queueId: 'q-tour',
-        properties: { gist: {} },
+        properties: { gist: gistProperties },
       };
       await showMessage(message);
       vi.mocked(fetchMessageByInstanceId).mockReturnValue(message);
       return message;
     }
 
-    function dispatchLoadPageTap(
+    function dispatchStepChangeRequested(
       instanceId: string | undefined,
-      url: string,
-      options?: Record<string, unknown>
+      messageStepName: string,
+      displaySettings: Record<string, unknown>
     ) {
       window.dispatchEvent(
         new MessageEvent('message', {
           data: {
             gist: {
-              method: 'tap',
+              method: 'stepChangeRequested',
               instanceId,
-              parameters: { action: `gist://loadPage?url=${url}`, name: 'next', options },
+              parameters: { messageStepName, displaySettings, name: 'next' },
             },
           },
           origin: 'https://renderer.test',
@@ -462,7 +472,7 @@ describe('message-manager', () => {
       );
     }
 
-    it('saves the target step before navigating when the tap carries a stepId', async () => {
+    it('saves the step then navigates when it belongs to another page', async () => {
       const { saveMessageState } = await import('./message-user-queue-manager');
       const message = await setupMessage(true);
 
@@ -474,16 +484,19 @@ describe('message-manager', () => {
       );
 
       const displaySettings = { displayType: 'tooltip', pageUrl: '/settings' };
-      dispatchLoadPageTap(message.instanceId, '/settings', {
-        stepId: 'step-2',
-        displaySettings,
-      });
+      dispatchStepChangeRequested(message.instanceId, 'step-2', displaySettings);
 
       await vi.waitFor(() => {
         expect(saveMessageState).toHaveBeenCalledWith('q-tour', 'step-2', displaySettings);
       });
       // Still on the original page: navigation must wait for the save.
       expect(window.location.href).toBe('https://app.example.com/start');
+      // Analytics parity with plain openUrl buttons.
+      expect(mockGist.messageAction).toHaveBeenCalledWith(
+        message,
+        'gist://loadPage?url=/settings',
+        'next'
+      );
 
       resolveSave();
       await vi.waitFor(() => {
@@ -491,25 +504,46 @@ describe('message-manager', () => {
       });
     });
 
-    it('navigates without saving when the tap has no stepId (plain openUrl)', async () => {
+    it('instructs the renderer to show the step when it belongs to this page', async () => {
       const { saveMessageState } = await import('./message-user-queue-manager');
+      const { sendShowStepToIframe } = await import('./message-component-manager');
       const message = await setupMessage(true);
 
-      dispatchLoadPageTap(message.instanceId, '/pricing', { name: 'cta' });
+      dispatchStepChangeRequested(message.instanceId, 'step-2', {
+        displayType: 'modal',
+        pageUrl: 'https://staging.example.com/start?x=1',
+      });
 
       await vi.waitFor(() => {
-        expect(window.location.href).toBe('/pricing');
+        expect(sendShowStepToIframe).toHaveBeenCalledWith(message, 'step-2');
       });
+      expect(window.location.href).toBe('https://app.example.com/start');
       expect(saveMessageState).not.toHaveBeenCalled();
+    });
+
+    it('never navigates in live previews, even for another page', async () => {
+      const { sendShowStepToIframe } = await import('./message-component-manager');
+      mockGist.config.isPreviewSession = true;
+      const message = await setupMessage(true, { livePreview: true });
+
+      dispatchStepChangeRequested(message.instanceId, 'step-2', {
+        displayType: 'modal',
+        pageUrl: '/settings',
+      });
+
+      await vi.waitFor(() => {
+        expect(sendShowStepToIframe).toHaveBeenCalledWith(message, 'step-2');
+      });
+      expect(window.location.href).toBe('https://app.example.com/start');
     });
 
     it('navigates without saving when the message is not persistent', async () => {
       const { saveMessageState } = await import('./message-user-queue-manager');
       const message = await setupMessage(false);
 
-      dispatchLoadPageTap(message.instanceId, '/pricing', {
-        stepId: 'step-2',
-        displaySettings: { displayType: 'modal' },
+      dispatchStepChangeRequested(message.instanceId, 'step-2', {
+        displayType: 'modal',
+        pageUrl: '/pricing',
       });
 
       await vi.waitFor(() => {
@@ -518,24 +552,31 @@ describe('message-manager', () => {
       expect(saveMessageState).not.toHaveBeenCalled();
     });
 
-    it('keeps legacy raw url parsing intact for urls with query params', async () => {
+    it('keeps plain loadPage taps as pure navigation with raw url parsing', async () => {
       const { saveMessageState } = await import('./message-user-queue-manager');
       const message = await setupMessage(true);
-      vi.mocked(saveMessageState).mockResolvedValue(undefined);
 
-      dispatchLoadPageTap(message.instanceId, 'https://other.example.com/a?b=1&c=2', {
-        stepId: 'step-3',
-        displaySettings: { displayType: 'modal' },
-      });
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: {
+            gist: {
+              method: 'tap',
+              instanceId: message.instanceId,
+              parameters: {
+                action: 'gist://loadPage?url=https://other.example.com/a?b=1&c=2',
+                name: 'cta',
+              },
+            },
+          },
+          origin: 'https://renderer.test',
+        })
+      );
 
       await vi.waitFor(() => {
-        // Everything after ?url= is the redirect target — the stepId rides in
-        // the structured tap options, never in the action URL.
+        // Everything after ?url= is the redirect target, byte for byte.
         expect(window.location.href).toBe('https://other.example.com/a?b=1&c=2');
       });
-      expect(saveMessageState).toHaveBeenCalledWith('q-tour', 'step-3', {
-        displayType: 'modal',
-      });
+      expect(saveMessageState).not.toHaveBeenCalled();
     });
   });
 

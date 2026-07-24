@@ -253,9 +253,6 @@ export function sendOptionsToIframe(
     if (rendererScheme) {
       options.colorScheme = rendererScheme;
     }
-    // The iframe's own location is the renderer host; the renderer needs the
-    // customer page URL to detect cross-page steps (INAPP-14575).
-    options.currentPageUrl = window.location.href;
     const message = {
       options,
       capabilities: SDK_CAPABILITIES,
@@ -265,19 +262,14 @@ export function sendOptionsToIframe(
 }
 
 /**
- * Pushes the current page URL to every live message iframe. SPA hosts route
- * without reloading, so a message that stays mounted across a route change
- * would otherwise compare step page-urls against a stale URL.
+ * Answers a stepChangeRequested bridge event with "stay on this page": the
+ * renderer withheld its local toggle pending our decision, so instruct it to
+ * show the step now (INAPP-14575).
  */
-export function sendCurrentPageUrlToIframes(): void {
-  for (const msg of Gist.currentMessages ?? []) {
-    const iframeId = getMessageElementId(msg.instanceId ?? '');
-    const iframe = document.getElementById(iframeId) as HTMLIFrameElement | null;
-    iframe?.contentWindow?.postMessage(
-      { action: 'updateCurrentPageUrl', currentPageUrl: window.location.href },
-      '*'
-    );
-  }
+export function sendShowStepToIframe(message: GistMessage, stepName: string): void {
+  const iframeId = getMessageElementId(message.instanceId ?? '');
+  const iframe = document.getElementById(iframeId) as HTMLIFrameElement | null;
+  iframe?.contentWindow?.postMessage({ action: 'showStep', stepId: stepName }, '*');
 }
 
 export function sendDisplaySettingsToIframe(message: GistMessage): void {
