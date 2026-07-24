@@ -108,9 +108,9 @@ export function matchesRouteRule(rule: string): boolean {
  */
 export function matchesPageUrl(pageUrl: string): boolean {
   try {
-    return (
-      new URL(pageUrl, window.location.href).pathname === new URL(window.location.href).pathname
-    );
+    const stepPath = new URL(pageUrl, window.location.href).pathname.replace(/\/+$/, '') || '/';
+    const currentPath = new URL(window.location.href).pathname.replace(/\/+$/, '') || '/';
+    return stepPath === currentPath;
   } catch {
     return true;
   }

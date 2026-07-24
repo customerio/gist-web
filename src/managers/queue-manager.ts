@@ -71,18 +71,23 @@ function waitForContinuationAnchor(message: GistMessage, selector: string): void
   log(
     `Anchor "${selector}" not present for saved step "${message.savedStepName}" of queueId ${queueId}, waiting up to ${CONTINUATION_ANCHOR_WAIT_MS}ms`
   );
-  void waitForElement(selector, CONTINUATION_ANCHOR_WAIT_MS).then(async (element) => {
-    pendingAnchorWaits.delete(queueId);
-    if (element) {
-      log(`Anchor "${selector}" appeared, re-checking message queue`);
-      await checkMessageQueue();
-    } else {
-      log(
-        `Anchor "${selector}" did not appear within ${CONTINUATION_ANCHOR_WAIT_MS}ms, tour step for queueId ${queueId} cannot continue`
-      );
-      Gist.messageError(message);
-    }
-  });
+  waitForElement(selector, CONTINUATION_ANCHOR_WAIT_MS)
+    .then(async (element) => {
+      pendingAnchorWaits.delete(queueId);
+      if (element) {
+        log(`Anchor "${selector}" appeared, re-checking message queue`);
+        await checkMessageQueue();
+      } else {
+        log(
+          `Anchor "${selector}" did not appear within ${CONTINUATION_ANCHOR_WAIT_MS}ms, tour step for queueId ${queueId} cannot continue`
+        );
+        Gist.messageError(message);
+      }
+    })
+    .catch((error) => {
+      pendingAnchorWaits.delete(queueId);
+      log(`Anchor wait for "${selector}" failed: ${error}`);
+    });
 }
 
 export async function startQueueListener(): Promise<void> {
