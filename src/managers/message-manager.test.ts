@@ -126,9 +126,16 @@ vi.mock('./preview-bar-manager', () => ({
   updatePreviewBarStep: vi.fn(),
   clearPreviewBarMessage: vi.fn(),
 }));
-vi.mock('../utilities/preview-mode', () => ({
-  PREVIEW_PARAM_ID: 'cioPreviewId',
-  PREVIEW_SETTINGS_PARAM: 'cioPreviewSettings',
+// Real module (for withPreviewSession) with the constants passed through; the
+// preview token it reads comes from the user-manager mock below.
+vi.mock('../utilities/preview-mode', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../utilities/preview-mode')>();
+  return { ...actual };
+});
+vi.mock('./user-manager', () => ({
+  getUserToken: vi.fn(() => 'preview-token-123'),
+  clearUserToken: vi.fn(),
+  setUserToken: vi.fn(),
 }));
 
 vi.mock('../gist', () => ({ default: mockGist }));
@@ -521,20 +528,29 @@ describe('message-manager', () => {
       expect(saveMessageState).not.toHaveBeenCalled();
     });
 
-    it('never navigates in live previews, even for another page', async () => {
-      const { sendShowStepToIframe } = await import('./message-component-manager');
+    it('carries the preview session across a cross-page hop', async () => {
+      const { saveMessageState } = await import('./message-user-queue-manager');
       mockGist.config.isPreviewSession = true;
       const message = await setupMessage(true, { livePreview: true });
 
-      dispatchStepChangeRequested(message.instanceId, 'step-2', {
-        displayType: 'modal',
-        pageUrl: '/settings',
-      });
+      // displayType reflects the renderer's live per-step state at tap time,
+      // so in-preview edits (display type, targets) ride along.
+      const displaySettings = { displayType: 'tooltip', pageUrl: '/settings' };
+      dispatchStepChangeRequested(message.instanceId, 'step-2', displaySettings);
 
       await vi.waitFor(() => {
-        expect(sendShowStepToIframe).toHaveBeenCalledWith(message, 'step-2');
+        expect(window.location.href).not.toBe('https://app.example.com/start');
       });
-      expect(window.location.href).toBe('https://app.example.com/start');
+
+      const destination = new URL(window.location.href);
+      expect(destination.pathname).toBe('/settings');
+      expect(destination.searchParams.get('cioPreviewId')).toBe('preview-token-123');
+      expect(JSON.parse(atob(destination.searchParams.get('cioPreviewSettings') ?? ''))).toEqual({
+        stepName: 'step-2',
+        displayType: 'tooltip',
+      });
+      // The hop still rehearses the production path: state saved before leaving.
+      expect(saveMessageState).toHaveBeenCalledWith('q-tour', 'step-2', displaySettings);
     });
 
     it('navigates without saving when the message is not persistent', async () => {

@@ -54,7 +54,11 @@ import {
   updatePreviewBarStep,
   clearPreviewBarMessage,
 } from './preview-bar-manager';
-import { PREVIEW_PARAM_ID, PREVIEW_SETTINGS_PARAM } from '../utilities/preview-mode';
+import {
+  PREVIEW_PARAM_ID,
+  PREVIEW_SETTINGS_PARAM,
+  withPreviewSession,
+} from '../utilities/preview-mode';
 import type { GistMessage, DisplaySettings, MessageProperties } from '../types';
 
 interface GistEventData {
@@ -517,18 +521,15 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
         // withheld its local toggle and deferred the decision to us
         // (INAPP-14575). Either the step belongs to another page — persist it,
         // then navigate; the assignment only starts the navigation, so
-        // awaiting the save keeps the order safe — or it belongs here (or
-        // this is a live preview, which must never navigate) and the renderer
-        // is instructed to show it locally.
+        // awaiting the save keeps the order safe — or it belongs here and the
+        // renderer is instructed to show it locally.
         const displaySettings = data.gist.parameters.displaySettings as DisplaySettings | undefined;
         const messageStepName = data.gist.parameters.messageStepName as string | undefined;
         if (!messageStepName) {
           break;
         }
         const stepPageUrl = displaySettings?.pageUrl;
-        const isLivePreview =
-          Gist.config.isPreviewSession && currentMessage.properties?.gist?.livePreview;
-        if (stepPageUrl && !matchesPageUrl(stepPageUrl) && !isLivePreview) {
+        if (stepPageUrl && !matchesPageUrl(stepPageUrl)) {
           // Parity with plain openUrl buttons: the navigation surfaces as the
           // same loadPage message action.
           Gist.messageAction(
@@ -540,7 +541,18 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
             log(`Saving step "${messageStepName}" before navigating to ${stepPageUrl}`);
             await saveMessageState(currentMessage.queueId ?? '', messageStepName, displaySettings);
           }
-          navigateToPage(stepPageUrl);
+          if (Gist.config.isPreviewSession) {
+            // Preview sessions rehearse the real hop: carry the preview params
+            // so the destination page re-bootstraps the preview bar and the
+            // queue restores the saved step exactly like production.
+            window.location.href = withPreviewSession(
+              stepPageUrl,
+              messageStepName,
+              displaySettings?.displayType
+            );
+          } else {
+            navigateToPage(stepPageUrl);
+          }
         } else {
           log(`Step "${messageStepName}" stays on this page, instructing renderer to show it`);
           sendShowStepToIframe(currentMessage, messageStepName);
