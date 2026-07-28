@@ -152,6 +152,24 @@ function persistDisplaySettings(): void {
     .catch(() => log('Failed to persist preview display settings'));
 }
 
+/**
+ * Awaits the pending per-step settings save so edits aren't lost to an
+ * in-flight request when a cross-page step switch navigates the page. Unlike
+ * persistDisplaySettings (fire-and-forget on every keystroke), the caller can
+ * await this before assigning window.location (INAPP-14575). No-op outside a
+ * preview session.
+ */
+export async function flushPreviewDisplaySettings(): Promise<void> {
+  const params = new URLSearchParams(window.location.search);
+  const cioPreviewId = params.get(PREVIEW_PARAM_ID);
+  if (!cioPreviewId) return;
+  try {
+    await savePreviewDisplaySettings(cioPreviewId, currentSteps);
+  } catch {
+    log('Failed to flush preview display settings before navigation');
+  }
+}
+
 // ─── Control builders ─────────────────────────────────────────────────────────
 
 function buildModalControls(settings: DisplaySettings, row: HTMLElement) {

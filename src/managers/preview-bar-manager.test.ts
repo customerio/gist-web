@@ -42,7 +42,9 @@ import {
   updatePreviewBarStep,
   clearPreviewBarMessage,
   destroyPreviewBar,
+  flushPreviewDisplaySettings,
 } from './preview-bar-manager';
+import { savePreviewDisplaySettings } from '../services/preview-service';
 
 describe('preview-bar-manager', () => {
   beforeEach(() => {
@@ -340,6 +342,55 @@ describe('preview-bar-manager', () => {
           expect.objectContaining({ displayType: 'modal' })
         );
       });
+    });
+  });
+
+  describe('flushPreviewDisplaySettings', () => {
+    let originalLocation: Location;
+
+    beforeEach(() => {
+      originalLocation = window.location;
+    });
+
+    afterEach(() => {
+      Object.defineProperty(window, 'location', {
+        value: originalLocation,
+        writable: true,
+        configurable: true,
+      });
+    });
+
+    function setPreviewSearch(search: string) {
+      Object.defineProperty(window, 'location', {
+        value: { search, href: `https://app.example.com/${search}` },
+        writable: true,
+        configurable: true,
+      });
+    }
+
+    it('awaits the per-step settings save for the active preview session', async () => {
+      setPreviewSearch('?cioPreviewId=preview-xyz');
+      initBarWithMessage([
+        { stepName: 'step-1', displaySettings: { displayType: 'modal' } },
+        { stepName: 'step-2', displaySettings: { displayType: 'modal', pageUrl: '/settings' } },
+      ]);
+      vi.mocked(savePreviewDisplaySettings).mockClear();
+
+      await flushPreviewDisplaySettings();
+
+      expect(savePreviewDisplaySettings).toHaveBeenCalledWith(
+        'preview-xyz',
+        expect.arrayContaining([expect.objectContaining({ stepName: 'step-2' })]),
+      );
+    });
+
+    it('is a no-op outside a preview session', async () => {
+      setPreviewSearch('');
+      vi.mocked(savePreviewDisplaySettings).mockClear();
+
+      await flushPreviewDisplaySettings();
+
+      expect(savePreviewDisplaySettings).not.toHaveBeenCalled();
     });
   });
 

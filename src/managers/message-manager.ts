@@ -53,6 +53,7 @@ import {
   updatePreviewBarMessage,
   updatePreviewBarStep,
   clearPreviewBarMessage,
+  flushPreviewDisplaySettings,
 } from './preview-bar-manager';
 import {
   PREVIEW_PARAM_ID,
@@ -116,16 +117,19 @@ function showTooltipMessage(
   properties: ReturnType<typeof resolveMessageProperties>
 ): GistMessage | null {
   const targetSelector = properties.elementId || message.elementId;
-  if (!targetSelector) {
-    log(`No target selector specified for tooltip message ${message.messageId}`);
-    Gist.messageError(message);
-    return null;
-  }
+  const isLivePreview = Gist.config.isPreviewSession && message.properties?.gist?.livePreview;
 
-  // Verify target element exists in the DOM
-  const targetElement = findElement(targetSelector);
-  if (!targetElement) {
-    const isLivePreview = Gist.config.isPreviewSession && message.properties?.gist?.livePreview;
+  // In live preview we load the message even when the target is missing or not
+  // yet set, so the preview bar renders and the author can pick a target. A
+  // real session can't show a tooltip without one, so it errors out.
+  if (!targetSelector) {
+    if (!isLivePreview) {
+      log(`No target selector specified for tooltip message ${message.messageId}`);
+      Gist.messageError(message);
+      return null;
+    }
+    log(`Preview: no tooltip target yet, loading message for preview bar`);
+  } else if (!findElement(targetSelector)) {
     if (!isLivePreview) {
       log(
         `Tooltip target element "${targetSelector}" not found for message ${message.messageId}, skipping display`
@@ -711,9 +715,11 @@ export async function navigateForCrossPageStep(
     await saveMessageState(message.queueId ?? '', stepName, displaySettings);
   }
   if (Gist.config.isPreviewSession) {
-    // Preview sessions rehearse the real hop: carry the preview params so the
-    // destination page re-bootstraps the preview bar and the queue restores
-    // the saved step exactly like production.
+    // Flush any pending per-step settings edit so it isn't lost to the
+    // navigation aborting the in-flight save, then rehearse the real hop:
+    // carry the preview params so the destination re-bootstraps the preview
+    // bar and restores the saved step exactly like production.
+    await flushPreviewDisplaySettings();
     window.location.href = withPreviewSession(
       stepPageUrl,
       stepName,

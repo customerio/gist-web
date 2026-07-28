@@ -125,6 +125,7 @@ vi.mock('./preview-bar-manager', () => ({
   updatePreviewBarMessage: vi.fn(),
   updatePreviewBarStep: vi.fn(),
   clearPreviewBarMessage: vi.fn(),
+  flushPreviewDisplaySettings: vi.fn(() => Promise.resolve()),
 }));
 // Real module (for withPreviewSession) with the constants passed through; the
 // preview token it reads comes from the user-manager mock below.
@@ -553,6 +554,29 @@ describe('message-manager', () => {
       expect(saveMessageState).toHaveBeenCalledWith('q-tour', 'step-2', displaySettings);
     });
 
+    it('flushes pending preview settings before navigating so edits are not lost', async () => {
+      const { flushPreviewDisplaySettings } = await import('./preview-bar-manager');
+      let flushedBeforeNavigation = false;
+      vi.mocked(flushPreviewDisplaySettings).mockImplementation(() => {
+        flushedBeforeNavigation = window.location.href === 'https://app.example.com/start';
+        return Promise.resolve();
+      });
+      mockGist.config.isPreviewSession = true;
+      const message = await setupMessage(true, { livePreview: true });
+
+      dispatchStepChangeRequested(message.instanceId, 'step-2', {
+        displayType: 'modal',
+        pageUrl: '/settings',
+      });
+
+      await vi.waitFor(() => {
+        expect(window.location.href).not.toBe('https://app.example.com/start');
+      });
+      expect(flushPreviewDisplaySettings).toHaveBeenCalled();
+      // The flush ran while still on the original page — i.e. before the hop.
+      expect(flushedBeforeNavigation).toBe(true);
+    });
+
     it('navigates without saving when the message is not persistent', async () => {
       const { saveMessageState } = await import('./message-user-queue-manager');
       const message = await setupMessage(false);
@@ -757,6 +781,27 @@ describe('message-manager', () => {
         properties: {
           gist: { elementId: '#nonexistent', tooltipPosition: 'bottom', livePreview: true },
         },
+      };
+
+      const result = await showMessage(message);
+
+      expect(result).toBe(message);
+      expect(loadTooltipComponent).toHaveBeenCalled();
+      expect(mockGist.messageError).not.toHaveBeenCalled();
+      expect(mockGist.currentMessages).toContain(message);
+    });
+
+    it('loads message for preview bar when the tooltip target is not set yet in live preview', async () => {
+      const { loadTooltipComponent } = await import('./message-component-manager');
+      const { resolveMessageProperties } = await import('./gist-properties-manager');
+      vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties(''));
+
+      mockGist.config.isPreviewSession = true;
+
+      const message: GistMessage = {
+        messageId: 'tooltip-preview-empty',
+        tooltipPosition: 'bottom',
+        properties: { gist: { elementId: '', tooltipPosition: 'bottom', livePreview: true } },
       };
 
       const result = await showMessage(message);
