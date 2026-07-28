@@ -1,6 +1,10 @@
 import Gist from '../gist';
 import { DisplaySettings, GistMessage, StepDisplayConfig } from '../types';
-import { applyMessageStepChange, hideMessageVisually } from './message-manager';
+import {
+  applyMessageStepChange,
+  hideMessageVisually,
+  navigateForCrossPageStep,
+} from './message-manager';
 import { sendDisplaySettingsToIframe } from './message-component-manager';
 import {
   hasDisplayChanged,
@@ -600,8 +604,21 @@ function renderBar() {
         const msg = Gist.currentMessages.find(
           (m: GistMessage) => m.instanceId === currentInstanceId
         );
-        if (msg && isReadyToApply(step.displaySettings)) {
-          applyMessageStepChange(msg, step.stepName, step.displaySettings);
+        if (msg) {
+          // A step on another page must navigate (rehearsing the hop with the
+          // preview session), same as a button tap — otherwise the preview bar
+          // would load the step on the wrong page (INAPP-14575). The cross-page
+          // check runs before isReadyToApply because local anchor readiness is
+          // irrelevant when we're leaving the page.
+          void navigateForCrossPageStep(
+            msg,
+            step.stepName,
+            step.displaySettings
+          ).then((navigated) => {
+            if (!navigated && isReadyToApply(step.displaySettings)) {
+              void applyMessageStepChange(msg, step.stepName, step.displaySettings);
+            }
+          });
         }
         renderBar();
       }

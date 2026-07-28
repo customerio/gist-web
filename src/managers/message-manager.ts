@@ -536,32 +536,13 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
         if (!messageStepName) {
           break;
         }
-        const stepPageUrl = displaySettings?.pageUrl;
-        if (stepPageUrl && !matchesPageUrl(stepPageUrl)) {
-          // Parity with plain openUrl buttons: the navigation surfaces as the
-          // same loadPage message action.
-          Gist.messageAction(
-            currentMessage,
-            `gist://loadPage?url=${stepPageUrl}`,
-            (data.gist.parameters.name as string | undefined) ?? ''
-          );
-          if (messageProperties.persistent || isShowAlwaysBroadcast(currentMessage)) {
-            log(`Saving step "${messageStepName}" before navigating to ${stepPageUrl}`);
-            await saveMessageState(currentMessage.queueId ?? '', messageStepName, displaySettings);
-          }
-          if (Gist.config.isPreviewSession) {
-            // Preview sessions rehearse the real hop: carry the preview params
-            // so the destination page re-bootstraps the preview bar and the
-            // queue restores the saved step exactly like production.
-            window.location.href = withPreviewSession(
-              stepPageUrl,
-              messageStepName,
-              displaySettings?.displayType
-            );
-          } else {
-            navigateToPage(stepPageUrl);
-          }
-        } else {
+        const navigated = await navigateForCrossPageStep(
+          currentMessage,
+          messageStepName,
+          displaySettings,
+          (data.gist.parameters.name as string | undefined) ?? ''
+        );
+        if (!navigated) {
           log(`Step "${messageStepName}" stays on this page, instructing renderer to show it`);
           sendShowStepToIframe(currentMessage, messageStepName);
         }
@@ -700,6 +681,48 @@ export async function hideMessageVisually(message: GistMessage): Promise<void> {
   } else if (message.elementId) {
     hideEmbedComponent(message.elementId);
   }
+}
+
+/**
+ * Cross-page step routing (INAPP-14575), shared by the button-tap
+ * `stepChangeRequested` handler and the preview bar's step switcher. If the
+ * target step belongs to a different page, it persists the step and navigates
+ * (rehearsing the hop with the preview session in preview mode) and returns
+ * true. Otherwise it returns false and the caller performs its normal in-place
+ * step change.
+ */
+export async function navigateForCrossPageStep(
+  message: GistMessage,
+  stepName: string,
+  displaySettings: DisplaySettings | undefined,
+  trackingName = ''
+): Promise<boolean> {
+  const stepPageUrl = displaySettings?.pageUrl;
+  if (!stepPageUrl || matchesPageUrl(stepPageUrl)) {
+    return false;
+  }
+
+  const messageProperties = resolveMessageProperties(message);
+  // Parity with plain openUrl buttons: the navigation surfaces as the same
+  // loadPage message action.
+  Gist.messageAction(message, `gist://loadPage?url=${stepPageUrl}`, trackingName);
+  if (messageProperties.persistent || isShowAlwaysBroadcast(message)) {
+    log(`Saving step "${stepName}" before navigating to ${stepPageUrl}`);
+    await saveMessageState(message.queueId ?? '', stepName, displaySettings);
+  }
+  if (Gist.config.isPreviewSession) {
+    // Preview sessions rehearse the real hop: carry the preview params so the
+    // destination page re-bootstraps the preview bar and the queue restores
+    // the saved step exactly like production.
+    window.location.href = withPreviewSession(
+      stepPageUrl,
+      stepName,
+      displaySettings?.displayType
+    );
+  } else {
+    navigateToPage(stepPageUrl);
+  }
+  return true;
 }
 
 export async function applyMessageStepChange(

@@ -11,6 +11,9 @@ vi.mock('../utilities/log', () => ({ log: vi.fn() }));
 vi.mock('./message-manager', () => ({
   applyMessageStepChange: vi.fn(),
   hideMessageVisually: vi.fn(),
+  // Defaults to "did not navigate" so ordinary step switches still apply
+  // locally; cross-page tests override per-case.
+  navigateForCrossPageStep: vi.fn(() => Promise.resolve(false)),
 }));
 vi.mock('./message-component-manager', () => ({
   sendDisplaySettingsToIframe: vi.fn(),
@@ -275,6 +278,68 @@ describe('preview-bar-manager', () => {
       const labels = Array.from(bar.querySelectorAll('.gist-pb-label')).map((el) => el.textContent);
       expect(labels).toContain('Element Selector');
       expect(labels).toContain('Position');
+    });
+  });
+
+  describe('cross-page step switching (INAPP-14575)', () => {
+    function findStepSelect(): HTMLSelectElement {
+      const bar = document.getElementById('gist-preview-bar')!;
+      const selects = Array.from(bar.querySelectorAll<HTMLSelectElement>('.gist-pb-select'));
+      const stepSelect = selects.find((s) =>
+        Array.from(s.options).some((o) => o.value === 'step-2')
+      );
+      if (!stepSelect) throw new Error('step select not found');
+      return stepSelect;
+    }
+
+    async function switchToStep2(steps: StepDisplayConfig[]): Promise<GistMessage> {
+      const message = initBarWithMessage(steps);
+      const stepSelect = findStepSelect();
+      stepSelect.value = 'step-2';
+      stepSelect.dispatchEvent(new Event('change'));
+      return message;
+    }
+
+    it('navigates instead of loading locally when the target step is on another page', async () => {
+      const { navigateForCrossPageStep, applyMessageStepChange } = await import(
+        './message-manager'
+      );
+      vi.mocked(navigateForCrossPageStep).mockResolvedValue(true);
+
+      const message = await switchToStep2([
+        { stepName: 'step-1', displaySettings: { displayType: 'modal' } },
+        { stepName: 'step-2', displaySettings: { displayType: 'modal', pageUrl: '/settings' } },
+      ]);
+
+      await vi.waitFor(() => {
+        expect(navigateForCrossPageStep).toHaveBeenCalledWith(
+          message,
+          'step-2',
+          expect.objectContaining({ pageUrl: '/settings' })
+        );
+      });
+      // Navigation won — the step must not also be applied on the current page.
+      expect(applyMessageStepChange).not.toHaveBeenCalled();
+    });
+
+    it('applies locally when the target step stays on this page', async () => {
+      const { navigateForCrossPageStep, applyMessageStepChange } = await import(
+        './message-manager'
+      );
+      vi.mocked(navigateForCrossPageStep).mockResolvedValue(false);
+
+      const message = await switchToStep2([
+        { stepName: 'step-1', displaySettings: { displayType: 'modal' } },
+        { stepName: 'step-2', displaySettings: { displayType: 'modal' } },
+      ]);
+
+      await vi.waitFor(() => {
+        expect(applyMessageStepChange).toHaveBeenCalledWith(
+          message,
+          'step-2',
+          expect.objectContaining({ displayType: 'modal' })
+        );
+      });
     });
   });
 
