@@ -990,6 +990,58 @@ describe('queue-manager', () => {
         resolveWait(null);
       });
 
+      it('does not re-arm or re-error on the same page after the wait times out', async () => {
+        vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties);
+        withSavedState('step-2', '/settings');
+        navigateTo('/settings');
+        vi.mocked(findElement).mockReturnValue(null);
+        vi.mocked(waitForElement).mockResolvedValue(null);
+        const message: GistMessage = { messageId: 'm-abandon', queueId: 'q-abandon' };
+
+        // First check: arms, times out, errors once.
+        await handleMessage(message);
+        await vi.waitFor(() => {
+          expect(Gist.messageError).toHaveBeenCalledTimes(1);
+        });
+
+        // Subsequent checks on the same page (SSE polls) must not re-arm the
+        // wait nor emit further errors — the loop has a terminal state now.
+        vi.mocked(waitForElement).mockClear();
+        await handleMessage(message);
+        await handleMessage(message);
+
+        expect(waitForElement).not.toHaveBeenCalled();
+        expect(Gist.messageError).toHaveBeenCalledTimes(1);
+      });
+
+      it('re-arms after a prior wait on the same page succeeded (abandonment cleared)', async () => {
+        vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties);
+        withSavedState('step-2', '/settings');
+        navigateTo('/settings');
+        vi.mocked(findElement).mockReturnValue(null);
+        // The success branch re-runs checkMessageQueue; keep it a no-op so it
+        // can't re-enter handleMessage (some earlier test leaves queue mocks
+        // returning messages — clearAllMocks doesn't reset return values).
+        vi.mocked(getEligibleBroadcasts).mockResolvedValue([]);
+        vi.mocked(getMessagesFromLocalStore).mockResolvedValue([]);
+        vi.mocked(waitForElement).mockResolvedValueOnce(document.createElement('div'));
+        const message: GistMessage = { messageId: 'm-clear', queueId: 'q-clear' };
+
+        // First wait resolves with the anchor → its .then runs checkMessageQueue
+        // and must NOT record an abandonment.
+        await handleMessage(message);
+        await vi.waitFor(() => {
+          expect(getEligibleBroadcasts).toHaveBeenCalled();
+        });
+
+        vi.mocked(waitForElement).mockReset();
+        vi.mocked(waitForElement).mockResolvedValue(null);
+        await handleMessage(message);
+
+        // Armed again (not suppressed) because success cleared the abandonment.
+        expect(waitForElement).toHaveBeenCalledTimes(1);
+      });
+
       it('shows immediately when the anchor is already present', async () => {
         vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties);
         withSavedState('step-2', '/settings');

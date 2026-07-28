@@ -363,7 +363,15 @@ function navigateToPage(url: string): void {
   ) {
     window.location.href = url;
   } else {
-    window.location.href = window.location + url;
+    // Resolve bare-relative targets against the current location the same way
+    // matchesPageUrl and withPreviewSession do (new URL(url, base)), so a
+    // relative page-url navigates to a URL the restore-side gate can match.
+    // The old string concat produced a malformed path (window.location + url).
+    try {
+      window.location.href = new URL(url, window.location.href).href;
+    } catch {
+      window.location.href = url;
+    }
   }
 }
 

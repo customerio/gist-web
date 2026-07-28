@@ -40,6 +40,13 @@ let sseSource: EventSource | null = null;
 
 const CONTINUATION_ANCHOR_WAIT_MS = 10000;
 const pendingAnchorWaits = new Set<string>();
+// queueId → pathname where the anchor wait already timed out. Without this,
+// every queue re-check (SSE poll ~1s, each route change) would re-arm a fresh
+// 10s wait and re-emit messageError forever while the visitor sits on a page
+// whose anchor never renders. Keyed by pathname so a genuine arrival on a
+// different page is still treated as a fresh attempt; cleared once the anchor
+// finally appears. One entry per tour message, so it stays small.
+const abandonedAnchorWaits = new Map<string, string>();
 
 /**
  * The app-rendered element a continuation (restored step) must anchor to:
@@ -64,7 +71,13 @@ function continuationAnchorSelector(
 
 function waitForContinuationAnchor(message: GistMessage, selector: string): void {
   const queueId = message.queueId ?? '';
+  const pathname = new URL(window.location.href).pathname;
   if (pendingAnchorWaits.has(queueId)) {
+    return;
+  }
+  // Already gave up on this exact page — don't re-arm or re-error until the
+  // visitor moves to a different page.
+  if (abandonedAnchorWaits.get(queueId) === pathname) {
     return;
   }
   pendingAnchorWaits.add(queueId);
@@ -75,11 +88,13 @@ function waitForContinuationAnchor(message: GistMessage, selector: string): void
     .then(async (element) => {
       pendingAnchorWaits.delete(queueId);
       if (element) {
+        abandonedAnchorWaits.delete(queueId);
         log(`Anchor "${selector}" appeared, re-checking message queue`);
         await checkMessageQueue();
       } else {
+        abandonedAnchorWaits.set(queueId, pathname);
         log(
-          `Anchor "${selector}" did not appear within ${CONTINUATION_ANCHOR_WAIT_MS}ms, tour step for queueId ${queueId} cannot continue`
+          `Anchor "${selector}" did not appear within ${CONTINUATION_ANCHOR_WAIT_MS}ms, tour step for queueId ${queueId} cannot continue on ${pathname}`
         );
         Gist.messageError(message);
       }

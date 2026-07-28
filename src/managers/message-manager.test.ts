@@ -568,6 +568,23 @@ describe('message-manager', () => {
       expect(saveMessageState).not.toHaveBeenCalled();
     });
 
+    it('resolves a bare-relative page-url against the current location', async () => {
+      // Defensive: parcel's authoring regex forbids bare-relative page-urls,
+      // but if one reaches the runtime it must resolve the same way the
+      // restore-side gate (matchesPageUrl) does — new URL(url, base) — not the
+      // old string concat that produced a malformed, unmatchable path.
+      const message = await setupMessage(true);
+
+      dispatchStepChangeRequested(message.instanceId, 'step-2', {
+        displayType: 'modal',
+        pageUrl: 'pricing',
+      });
+
+      await vi.waitFor(() => {
+        expect(window.location.href).toBe('https://app.example.com/pricing');
+      });
+    });
+
     it('keeps plain loadPage taps as pure navigation with raw url parsing', async () => {
       const { saveMessageState } = await import('./message-user-queue-manager');
       const message = await setupMessage(true);
