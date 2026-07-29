@@ -303,9 +303,8 @@ describe('preview-bar-manager', () => {
     }
 
     it('navigates instead of loading locally when the target step is on another page', async () => {
-      const { navigateForCrossPageStep, applyMessageStepChange } = await import(
-        './message-manager'
-      );
+      const { navigateForCrossPageStep, applyMessageStepChange } =
+        await import('./message-manager');
       vi.mocked(navigateForCrossPageStep).mockResolvedValue(true);
 
       const message = await switchToStep2([
@@ -325,9 +324,8 @@ describe('preview-bar-manager', () => {
     });
 
     it('applies locally when the target step stays on this page', async () => {
-      const { navigateForCrossPageStep, applyMessageStepChange } = await import(
-        './message-manager'
-      );
+      const { navigateForCrossPageStep, applyMessageStepChange } =
+        await import('./message-manager');
       vi.mocked(navigateForCrossPageStep).mockResolvedValue(false);
 
       const message = await switchToStep2([
@@ -380,7 +378,7 @@ describe('preview-bar-manager', () => {
 
       expect(savePreviewDisplaySettings).toHaveBeenCalledWith(
         'preview-xyz',
-        expect.arrayContaining([expect.objectContaining({ stepName: 'step-2' })]),
+        expect.arrayContaining([expect.objectContaining({ stepName: 'step-2' })])
       );
     });
 

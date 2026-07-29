@@ -372,9 +372,9 @@ function isSameOriginAsCurrent(url: string): boolean {
   }
 }
 
-// Shared by loadPage taps and cross-page step navigation: absolute URLs,
-// mailto and root-relative paths navigate as-is; anything else is appended to
-// the current location (legacy behavior).
+// Shared by loadPage taps and cross-page step navigation: absolute http(s),
+// mailto and root-relative paths navigate as-is; anything else resolves
+// against the current location.
 function navigateToPage(url: string): void {
   if (
     url.startsWith('mailto:') ||
@@ -383,16 +383,24 @@ function navigateToPage(url: string): void {
     url.startsWith('/')
   ) {
     window.location.href = url;
-  } else {
-    // Resolve bare-relative targets against the current location the same way
-    // matchesPageUrl and withPreviewSession do (new URL(url, base)), so a
-    // relative page-url navigates to a URL the restore-side gate can match.
-    // The old string concat produced a malformed path (window.location + url).
-    try {
-      window.location.href = new URL(url, window.location.href).href;
-    } catch {
-      window.location.href = url;
+    return;
+  }
+  // Resolve bare-relative targets against the current location the same way
+  // matchesPageUrl and withPreviewSession do (new URL(url, base)), so a
+  // relative page-url navigates to a URL the restore-side gate can match.
+  // Only an http(s) result may navigate: resolution keeps absolute schemes
+  // verbatim, so without the protocol guard a crafted `javascript:` target
+  // would execute in the host page — the legacy string concat this replaced
+  // was accidentally inert against that, and it must stay inert.
+  try {
+    const destination = new URL(url, window.location.href);
+    if (destination.protocol === 'https:' || destination.protocol === 'http:') {
+      window.location.href = destination.href;
+    } else {
+      log(`Refusing to navigate to non-http(s) target: ${url}`);
     }
+  } catch {
+    log(`Refusing to navigate to unparseable target: ${url}`);
   }
 }
 

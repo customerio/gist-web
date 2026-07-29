@@ -628,15 +628,13 @@ function renderBar() {
           // would load the step on the wrong page (INAPP-14575). The cross-page
           // check runs before isReadyToApply because local anchor readiness is
           // irrelevant when we're leaving the page.
-          void navigateForCrossPageStep(
-            msg,
-            step.stepName,
-            step.displaySettings
-          ).then((navigated) => {
-            if (!navigated && isReadyToApply(step.displaySettings)) {
-              void applyMessageStepChange(msg, step.stepName, step.displaySettings);
+          void navigateForCrossPageStep(msg, step.stepName, step.displaySettings).then(
+            (navigated) => {
+              if (!navigated && isReadyToApply(step.displaySettings)) {
+                void applyMessageStepChange(msg, step.stepName, step.displaySettings);
+              }
             }
-          });
+          );
         }
         renderBar();
       }

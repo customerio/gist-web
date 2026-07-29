@@ -650,6 +650,47 @@ describe('message-manager', () => {
       expect(mockGist.messageError).not.toHaveBeenCalled();
     });
 
+    it('refuses to navigate to a javascript: step page-url', async () => {
+      const message = await setupMessage(false);
+
+      dispatchStepChangeRequested(message.instanceId, 'step-2', {
+        displayType: 'modal',
+        // matchesPageUrl sees pathname "alert(1)" ≠ current → cross-page path;
+        // navigation must still refuse the non-http(s) scheme (would execute
+        // in the host page via the location.href sink otherwise).
+        pageUrl: 'javascript:alert(1)',
+      });
+
+      await vi.waitFor(() => {
+        expect(mockGist.messageAction).toHaveBeenCalled();
+      });
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(window.location.href).toBe('https://app.example.com/start');
+    });
+
+    it('refuses to navigate a loadPage tap to a javascript: url', async () => {
+      const message = await setupMessage(false);
+
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: {
+            gist: {
+              method: 'tap',
+              instanceId: message.instanceId,
+              parameters: { action: 'gist://loadPage?url=javascript:alert(1)', name: 'cta' },
+            },
+          },
+          origin: 'https://renderer.test',
+        })
+      );
+
+      await vi.waitFor(() => {
+        expect(mockGist.messageAction).toHaveBeenCalled();
+      });
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(window.location.href).toBe('https://app.example.com/start');
+    });
+
     it('keeps plain loadPage taps as pure navigation with raw url parsing', async () => {
       const { saveMessageState } = await import('./message-user-queue-manager');
       const message = await setupMessage(true);
