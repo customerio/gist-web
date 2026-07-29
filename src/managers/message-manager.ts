@@ -355,6 +355,23 @@ function handleTouchStartEvents(): void {
   // Added this to avoid errors in the console
 }
 
+// Whether a (possibly relative) navigation target resolves to the same origin
+// as the current page. Used to decide if the preview-session token is safe to
+// carry across a hop — appending it to a cross-origin destination would leak
+// the preview credential to a third-party host. Derives the current origin from
+// window.location.href (not window.location.origin) so it resolves correctly
+// even against relative targets.
+function isSameOriginAsCurrent(url: string): boolean {
+  try {
+    const current = new URL(window.location.href);
+    const destination = new URL(url, window.location.href);
+    return destination.origin === current.origin;
+  } catch {
+    // Unparseable target: treat as cross-origin so we never risk leaking the token.
+    return false;
+  }
+}
+
 // Shared by loadPage taps and cross-page step navigation: absolute URLs,
 // mailto and root-relative paths navigate as-is; anything else is appended to
 // the current location (legacy behavior).
@@ -538,6 +555,13 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
         const displaySettings = data.gist.parameters.displaySettings as DisplaySettings | undefined;
         const messageStepName = data.gist.parameters.messageStepName as string | undefined;
         if (!messageStepName) {
+          // The renderer withheld its local toggle and deferred the step change
+          // to us, but sent no target step name. We can't navigate or toggle a
+          // specific step, so leave the currently shown step in place rather
+          // than silently stranding the tour with no recovery.
+          log(
+            `stepChangeRequested for message ${currentMessage.messageId} arrived without a messageStepName; keeping the current step visible`
+          );
           break;
         }
         const navigated = await navigateForCrossPageStep(
@@ -716,15 +740,24 @@ export async function navigateForCrossPageStep(
   }
   if (Gist.config.isPreviewSession) {
     // Flush any pending per-step settings edit so it isn't lost to the
-    // navigation aborting the in-flight save, then rehearse the real hop:
-    // carry the preview params so the destination re-bootstraps the preview
-    // bar and restores the saved step exactly like production.
+    // navigation aborting the in-flight save, then rehearse the real hop.
     await flushPreviewDisplaySettings();
-    window.location.href = withPreviewSession(
-      stepPageUrl,
-      stepName,
-      displaySettings?.displayType
-    );
+    if (isSameOriginAsCurrent(stepPageUrl)) {
+      // Same-origin: carry the preview params so the destination re-bootstraps
+      // the preview bar and restores the saved step exactly like production.
+      window.location.href = withPreviewSession(
+        stepPageUrl,
+        stepName,
+        displaySettings?.displayType
+      );
+    } else {
+      // Cross-origin destination: never hand the preview-session token to a
+      // third-party host. Navigate plainly, exactly like a normal loadPage tap.
+      log(
+        `Preview: step "${stepName}" targets a different origin (${stepPageUrl}); navigating without the preview session token`
+      );
+      navigateToPage(stepPageUrl);
+    }
   } else {
     navigateToPage(stepPageUrl);
   }

@@ -609,6 +609,47 @@ describe('message-manager', () => {
       });
     });
 
+    it('does not carry the preview session token to a cross-origin destination', async () => {
+      const { saveMessageState } = await import('./message-user-queue-manager');
+      mockGist.config.isPreviewSession = true;
+      const message = await setupMessage(true, { livePreview: true });
+
+      const displaySettings = {
+        displayType: 'tooltip',
+        pageUrl: 'https://third-party.example.com/settings',
+      };
+      dispatchStepChangeRequested(message.instanceId, 'step-2', displaySettings);
+
+      await vi.waitFor(() => {
+        expect(window.location.href).toBe('https://third-party.example.com/settings');
+      });
+      // The preview credential must never ride along to a third-party host.
+      const destination = new URL(window.location.href);
+      expect(destination.searchParams.has('cioPreviewId')).toBe(false);
+      expect(destination.searchParams.has('cioPreviewSettings')).toBe(false);
+      // State is still saved before leaving so the tour resumes server-side.
+      expect(saveMessageState).toHaveBeenCalledWith('q-tour', 'step-2', displaySettings);
+    });
+
+    it('logs and keeps the current step visible when no messageStepName is provided', async () => {
+      const { saveMessageState } = await import('./message-user-queue-manager');
+      const { sendShowStepToIframe } = await import('./message-component-manager');
+      const message = await setupMessage(true);
+
+      dispatchStepChangeRequested(message.instanceId, '', {
+        displayType: 'modal',
+        pageUrl: '/settings',
+      });
+
+      await vi.dynamicImportSettled();
+      // Missing step name must not strand the tour: no navigation, no renderer
+      // toggle, no error — the current step simply stays visible.
+      expect(window.location.href).toBe('https://app.example.com/start');
+      expect(sendShowStepToIframe).not.toHaveBeenCalled();
+      expect(saveMessageState).not.toHaveBeenCalled();
+      expect(mockGist.messageError).not.toHaveBeenCalled();
+    });
+
     it('keeps plain loadPage taps as pure navigation with raw url parsing', async () => {
       const { saveMessageState } = await import('./message-user-queue-manager');
       const message = await setupMessage(true);

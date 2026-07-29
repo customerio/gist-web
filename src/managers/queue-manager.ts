@@ -141,7 +141,24 @@ export async function checkMessageQueue(): Promise<void> {
   }
 }
 
+// On navigate-away, drop any abandonment recorded for a page we've left so a
+// return visit re-arms the anchor wait. Without this, an entry keyed to a page
+// whose anchor never rendered survives the hop, and coming back makes
+// waitForContinuationAnchor exit early forever — the saved step never retries.
+// Entries recorded for the current page are kept so we don't re-arm/re-error in
+// a loop while the visitor is still sitting on that page (INAPP-14575).
+function clearAbandonedAnchorWaitsOnNavigation(): void {
+  const currentPathname = new URL(window.location.href).pathname;
+  for (const [queueId, pathname] of abandonedAnchorWaits) {
+    if (pathname !== currentPathname) {
+      abandonedAnchorWaits.delete(queueId);
+    }
+  }
+}
+
 export async function checkCurrentMessagesAfterRouteChange(): Promise<void> {
+  clearAbandonedAnchorWaitsOnNavigation();
+
   if (Gist.currentMessages.length === 0) {
     return;
   }

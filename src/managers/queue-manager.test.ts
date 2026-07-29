@@ -4,6 +4,7 @@ import {
   stopSSEListener,
   pullMessagesFromQueue,
   handleMessage,
+  checkCurrentMessagesAfterRouteChange,
 } from './queue-manager';
 import { getEligibleBroadcasts } from './message-broadcast-manager';
 import { getMessagesFromLocalStore, getSavedMessageState } from './message-user-queue-manager';
@@ -1012,6 +1013,37 @@ describe('queue-manager', () => {
 
         expect(waitForElement).not.toHaveBeenCalled();
         expect(Gist.messageError).toHaveBeenCalledTimes(1);
+      });
+
+      it('re-arms on return after navigating away clears the abandoned page entry', async () => {
+        vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties);
+        withSavedState('step-2', '/settings');
+        navigateTo('/settings');
+        vi.mocked(findElement).mockReturnValue(null);
+        vi.mocked(waitForElement).mockResolvedValue(null);
+        const message: GistMessage = { messageId: 'm-return', queueId: 'q-return' };
+
+        // First visit to /settings: arms, times out, records the abandonment.
+        await handleMessage(message);
+        await vi.waitFor(() => {
+          expect(Gist.messageError).toHaveBeenCalledWith(message);
+        });
+
+        // Still on /settings: suppressed, no re-arm (the terminal-state guard).
+        vi.mocked(waitForElement).mockClear();
+        await handleMessage(message);
+        expect(waitForElement).not.toHaveBeenCalled();
+
+        // Navigate away: the route change clears the /settings abandonment.
+        navigateTo('/other');
+        await checkCurrentMessagesAfterRouteChange();
+
+        // Return to /settings: the wait must re-arm so the saved step retries.
+        navigateTo('/settings');
+        await checkCurrentMessagesAfterRouteChange();
+        await handleMessage(message);
+
+        expect(waitForElement).toHaveBeenCalledTimes(1);
       });
 
       it('re-arms after a prior wait on the same page succeeded (abandonment cleared)', async () => {
