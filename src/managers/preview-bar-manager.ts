@@ -18,6 +18,14 @@ import { savePreviewDisplaySettings, deletePreviewSession } from '../services/pr
 import { PREVIEW_PARAM_ID, teardownPreview } from '../utilities/preview-mode';
 
 const STORAGE_KEY = 'gist.previewBar.collapsed';
+// Session-scoped mirror of the per-step settings edits. The server copy (POST
+// /preview/<id>) is read by the composer, not by the SDK — so on a cross-page
+// hop the destination page would otherwise rebuild currentSteps from the
+// renderer's DOM-extracted authored settings, and the next edit would POST
+// authored-defaults + that edit, clobbering earlier edits (INAPP-14575).
+// sessionStorage survives same-tab navigation, exactly like the preview
+// session itself.
+const STEPS_STORAGE_KEY = 'gist.previewBar.steps';
 const STYLE_ID = 'gist-pb-styles';
 const BAR_ID = 'gist-preview-bar';
 
@@ -143,6 +151,7 @@ function persistDisplaySettings(): void {
   const params = new URLSearchParams(window.location.search);
   const cioPreviewId = params.get(PREVIEW_PARAM_ID);
   if (!cioPreviewId) return;
+  storeStepsForSession();
   savePreviewDisplaySettings(cioPreviewId, currentSteps)
     .then((response) => {
       if (response && response.status === 404 && currentInstanceId) {
@@ -150,6 +159,48 @@ function persistDisplaySettings(): void {
       }
     })
     .catch(() => log('Failed to persist preview display settings'));
+}
+
+function storeStepsForSession(): void {
+  try {
+    sessionStorage.setItem(STEPS_STORAGE_KEY, JSON.stringify(currentSteps));
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearStoredSessionSteps(): void {
+  try {
+    sessionStorage.removeItem(STEPS_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Overlays session-stored per-step edits onto the freshly loaded steps —
+ * IN PLACE, because `currentSteps` is the same array as
+ * `message.displaySettings` and the iframe sync relies on that shared
+ * identity. Steps are matched by name; stored entries whose step no longer
+ * exists are ignored.
+ */
+function applyStoredSessionSteps(steps: StepDisplayConfig[]): void {
+  let stored: StepDisplayConfig[];
+  try {
+    const raw = sessionStorage.getItem(STEPS_STORAGE_KEY);
+    if (!raw) return;
+    stored = JSON.parse(raw) as StepDisplayConfig[];
+  } catch {
+    return;
+  }
+  if (!Array.isArray(stored)) return;
+
+  for (const storedStep of stored) {
+    const index = steps.findIndex((step) => step.stepName === storedStep.stepName);
+    if (index !== -1 && storedStep.displaySettings) {
+      steps[index] = { ...steps[index], displaySettings: { ...storedStep.displaySettings } };
+    }
+  }
 }
 
 /**
@@ -163,6 +214,9 @@ export async function flushPreviewDisplaySettings(): Promise<void> {
   const params = new URLSearchParams(window.location.search);
   const cioPreviewId = params.get(PREVIEW_PARAM_ID);
   if (!cioPreviewId) return;
+  // Mirror to sessionStorage first: even if the POST is lost to the
+  // navigation, the destination page rehydrates this session's edits.
+  storeStepsForSession();
   try {
     await savePreviewDisplaySettings(cioPreviewId, currentSteps);
   } catch {
@@ -722,6 +776,7 @@ async function finalizeSessionEnd(): Promise<void> {
   if (isFinalizingSessionEnd) return;
   isFinalizingSessionEnd = true;
 
+  clearStoredSessionSteps();
   teardownPreview();
 
   if (shouldCloseWindowOnSessionEnd) {
@@ -792,6 +847,10 @@ export function updatePreviewBarMessage(message: GistMessage): void {
   const fullSettings = message.displaySettings as unknown;
   if (Array.isArray(fullSettings) && fullSettings.length > 0) {
     currentSteps = fullSettings as StepDisplayConfig[];
+    // A fresh page after a cross-page hop loads authored settings from the
+    // DOM; re-apply this session's edits so they aren't silently reverted
+    // (and the next persist doesn't clobber the server copy with defaults).
+    applyStoredSessionSteps(currentSteps);
     if (!currentStepName) {
       currentStepName = currentSteps[0].stepName;
       currentSettings = { ...currentSteps[0].displaySettings };

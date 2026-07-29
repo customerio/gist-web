@@ -343,6 +343,49 @@ describe('preview-bar-manager', () => {
     });
   });
 
+  describe('session-stored step edits (cross-page rehydration)', () => {
+    beforeEach(() => {
+      sessionStorage.removeItem('gist.previewBar.steps');
+    });
+
+    it('overlays stored edits onto freshly loaded authored steps, in place', () => {
+      sessionStorage.setItem(
+        'gist.previewBar.steps',
+        JSON.stringify([
+          { stepName: 'step-2', displaySettings: { displayType: 'modal', maxWidth: 999 } },
+        ])
+      );
+
+      const message = initBarWithMessage([
+        { stepName: 'step-1', displaySettings: { displayType: 'modal' } },
+        { stepName: 'step-2', displaySettings: { displayType: 'modal', maxWidth: 414 } },
+      ]);
+
+      // The overlay must mutate the SAME array the message holds — the iframe
+      // sync sends message.displaySettings, so a copy would desynchronize.
+      const steps = message.displaySettings as unknown as StepDisplayConfig[];
+      expect(steps[1].displaySettings.maxWidth).toBe(999);
+      expect(steps[0].displaySettings.maxWidth).toBeUndefined();
+    });
+
+    it('ignores stored edits for steps that no longer exist', () => {
+      sessionStorage.setItem(
+        'gist.previewBar.steps',
+        JSON.stringify([
+          { stepName: 'step-gone', displaySettings: { displayType: 'modal', maxWidth: 999 } },
+        ])
+      );
+
+      const message = initBarWithMessage([
+        { stepName: 'step-1', displaySettings: { displayType: 'modal' } },
+      ]);
+
+      const steps = message.displaySettings as unknown as StepDisplayConfig[];
+      expect(steps).toHaveLength(1);
+      expect(steps[0].displaySettings.maxWidth).toBeUndefined();
+    });
+  });
+
   describe('flushPreviewDisplaySettings', () => {
     let originalLocation: Location;
 
@@ -373,11 +416,18 @@ describe('preview-bar-manager', () => {
         { stepName: 'step-2', displaySettings: { displayType: 'modal', pageUrl: '/settings' } },
       ]);
       vi.mocked(savePreviewDisplaySettings).mockClear();
+      sessionStorage.removeItem('gist.previewBar.steps');
 
       await flushPreviewDisplaySettings();
 
       expect(savePreviewDisplaySettings).toHaveBeenCalledWith(
         'preview-xyz',
+        expect.arrayContaining([expect.objectContaining({ stepName: 'step-2' })])
+      );
+      // The flush also mirrors the steps for same-tab rehydration, so a hop
+      // that aborts the POST still can't lose this session's edits.
+      const stored = JSON.parse(sessionStorage.getItem('gist.previewBar.steps') ?? '[]');
+      expect(stored).toEqual(
         expect.arrayContaining([expect.objectContaining({ stepName: 'step-2' })])
       );
     });
