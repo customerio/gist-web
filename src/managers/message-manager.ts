@@ -355,6 +355,18 @@ function handleTouchStartEvents(): void {
   // Added this to avoid errors in the console
 }
 
+// Whether a (possibly relative) target resolves to an http(s) URL — the only
+// scheme family navigateToPage will navigate to. Checked up front by the
+// cross-page step flow so a refused target degrades to a local step change.
+function isHttpNavigable(url: string): boolean {
+  try {
+    const protocol = new URL(url, window.location.href).protocol;
+    return protocol === 'https:' || protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
 // Whether a (possibly relative) navigation target resolves to the same origin
 // as the current page. Used to decide if the preview-session token is safe to
 // carry across a hop — appending it to a cross-origin destination would leak
@@ -580,7 +592,11 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
         );
         if (!navigated) {
           log(`Step "${messageStepName}" stays on this page, instructing renderer to show it`);
-          sendShowStepToIframe(currentMessage, messageStepName);
+          sendShowStepToIframe(
+            currentMessage,
+            messageStepName,
+            data.gist.parameters.requestId as number | undefined
+          );
         }
         break;
       }
@@ -738,13 +754,31 @@ export async function navigateForCrossPageStep(
     return false;
   }
 
+  // Gate on navigability BEFORE dispatching analytics or saving state: a
+  // target navigateToPage would refuse (non-http(s), e.g. javascript: or
+  // unparseable garbage) must degrade to a local step change, not a dead tap
+  // with a phantom loadPage action and poisoned saved state.
+  if (!isHttpNavigable(stepPageUrl)) {
+    log(
+      `Step "${stepName}" page-url is not a navigable http(s) target (${stepPageUrl}); treating as a local step change`
+    );
+    return false;
+  }
+
   const messageProperties = resolveMessageProperties(message);
   // Parity with plain openUrl buttons: the navigation surfaces as the same
   // loadPage message action.
   Gist.messageAction(message, `gist://loadPage?url=${stepPageUrl}`, trackingName);
   if (messageProperties.persistent || isShowAlwaysBroadcast(message)) {
     log(`Saving step "${stepName}" before navigating to ${stepPageUrl}`);
-    await saveMessageState(message.queueId ?? '', stepName, displaySettings);
+    try {
+      await saveMessageState(message.queueId ?? '', stepName, displaySettings);
+    } catch (error) {
+      // Losing the resume state is better than a dead tap (the navigation
+      // would otherwise be swallowed by the rejection) — log and navigate
+      // anyway, same philosophy as the preview flush below.
+      log(`Failed to save step state before navigating: ${error}`);
+    }
   }
   if (Gist.config.isPreviewSession) {
     // Flush any pending per-step settings edit so it isn't lost to the

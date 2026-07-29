@@ -472,7 +472,7 @@ describe('message-manager', () => {
             gist: {
               method: 'stepChangeRequested',
               instanceId,
-              parameters: { messageStepName, displaySettings, name: 'next' },
+              parameters: { messageStepName, displaySettings, name: 'next', requestId: 7 },
             },
           },
           origin: 'https://renderer.test',
@@ -523,7 +523,9 @@ describe('message-manager', () => {
       });
 
       await vi.waitFor(() => {
-        expect(sendShowStepToIframe).toHaveBeenCalledWith(message, 'step-2');
+        // The reply echoes the renderer's requestId so only the outstanding
+        // request may toggle.
+        expect(sendShowStepToIframe).toHaveBeenCalledWith(message, 'step-2', 7);
       });
       expect(window.location.href).toBe('https://app.example.com/start');
       expect(saveMessageState).not.toHaveBeenCalled();
@@ -650,22 +652,43 @@ describe('message-manager', () => {
       expect(mockGist.messageError).not.toHaveBeenCalled();
     });
 
-    it('refuses to navigate to a javascript: step page-url', async () => {
-      const message = await setupMessage(false);
+    it('degrades a javascript: step page-url to a local step change', async () => {
+      const { saveMessageState } = await import('./message-user-queue-manager');
+      const { sendShowStepToIframe } = await import('./message-component-manager');
+      const message = await setupMessage(true);
 
       dispatchStepChangeRequested(message.instanceId, 'step-2', {
         displayType: 'modal',
-        // matchesPageUrl sees pathname "alert(1)" ≠ current → cross-page path;
-        // navigation must still refuse the non-http(s) scheme (would execute
-        // in the host page via the location.href sink otherwise).
+        // matchesPageUrl sees pathname "alert(1)" ≠ current, but the target is
+        // not http(s)-navigable (would execute in the host page via the
+        // location.href sink) — the tap must degrade to a local toggle with no
+        // phantom loadPage analytics and no poisoned saved state.
         pageUrl: 'javascript:alert(1)',
       });
 
       await vi.waitFor(() => {
-        expect(mockGist.messageAction).toHaveBeenCalled();
+        expect(sendShowStepToIframe).toHaveBeenCalledWith(message, 'step-2', 7);
       });
-      await new Promise((resolve) => setTimeout(resolve, 10));
       expect(window.location.href).toBe('https://app.example.com/start');
+      expect(saveMessageState).not.toHaveBeenCalled();
+      expect(mockGist.messageAction).not.toHaveBeenCalled();
+    });
+
+    it('navigates even when saving the step state fails', async () => {
+      const { saveMessageState } = await import('./message-user-queue-manager');
+      const message = await setupMessage(true);
+      vi.mocked(saveMessageState).mockRejectedValue(new Error('quota exceeded'));
+
+      dispatchStepChangeRequested(message.instanceId, 'step-2', {
+        displayType: 'modal',
+        pageUrl: '/settings',
+      });
+
+      // A failed save must not swallow the navigation — losing resume state
+      // beats a dead tap.
+      await vi.waitFor(() => {
+        expect(window.location.href).toBe('/settings');
+      });
     });
 
     it('refuses to navigate a loadPage tap to a javascript: url', async () => {

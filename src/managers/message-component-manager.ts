@@ -266,10 +266,17 @@ export function sendOptionsToIframe(
  * renderer withheld its local toggle pending our decision, so instruct it to
  * show the step now (INAPP-14575).
  */
-export function sendShowStepToIframe(message: GistMessage, stepName: string): void {
+export function sendShowStepToIframe(
+  message: GistMessage,
+  stepName: string,
+  requestId?: number
+): void {
   const iframeId = getMessageElementId(message.instanceId ?? '');
   const iframe = document.getElementById(iframeId) as HTMLIFrameElement | null;
-  iframe?.contentWindow?.postMessage({ action: 'showStep', stepId: stepName }, '*');
+  // requestId echoes the stepChangeRequested event being answered; the
+  // renderer only applies the reply to its outstanding request, so a stale
+  // reply can't override a newer toggle (INAPP-14575).
+  iframe?.contentWindow?.postMessage({ action: 'showStep', stepId: stepName, requestId }, '*');
 }
 
 export function sendDisplaySettingsToIframe(message: GistMessage): void {
