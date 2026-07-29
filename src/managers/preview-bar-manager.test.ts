@@ -358,13 +358,19 @@ describe('preview-bar-manager', () => {
 
       const message = initBarWithMessage([
         { stepName: 'step-1', displaySettings: { displayType: 'modal' } },
-        { stepName: 'step-2', displaySettings: { displayType: 'modal', maxWidth: 414 } },
+        {
+          stepName: 'step-2',
+          displaySettings: { displayType: 'modal', maxWidth: 414, pageUrl: '/settings' },
+        },
       ]);
 
       // The overlay must mutate the SAME array the message holds — the iframe
       // sync sends message.displaySettings, so a copy would desynchronize.
       const steps = message.displaySettings as unknown as StepDisplayConfig[];
       expect(steps[1].displaySettings.maxWidth).toBe(999);
+      // Authored-only fields survive snapshots that omit them: cross-page
+      // routing depends on pageUrl, which the bar never edits.
+      expect(steps[1].displaySettings.pageUrl).toBe('/settings');
       expect(steps[0].displaySettings.maxWidth).toBeUndefined();
     });
 

@@ -198,7 +198,14 @@ function applyStoredSessionSteps(steps: StepDisplayConfig[]): void {
   for (const storedStep of stored) {
     const index = steps.findIndex((step) => step.stepName === storedStep.stepName);
     if (index !== -1 && storedStep.displaySettings) {
-      steps[index] = { ...steps[index], displaySettings: { ...storedStep.displaySettings } };
+      // Merge onto the authored settings rather than replacing them: the bar
+      // only ever edits display fields, so authored-only fields (pageUrl in
+      // particular — cross-page routing depends on it) always come from the
+      // freshly loaded step even if a snapshot predates or omits them.
+      steps[index] = {
+        ...steps[index],
+        displaySettings: { ...steps[index].displaySettings, ...storedStep.displaySettings },
+      };
     }
   }
 }
