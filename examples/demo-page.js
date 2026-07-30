@@ -43,7 +43,9 @@ function initDemoPage(route) {
     useAnonymousSession: config.useAnonymousSession,
     colorScheme: 'auto'
   });
-  Gist.setUserToken(config.userToken);
+  if (config.userToken) {
+    Gist.setUserToken(config.userToken);
+  }
   Gist.setCurrentRoute(route);
 
   Gist.events.on('messageShown', message => {
