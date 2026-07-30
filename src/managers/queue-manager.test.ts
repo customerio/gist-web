@@ -1049,6 +1049,38 @@ describe('queue-manager', () => {
         expect(Gist.messageError).toHaveBeenCalledTimes(1);
       });
 
+      it('ignores a timed-out wait after navigating away: no error, no stale abandonment', async () => {
+        vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties);
+        withSavedState('step-2', '/settings');
+        navigateTo('/settings');
+        vi.mocked(findElement).mockReturnValue(null);
+        let resolveWait: (element: HTMLElement | null) => void = () => {};
+        vi.mocked(waitForElement).mockReturnValue(
+          new Promise((resolve) => {
+            resolveWait = resolve;
+          })
+        );
+        const message: GistMessage = { messageId: 'm-left', queueId: 'q-left' };
+
+        // Arm on /settings, then leave the page before the wait times out.
+        await handleMessage(message);
+        expect(waitForElement).toHaveBeenCalledTimes(1);
+        navigateTo('/other');
+        resolveWait(null);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        // The tour is merely deferred to /settings — not an error.
+        expect(Gist.messageError).not.toHaveBeenCalled();
+
+        // No stale abandonment was recorded either: returning to /settings
+        // re-arms immediately, without needing a route-change sweep.
+        vi.mocked(waitForElement).mockClear();
+        vi.mocked(waitForElement).mockReturnValue(new Promise(() => {}));
+        navigateTo('/settings');
+        await handleMessage(message);
+        expect(waitForElement).toHaveBeenCalledTimes(1);
+      });
+
       it('re-arms on return after navigating away clears the abandoned page entry', async () => {
         vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties);
         withSavedState('step-2', '/settings');

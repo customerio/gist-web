@@ -92,13 +92,23 @@ function waitForContinuationAnchor(message: GistMessage, selector: string): void
         abandonedAnchorWaits.delete(queueId);
         log(`Anchor "${selector}" appeared, re-checking message queue`);
         await checkMessageQueue();
-      } else {
-        abandonedAnchorWaits.set(queueId, pathname);
-        log(
-          `Anchor "${selector}" did not appear within ${CONTINUATION_ANCHOR_WAIT_MS}ms, tour step for queueId ${queueId} cannot continue on ${pathname}`
-        );
-        Gist.messageError(message);
+        return;
       }
+      // The visitor left the page while the wait was in flight: the tour is
+      // merely deferred to its own page, not in error — and an abandonment
+      // entry for a page we're no longer on would be stale on arrival.
+      const currentPathname = new URL(window.location.href).pathname;
+      if (currentPathname !== pathname) {
+        log(
+          `Anchor wait for "${selector}" outlived ${pathname} (now on ${currentPathname}), ignoring`
+        );
+        return;
+      }
+      abandonedAnchorWaits.set(queueId, pathname);
+      log(
+        `Anchor "${selector}" did not appear within ${CONTINUATION_ANCHOR_WAIT_MS}ms, tour step for queueId ${queueId} cannot continue on ${pathname}`
+      );
+      Gist.messageError(message);
     })
     .catch((error) => {
       pendingAnchorWaits.delete(queueId);
