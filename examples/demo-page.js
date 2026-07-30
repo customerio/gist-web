@@ -1,8 +1,9 @@
 // Shared bootstrap for every demo page: theme handling, Gist init, and the
 // event-log appender feeding the debug console's #pageEventLog (only present
 // on debug.html). Load order per page: settings.js → demo-page.js →
-// ../dist/gist.js → initDemoPage(route); debug.html also loads
-// debug-console.js before init.
+// ../dist/gist.js → initDemoPage(route); debug.html loads debug-console.js
+// after init (it subscribes to Gist.events, which setup creates; events fired
+// before the console renders are dropped by logPageEvent's null guard).
 
 // ─── Theme ───────────────────────────────────────────────────────
 function getPreferredTheme() {

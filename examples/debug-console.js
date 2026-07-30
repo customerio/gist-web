@@ -1,7 +1,10 @@
 // Debug console for the Debug Console page: config overrides, active message
 // display settings, and a live Gist event log. Renders into #debugConsoleHost,
 // which only exists on debug.html — the other pages reach it via the nav.
-// Load order: settings.js → ../dist/gist.js → debug-console.js.
+// Load order: settings.js → demo-page.js → ../dist/gist.js →
+// initDemoPage('debug') → debug-console.js. Must load AFTER initDemoPage:
+// Gist.events only exists once Gist.setup() has run, and this file subscribes
+// to it at parse time.
 
 const DEBUG_CONSOLE_TEMPLATE = `
   <form id="configForm">
