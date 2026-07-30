@@ -62,6 +62,7 @@ vi.mock('./message-user-queue-manager', () => ({
   isMessageLoading: vi.fn(() => Promise.resolve(false)),
   setMessageLoading: vi.fn(),
   getSavedMessageState: vi.fn(() => Promise.resolve(null)),
+  isMessageSnoozed: vi.fn(() => Promise.resolve(false)),
 }));
 vi.mock('./inbox-message-manager', () => ({
   updateInboxMessagesLocalStore: vi.fn(),
@@ -141,6 +142,39 @@ describe('queue-manager', () => {
       expect(showMessage).toHaveBeenCalledTimes(2);
       expect(showMessage).toHaveBeenNthCalledWith(1, broadcastMsg);
       expect(showMessage).toHaveBeenNthCalledWith(2, userMsg);
+    });
+  });
+
+  describe('handleMessage – snoozed messages', () => {
+    it('skips a message whose queueId is actively snoozed', async () => {
+      const { isMessageSnoozed } = await import('./message-user-queue-manager');
+      vi.mocked(isMessageSnoozed).mockResolvedValue(true);
+      const message: GistMessage = { messageId: 'm1', queueId: 'q1' };
+
+      const result = await handleMessage(message);
+
+      expect(result).toBe(false);
+      expect(showMessage).not.toHaveBeenCalled();
+    });
+
+    it('processes the message again once the snooze has lapsed', async () => {
+      const { isMessageSnoozed } = await import('./message-user-queue-manager');
+      vi.mocked(isMessageSnoozed).mockResolvedValue(false);
+      const message: GistMessage = { messageId: 'm1', queueId: 'q1' };
+
+      await handleMessage(message);
+
+      expect(showMessage).toHaveBeenCalledWith(message);
+    });
+
+    it('does not consult the snooze store for messages without a queueId', async () => {
+      const { isMessageSnoozed } = await import('./message-user-queue-manager');
+      const message: GistMessage = { messageId: 'm1' };
+
+      await handleMessage(message);
+
+      expect(isMessageSnoozed).not.toHaveBeenCalled();
+      expect(showMessage).toHaveBeenCalledWith(message);
     });
   });
 

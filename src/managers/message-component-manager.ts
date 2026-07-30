@@ -237,7 +237,7 @@ function attachIframeLoadEvent(
   }
 }
 
-const SDK_CAPABILITIES = ['MultiStepDisplayTypes', 'CrossPageStepNavigation'] as const;
+const SDK_CAPABILITIES = ['MultiStepDisplayTypes', 'CrossPageStepNavigation', 'Snooze'] as const;
 
 export function sendOptionsToIframe(
   iframeId: string,

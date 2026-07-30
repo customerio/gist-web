@@ -37,6 +37,7 @@ import {
   saveMessageState,
   clearMessageState,
   setMessageLoaded,
+  setMessageSnoozed,
 } from './message-user-queue-manager';
 import {
   fetchMessageByInstanceId,
@@ -69,6 +70,8 @@ interface GistEventData {
     parameters: Record<string, unknown>;
   };
 }
+
+const defaultSnoozeDurationInMinutes = 60;
 
 export async function showMessage(message: GistMessage): Promise<GistMessage | null> {
   if (!Gist.isDocumentVisible) {
@@ -416,6 +419,18 @@ function navigateToPage(url: string): void {
   }
 }
 
+// Re-check the queue when a snooze lapses so a tab that just stays open
+// re-shows the message on time. Longer snoozes overflow setTimeout's int32
+// range and are picked up by the regular queue checks instead (polling,
+// route and visibility changes, page loads).
+function scheduleSnoozeWakeup(showInMinutes: number): void {
+  const delayMs = showInMinutes * 60 * 1000;
+  if (delayMs > 2 ** 31 - 1) return;
+  setTimeout(() => {
+    void checkMessageQueue();
+  }, delayMs);
+}
+
 async function handleGistEvents(e: MessageEvent): Promise<void> {
   const env = Gist.config.env as keyof typeof settings.RENDERER_HOST;
   const data = e.data as GistEventData;
@@ -536,6 +551,31 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
                 await hideMessage(currentMessage);
                 await checkMessageQueue();
                 break;
+              case 'snooze': {
+                const parsedShowIn = Number.parseInt(
+                  actionUrl.searchParams.get('showIn') ?? '',
+                  10
+                );
+                const showInMinutes =
+                  Number.isFinite(parsedShowIn) && parsedShowIn > 0
+                    ? parsedShowIn
+                    : defaultSnoozeDurationInMinutes;
+                if (messageProperties.persistent && currentMessage.queueId) {
+                  // No removePersistentMessage here: skipping the view log
+                  // keeps the server re-delivering the message (with its saved
+                  // step state intact); the snoozed key hides it until it
+                  // lapses.
+                  await setMessageSnoozed(currentMessage.queueId, showInMinutes);
+                  scheduleSnoozeWakeup(showInMinutes);
+                } else {
+                  log('Snooze is only supported for persistent queue messages, closing instead');
+                  await removePersistentMessage(currentMessage);
+                  await logBroadcastDismissedLocally(currentMessage);
+                }
+                await hideMessage(currentMessage);
+                await checkMessageQueue();
+                break;
+              }
               case 'showMessage': {
                 const messageId = actionUrl.searchParams.get('messageId');
                 const propertiesParam = actionUrl.searchParams.get('properties');

@@ -104,6 +104,7 @@ vi.mock('./message-user-queue-manager', () => ({
   saveMessageState: vi.fn(),
   clearMessageState: vi.fn(),
   setMessageLoaded: vi.fn(),
+  setMessageSnoozed: vi.fn(),
 }));
 // Keeps the real matchesPageUrl so cross-page decision tests exercise the
 // actual pathname semantics; everything else stays mocked as before.
@@ -739,6 +740,153 @@ describe('message-manager', () => {
         expect(window.location.href).toBe('https://other.example.com/a?b=1&c=2');
       });
       expect(saveMessageState).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleGistEvents gist://snooze', () => {
+    async function setupTapMessage(persistent: boolean): Promise<GistMessage> {
+      const { fetchMessageByInstanceId } = await import('../utilities/message-utils');
+      const { resolveMessageProperties } = await import('./gist-properties-manager');
+
+      vi.mocked(resolveMessageProperties).mockReturnValue({
+        isEmbedded: false,
+        elementId: '',
+        hasRouteRule: false,
+        routeRule: '',
+        position: '',
+        hasPosition: false,
+        tooltipPosition: '',
+        hasTooltipPosition: false,
+        tooltipArrowColor: '#fff',
+        shouldScale: false,
+        campaignId: null,
+        messageWidth: 414,
+        overlayColor: '#00000033',
+        persistent,
+        exitClick: false,
+        hasCustomWidth: false,
+      });
+
+      const message: GistMessage = {
+        messageId: 'tour-msg',
+        queueId: 'q-tour',
+        properties: { gist: {} },
+      };
+      await showMessage(message);
+      vi.mocked(fetchMessageByInstanceId).mockReturnValue(message);
+      return message;
+    }
+
+    function dispatchTap(instanceId: string | undefined, action: string) {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: {
+            gist: {
+              method: 'tap',
+              instanceId,
+              parameters: { action, name: 'snooze-button' },
+            },
+          },
+          origin: 'https://renderer.test',
+        })
+      );
+    }
+
+    it('snoozes a persistent message without logging its view', async () => {
+      const { setMessageSnoozed, clearMessageState, markUserQueueMessageAsSeen } =
+        await import('./message-user-queue-manager');
+      const { logUserMessageView } = await import('../services/log-service');
+      const { checkMessageQueue } = await import('./queue-manager');
+      const message = await setupTapMessage(true);
+      const timeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+
+      dispatchTap(message.instanceId, 'gist://snooze?showIn=30');
+
+      // checkMessageQueue is the last step of the snooze branch, so waiting on
+      // it guarantees the whole tap handler has run.
+      await vi.waitFor(() => {
+        expect(checkMessageQueue).toHaveBeenCalled();
+      });
+      expect(setMessageSnoozed).toHaveBeenCalledWith('q-tour', 30);
+      expect(mockGist.messageDismissed).toHaveBeenCalledWith(message);
+      // The view log is what stops the server re-delivering the message, and
+      // the saved step state is what lets the tour resume — both must survive.
+      expect(logUserMessageView).not.toHaveBeenCalled();
+      expect(markUserQueueMessageAsSeen).not.toHaveBeenCalled();
+      expect(clearMessageState).not.toHaveBeenCalled();
+      const wakeups = timeoutSpy.mock.calls.filter(([, delay]) => delay === 30 * 60 * 1000);
+      expect(wakeups).toHaveLength(1);
+      timeoutSpy.mockRestore();
+    });
+
+    it('defaults to 60 minutes when showIn is missing or invalid', async () => {
+      const { setMessageSnoozed } = await import('./message-user-queue-manager');
+      const message = await setupTapMessage(true);
+
+      dispatchTap(message.instanceId, 'gist://snooze');
+      await vi.waitFor(() => {
+        expect(setMessageSnoozed).toHaveBeenCalledTimes(1);
+      });
+      expect(setMessageSnoozed).toHaveBeenLastCalledWith('q-tour', 60);
+
+      dispatchTap(message.instanceId, 'gist://snooze?showIn=abc');
+      await vi.waitFor(() => {
+        expect(setMessageSnoozed).toHaveBeenCalledTimes(2);
+      });
+      expect(setMessageSnoozed).toHaveBeenLastCalledWith('q-tour', 60);
+
+      dispatchTap(message.instanceId, 'gist://snooze?showIn=-5');
+      await vi.waitFor(() => {
+        expect(setMessageSnoozed).toHaveBeenCalledTimes(3);
+      });
+      expect(setMessageSnoozed).toHaveBeenLastCalledWith('q-tour', 60);
+    });
+
+    it('does not arm a wakeup timer beyond the setTimeout int32 range', async () => {
+      const { setMessageSnoozed } = await import('./message-user-queue-manager');
+      const message = await setupTapMessage(true);
+      const timeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+
+      dispatchTap(message.instanceId, 'gist://snooze?showIn=99999999');
+
+      await vi.waitFor(() => {
+        expect(setMessageSnoozed).toHaveBeenCalledWith('q-tour', 99999999);
+      });
+      const oversized = timeoutSpy.mock.calls.filter(
+        ([, delay]) => typeof delay === 'number' && delay > 2 ** 31 - 1
+      );
+      expect(oversized).toHaveLength(0);
+      timeoutSpy.mockRestore();
+    });
+
+    it('closes a non-persistent message instead of snoozing it', async () => {
+      const { setMessageSnoozed } = await import('./message-user-queue-manager');
+      const { checkMessageQueue } = await import('./queue-manager');
+      const message = await setupTapMessage(false);
+
+      dispatchTap(message.instanceId, 'gist://snooze?showIn=30');
+
+      await vi.waitFor(() => {
+        expect(checkMessageQueue).toHaveBeenCalled();
+      });
+      expect(mockGist.messageDismissed).toHaveBeenCalledWith(message);
+      expect(setMessageSnoozed).not.toHaveBeenCalled();
+    });
+
+    it('marks a non-persistent broadcast as dismissed, matching gist://close', async () => {
+      const { setMessageSnoozed } = await import('./message-user-queue-manager');
+      const { isMessageBroadcast, markBroadcastAsDismissed } =
+        await import('./message-broadcast-manager');
+      vi.mocked(isMessageBroadcast).mockReturnValue(true);
+      const message = await setupTapMessage(false);
+
+      dispatchTap(message.instanceId, 'gist://snooze?showIn=15');
+
+      await vi.waitFor(() => {
+        expect(markBroadcastAsDismissed).toHaveBeenCalledWith('q-tour');
+      });
+      expect(setMessageSnoozed).not.toHaveBeenCalled();
+      vi.mocked(isMessageBroadcast).mockReturnValue(false);
     });
   });
 

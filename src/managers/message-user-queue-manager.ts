@@ -9,6 +9,7 @@ import type { GistMessage, DisplaySettings } from '../types';
 
 const messageQueueLocalStoreName = 'gist.web.message.user';
 const messagesLocalStoreCacheInMinutes = 60;
+const maxSnoozeDurationInMinutes = 43200; // 30 days
 
 export async function updateQueueLocalStore(messages: GistMessage[]): Promise<void> {
   const userQueueLocalStoreName = await getUserQueueLocalStoreName();
@@ -64,6 +65,29 @@ export async function setMessageLoaded(queueId: string): Promise<void> {
   clearKeyFromLocalStore(messageLoadingLocalStoreName);
 }
 
+// The key's presence is the snooze: it expires on its own, so there is no
+// clear step — the message becomes eligible again when the key lapses.
+export async function setMessageSnoozed(queueId: string, showInMinutes: number): Promise<void> {
+  const messageSnoozedLocalStoreName = await getMessageSnoozedLocalStoreName(queueId);
+  if (!messageSnoozedLocalStoreName) return;
+  const clampedMinutes = Math.min(
+    Math.max(Math.floor(showInMinutes), 1),
+    maxSnoozeDurationInMinutes
+  );
+  setKeyToLocalStore(
+    messageSnoozedLocalStoreName,
+    true,
+    new Date(Date.now() + clampedMinutes * 60 * 1000)
+  );
+  log(`Snoozed message ${queueId} for ${clampedMinutes} minutes`);
+}
+
+export async function isMessageSnoozed(queueId: string): Promise<boolean> {
+  const messageSnoozedLocalStoreName = await getMessageSnoozedLocalStoreName(queueId);
+  if (!messageSnoozedLocalStoreName) return false;
+  return getKeyFromLocalStore(messageSnoozedLocalStoreName) !== null;
+}
+
 async function getSeenMessagesFromLocalStore(): Promise<string[]> {
   const userSeenQueueLocalStoreName = await getUserSeenQueueLocalStoreName();
   if (!userSeenQueueLocalStoreName) return [];
@@ -92,6 +116,12 @@ async function getMessageStateLocalStoreName(queueId: string): Promise<string | 
   const userToken = await getHashedUserToken();
   if (!userToken) return null;
   return `${messageQueueLocalStoreName}.${userToken}.message.${queueId}.state`;
+}
+
+async function getMessageSnoozedLocalStoreName(queueId: string): Promise<string | null> {
+  const userToken = await getHashedUserToken();
+  if (!userToken) return null;
+  return `${messageQueueLocalStoreName}.${userToken}.message.${queueId}.snoozed`;
 }
 
 export async function saveMessageState(

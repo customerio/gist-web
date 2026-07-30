@@ -21,6 +21,7 @@ import {
   isMessageLoading,
   setMessageLoading,
   getSavedMessageState,
+  isMessageSnoozed,
 } from './message-user-queue-manager';
 import { updateInboxMessagesLocalStore } from './inbox-message-manager';
 import type { InboxMessage } from './inbox-message-manager';
@@ -173,6 +174,11 @@ export async function checkCurrentMessagesAfterRouteChange(): Promise<void> {
 
 // TODO: Move this to a utility and only return valid messages (from: getEligibleBroadcasts getMessagesFromLocalStore) & to handleMessage
 export async function handleMessage(message: GistMessage): Promise<boolean> {
+  if (message.queueId && (await isMessageSnoozed(message.queueId))) {
+    log(`Not showing message with queueId ${message.queueId} because it is snoozed.`);
+    return false;
+  }
+
   let messageProperties = resolveMessageProperties(message);
   if (messageProperties.hasRouteRule) {
     if (Gist.currentRoute == null && !Gist.routeInitialized) {
