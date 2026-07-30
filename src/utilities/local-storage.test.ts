@@ -82,6 +82,17 @@ describe('local-storage', () => {
     expect(getKeyFromLocalStore('gist.web.message.broadcasts.abc123')).toBeNull();
   });
 
+  it('user snoozed keys with expiry >60 minutes in the future are kept', () => {
+    shouldPersistSession(true);
+    const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    setKeyToLocalStore('gist.web.message.user.abc123.message.q1.snoozed', true, twoHoursFromNow);
+    expect(getKeyFromLocalStore('gist.web.message.user.abc123.message.q1.snoozed')).toBe(true);
+
+    // Other user-queue keys with the same expiry are still treated as corrupt.
+    setKeyToLocalStore('gist.web.message.user.abc123', 'value', twoHoursFromNow);
+    expect(getKeyFromLocalStore('gist.web.message.user.abc123')).toBeNull();
+  });
+
   it('isSessionBeingPersisted() returns true by default and reflects shouldPersistSession()', () => {
     expect(isSessionBeingPersisted()).toBe(true);
     shouldPersistSession(false);

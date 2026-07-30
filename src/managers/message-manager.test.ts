@@ -58,6 +58,7 @@ vi.mock('./message-component-manager', () => ({
   elementHasHeight: vi.fn(() => false),
   changeOverlayTitle: vi.fn(),
   sendDisplaySettingsToIframe: vi.fn(),
+  sendShowStepToIframe: vi.fn(),
   loadTooltipComponent: vi.fn(),
   showTooltipComponent: vi.fn(() => Promise.resolve(true)),
   hideTooltipComponent: vi.fn(),
@@ -103,25 +104,40 @@ vi.mock('./message-user-queue-manager', () => ({
   saveMessageState: vi.fn(),
   clearMessageState: vi.fn(),
   setMessageLoaded: vi.fn(),
+  setMessageSnoozed: vi.fn(),
 }));
-vi.mock('../utilities/message-utils', () => ({
-  fetchMessageByInstanceId: vi.fn(),
-  fetchMessageByElementId: vi.fn(() => null),
-  isQueueIdAlreadyShowing: vi.fn(() => false),
-  removeMessageByInstanceId: vi.fn(),
-  updateMessageByInstanceId: vi.fn(),
-  hasDisplayChanged: vi.fn(() => false),
-  applyDisplaySettings: vi.fn(),
-  getCurrentDisplayType: vi.fn(() => 'modal'),
-}));
+// Keeps the real matchesPageUrl so cross-page decision tests exercise the
+// actual pathname semantics; everything else stays mocked as before.
+vi.mock('../utilities/message-utils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../utilities/message-utils')>();
+  return {
+    ...actual,
+    fetchMessageByInstanceId: vi.fn(),
+    fetchMessageByElementId: vi.fn(() => null),
+    isQueueIdAlreadyShowing: vi.fn(() => false),
+    removeMessageByInstanceId: vi.fn(),
+    updateMessageByInstanceId: vi.fn(),
+    hasDisplayChanged: vi.fn(() => false),
+    applyDisplaySettings: vi.fn(),
+    getCurrentDisplayType: vi.fn(() => 'modal'),
+  };
+});
 vi.mock('./preview-bar-manager', () => ({
   updatePreviewBarMessage: vi.fn(),
   updatePreviewBarStep: vi.fn(),
   clearPreviewBarMessage: vi.fn(),
+  flushPreviewDisplaySettings: vi.fn(() => Promise.resolve()),
 }));
-vi.mock('../utilities/preview-mode', () => ({
-  PREVIEW_PARAM_ID: 'cioPreviewId',
-  PREVIEW_SETTINGS_PARAM: 'cioPreviewSettings',
+// Real module (for withPreviewSession) with the constants passed through; the
+// preview token it reads comes from the user-manager mock below.
+vi.mock('../utilities/preview-mode', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../utilities/preview-mode')>();
+  return { ...actual };
+});
+vi.mock('./user-manager', () => ({
+  getUserToken: vi.fn(() => 'preview-token-123'),
+  clearUserToken: vi.fn(),
+  setUserToken: vi.fn(),
 }));
 
 vi.mock('../gist', () => ({ default: mockGist }));
@@ -387,6 +403,493 @@ describe('message-manager', () => {
     });
   });
 
+  describe('handleGistEvents stepChangeRequested (INAPP-14575)', () => {
+    let originalLocation: Location;
+
+    beforeEach(() => {
+      originalLocation = window.location;
+      Object.defineProperty(window, 'location', {
+        value: {
+          href: 'https://app.example.com/start',
+          toString: () => 'https://app.example.com/start',
+        },
+        writable: true,
+        configurable: true,
+      });
+    });
+
+    afterEach(() => {
+      Object.defineProperty(window, 'location', {
+        value: originalLocation,
+        writable: true,
+        configurable: true,
+      });
+    });
+
+    async function setupMessage(
+      persistent: boolean,
+      gistProperties: Record<string, unknown> = {}
+    ): Promise<GistMessage> {
+      const { fetchMessageByInstanceId } = await import('../utilities/message-utils');
+      const { resolveMessageProperties } = await import('./gist-properties-manager');
+
+      vi.mocked(resolveMessageProperties).mockReturnValue({
+        isEmbedded: false,
+        elementId: '',
+        hasRouteRule: false,
+        routeRule: '',
+        position: '',
+        hasPosition: false,
+        tooltipPosition: '',
+        hasTooltipPosition: false,
+        tooltipArrowColor: '#fff',
+        shouldScale: false,
+        campaignId: null,
+        messageWidth: 414,
+        overlayColor: '#00000033',
+        persistent,
+        exitClick: false,
+        hasCustomWidth: false,
+      });
+
+      const message: GistMessage = {
+        messageId: 'tour-msg',
+        queueId: 'q-tour',
+        properties: { gist: gistProperties },
+      };
+      await showMessage(message);
+      vi.mocked(fetchMessageByInstanceId).mockReturnValue(message);
+      return message;
+    }
+
+    function dispatchStepChangeRequested(
+      instanceId: string | undefined,
+      messageStepName: string,
+      displaySettings: Record<string, unknown>
+    ) {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: {
+            gist: {
+              method: 'stepChangeRequested',
+              instanceId,
+              parameters: { messageStepName, displaySettings, name: 'next', requestId: 7 },
+            },
+          },
+          origin: 'https://renderer.test',
+        })
+      );
+    }
+
+    it('saves the step then navigates when it belongs to another page', async () => {
+      const { saveMessageState } = await import('./message-user-queue-manager');
+      const message = await setupMessage(true);
+
+      let resolveSave: () => void = () => {};
+      vi.mocked(saveMessageState).mockReturnValue(
+        new Promise<void>((resolve) => {
+          resolveSave = resolve;
+        })
+      );
+
+      const displaySettings = { displayType: 'tooltip', pageUrl: '/settings' };
+      dispatchStepChangeRequested(message.instanceId, 'step-2', displaySettings);
+
+      await vi.waitFor(() => {
+        expect(saveMessageState).toHaveBeenCalledWith('q-tour', 'step-2', displaySettings);
+      });
+      // Still on the original page: navigation must wait for the save.
+      expect(window.location.href).toBe('https://app.example.com/start');
+      // Analytics parity with plain openUrl buttons.
+      expect(mockGist.messageAction).toHaveBeenCalledWith(
+        message,
+        'gist://loadPage?url=/settings',
+        'next'
+      );
+
+      resolveSave();
+      await vi.waitFor(() => {
+        expect(window.location.href).toBe('/settings');
+      });
+    });
+
+    it('instructs the renderer to show the step when it belongs to this page', async () => {
+      const { saveMessageState } = await import('./message-user-queue-manager');
+      const { sendShowStepToIframe } = await import('./message-component-manager');
+      const message = await setupMessage(true);
+
+      dispatchStepChangeRequested(message.instanceId, 'step-2', {
+        displayType: 'modal',
+        pageUrl: 'https://staging.example.com/start?x=1',
+      });
+
+      await vi.waitFor(() => {
+        // The reply echoes the renderer's requestId so only the outstanding
+        // request may toggle.
+        expect(sendShowStepToIframe).toHaveBeenCalledWith(message, 'step-2', 7);
+      });
+      expect(window.location.href).toBe('https://app.example.com/start');
+      expect(saveMessageState).not.toHaveBeenCalled();
+    });
+
+    it('carries the preview session across a cross-page hop', async () => {
+      const { saveMessageState } = await import('./message-user-queue-manager');
+      mockGist.config.isPreviewSession = true;
+      const message = await setupMessage(true, { livePreview: true });
+
+      // displayType reflects the renderer's live per-step state at tap time,
+      // so in-preview edits (display type, targets) ride along.
+      const displaySettings = { displayType: 'tooltip', pageUrl: '/settings' };
+      dispatchStepChangeRequested(message.instanceId, 'step-2', displaySettings);
+
+      await vi.waitFor(() => {
+        expect(window.location.href).not.toBe('https://app.example.com/start');
+      });
+
+      const destination = new URL(window.location.href);
+      expect(destination.pathname).toBe('/settings');
+      expect(destination.searchParams.get('cioPreviewId')).toBe('preview-token-123');
+      expect(JSON.parse(atob(destination.searchParams.get('cioPreviewSettings') ?? ''))).toEqual({
+        stepName: 'step-2',
+        displayType: 'tooltip',
+      });
+      // The hop still rehearses the production path: state saved before leaving.
+      expect(saveMessageState).toHaveBeenCalledWith('q-tour', 'step-2', displaySettings);
+    });
+
+    it('flushes pending preview settings before navigating so edits are not lost', async () => {
+      const { flushPreviewDisplaySettings } = await import('./preview-bar-manager');
+      let flushedBeforeNavigation = false;
+      vi.mocked(flushPreviewDisplaySettings).mockImplementation(() => {
+        flushedBeforeNavigation = window.location.href === 'https://app.example.com/start';
+        return Promise.resolve();
+      });
+      mockGist.config.isPreviewSession = true;
+      const message = await setupMessage(true, { livePreview: true });
+
+      dispatchStepChangeRequested(message.instanceId, 'step-2', {
+        displayType: 'modal',
+        pageUrl: '/settings',
+      });
+
+      await vi.waitFor(() => {
+        expect(window.location.href).not.toBe('https://app.example.com/start');
+      });
+      expect(flushPreviewDisplaySettings).toHaveBeenCalled();
+      // The flush ran while still on the original page — i.e. before the hop.
+      expect(flushedBeforeNavigation).toBe(true);
+    });
+
+    it('navigates without saving when the message is not persistent', async () => {
+      const { saveMessageState } = await import('./message-user-queue-manager');
+      const message = await setupMessage(false);
+
+      dispatchStepChangeRequested(message.instanceId, 'step-2', {
+        displayType: 'modal',
+        pageUrl: '/pricing',
+      });
+
+      await vi.waitFor(() => {
+        expect(window.location.href).toBe('/pricing');
+      });
+      expect(saveMessageState).not.toHaveBeenCalled();
+    });
+
+    it('resolves a bare-relative page-url against the current location', async () => {
+      // Defensive: parcel's authoring regex forbids bare-relative page-urls,
+      // but if one reaches the runtime it must resolve the same way the
+      // restore-side gate (matchesPageUrl) does — new URL(url, base) — not the
+      // old string concat that produced a malformed, unmatchable path.
+      const message = await setupMessage(true);
+
+      dispatchStepChangeRequested(message.instanceId, 'step-2', {
+        displayType: 'modal',
+        pageUrl: 'pricing',
+      });
+
+      await vi.waitFor(() => {
+        expect(window.location.href).toBe('https://app.example.com/pricing');
+      });
+    });
+
+    it('does not carry the preview session token to a cross-origin destination', async () => {
+      const { saveMessageState } = await import('./message-user-queue-manager');
+      mockGist.config.isPreviewSession = true;
+      const message = await setupMessage(true, { livePreview: true });
+
+      const displaySettings = {
+        displayType: 'tooltip',
+        pageUrl: 'https://third-party.example.com/settings',
+      };
+      dispatchStepChangeRequested(message.instanceId, 'step-2', displaySettings);
+
+      await vi.waitFor(() => {
+        expect(window.location.href).toBe('https://third-party.example.com/settings');
+      });
+      // The preview credential must never ride along to a third-party host.
+      const destination = new URL(window.location.href);
+      expect(destination.searchParams.has('cioPreviewId')).toBe(false);
+      expect(destination.searchParams.has('cioPreviewSettings')).toBe(false);
+      // State is still saved before leaving so the tour resumes server-side.
+      expect(saveMessageState).toHaveBeenCalledWith('q-tour', 'step-2', displaySettings);
+    });
+
+    it('logs and keeps the current step visible when no messageStepName is provided', async () => {
+      const { saveMessageState } = await import('./message-user-queue-manager');
+      const { sendShowStepToIframe } = await import('./message-component-manager');
+      const message = await setupMessage(true);
+
+      dispatchStepChangeRequested(message.instanceId, '', {
+        displayType: 'modal',
+        pageUrl: '/settings',
+      });
+
+      await vi.dynamicImportSettled();
+      // Missing step name must not strand the tour: no navigation, no renderer
+      // toggle, no error — the current step simply stays visible.
+      expect(window.location.href).toBe('https://app.example.com/start');
+      expect(sendShowStepToIframe).not.toHaveBeenCalled();
+      expect(saveMessageState).not.toHaveBeenCalled();
+      expect(mockGist.messageError).not.toHaveBeenCalled();
+    });
+
+    it('degrades a javascript: step page-url to a local step change', async () => {
+      const { saveMessageState } = await import('./message-user-queue-manager');
+      const { sendShowStepToIframe } = await import('./message-component-manager');
+      const message = await setupMessage(true);
+
+      dispatchStepChangeRequested(message.instanceId, 'step-2', {
+        displayType: 'modal',
+        // matchesPageUrl sees pathname "alert(1)" ≠ current, but the target is
+        // not http(s)-navigable (would execute in the host page via the
+        // location.href sink) — the tap must degrade to a local toggle with no
+        // phantom loadPage analytics and no poisoned saved state.
+        pageUrl: 'javascript:alert(1)',
+      });
+
+      await vi.waitFor(() => {
+        expect(sendShowStepToIframe).toHaveBeenCalledWith(message, 'step-2', 7);
+      });
+      expect(window.location.href).toBe('https://app.example.com/start');
+      expect(saveMessageState).not.toHaveBeenCalled();
+      expect(mockGist.messageAction).not.toHaveBeenCalled();
+    });
+
+    it('navigates even when saving the step state fails', async () => {
+      const { saveMessageState } = await import('./message-user-queue-manager');
+      const message = await setupMessage(true);
+      vi.mocked(saveMessageState).mockRejectedValue(new Error('quota exceeded'));
+
+      dispatchStepChangeRequested(message.instanceId, 'step-2', {
+        displayType: 'modal',
+        pageUrl: '/settings',
+      });
+
+      // A failed save must not swallow the navigation — losing resume state
+      // beats a dead tap.
+      await vi.waitFor(() => {
+        expect(window.location.href).toBe('/settings');
+      });
+    });
+
+    it('refuses to navigate a loadPage tap to a javascript: url', async () => {
+      const message = await setupMessage(false);
+
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: {
+            gist: {
+              method: 'tap',
+              instanceId: message.instanceId,
+              parameters: { action: 'gist://loadPage?url=javascript:alert(1)', name: 'cta' },
+            },
+          },
+          origin: 'https://renderer.test',
+        })
+      );
+
+      await vi.waitFor(() => {
+        expect(mockGist.messageAction).toHaveBeenCalled();
+      });
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(window.location.href).toBe('https://app.example.com/start');
+    });
+
+    it('keeps plain loadPage taps as pure navigation with raw url parsing', async () => {
+      const { saveMessageState } = await import('./message-user-queue-manager');
+      const message = await setupMessage(true);
+
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: {
+            gist: {
+              method: 'tap',
+              instanceId: message.instanceId,
+              parameters: {
+                action: 'gist://loadPage?url=https://other.example.com/a?b=1&c=2',
+                name: 'cta',
+              },
+            },
+          },
+          origin: 'https://renderer.test',
+        })
+      );
+
+      await vi.waitFor(() => {
+        // Everything after ?url= is the redirect target, byte for byte.
+        expect(window.location.href).toBe('https://other.example.com/a?b=1&c=2');
+      });
+      expect(saveMessageState).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleGistEvents gist://snooze', () => {
+    async function setupTapMessage(persistent: boolean): Promise<GistMessage> {
+      const { fetchMessageByInstanceId } = await import('../utilities/message-utils');
+      const { resolveMessageProperties } = await import('./gist-properties-manager');
+
+      vi.mocked(resolveMessageProperties).mockReturnValue({
+        isEmbedded: false,
+        elementId: '',
+        hasRouteRule: false,
+        routeRule: '',
+        position: '',
+        hasPosition: false,
+        tooltipPosition: '',
+        hasTooltipPosition: false,
+        tooltipArrowColor: '#fff',
+        shouldScale: false,
+        campaignId: null,
+        messageWidth: 414,
+        overlayColor: '#00000033',
+        persistent,
+        exitClick: false,
+        hasCustomWidth: false,
+      });
+
+      const message: GistMessage = {
+        messageId: 'tour-msg',
+        queueId: 'q-tour',
+        properties: { gist: {} },
+      };
+      await showMessage(message);
+      vi.mocked(fetchMessageByInstanceId).mockReturnValue(message);
+      return message;
+    }
+
+    function dispatchTap(instanceId: string | undefined, action: string) {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: {
+            gist: {
+              method: 'tap',
+              instanceId,
+              parameters: { action, name: 'snooze-button' },
+            },
+          },
+          origin: 'https://renderer.test',
+        })
+      );
+    }
+
+    it('snoozes a persistent message without logging its view', async () => {
+      const { setMessageSnoozed, clearMessageState, markUserQueueMessageAsSeen } =
+        await import('./message-user-queue-manager');
+      const { logUserMessageView } = await import('../services/log-service');
+      const { checkMessageQueue } = await import('./queue-manager');
+      const message = await setupTapMessage(true);
+      const timeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+
+      dispatchTap(message.instanceId, 'gist://snooze?showIn=30');
+
+      // checkMessageQueue is the last step of the snooze branch, so waiting on
+      // it guarantees the whole tap handler has run.
+      await vi.waitFor(() => {
+        expect(checkMessageQueue).toHaveBeenCalled();
+      });
+      expect(setMessageSnoozed).toHaveBeenCalledWith('q-tour', 30);
+      expect(mockGist.messageDismissed).toHaveBeenCalledWith(message);
+      // The view log is what stops the server re-delivering the message, and
+      // the saved step state is what lets the tour resume — both must survive.
+      expect(logUserMessageView).not.toHaveBeenCalled();
+      expect(markUserQueueMessageAsSeen).not.toHaveBeenCalled();
+      expect(clearMessageState).not.toHaveBeenCalled();
+      const wakeups = timeoutSpy.mock.calls.filter(([, delay]) => delay === 30 * 60 * 1000);
+      expect(wakeups).toHaveLength(1);
+      timeoutSpy.mockRestore();
+    });
+
+    it('defaults to 60 minutes when showIn is missing or invalid', async () => {
+      const { setMessageSnoozed } = await import('./message-user-queue-manager');
+      const message = await setupTapMessage(true);
+
+      dispatchTap(message.instanceId, 'gist://snooze');
+      await vi.waitFor(() => {
+        expect(setMessageSnoozed).toHaveBeenCalledTimes(1);
+      });
+      expect(setMessageSnoozed).toHaveBeenLastCalledWith('q-tour', 60);
+
+      dispatchTap(message.instanceId, 'gist://snooze?showIn=abc');
+      await vi.waitFor(() => {
+        expect(setMessageSnoozed).toHaveBeenCalledTimes(2);
+      });
+      expect(setMessageSnoozed).toHaveBeenLastCalledWith('q-tour', 60);
+
+      dispatchTap(message.instanceId, 'gist://snooze?showIn=-5');
+      await vi.waitFor(() => {
+        expect(setMessageSnoozed).toHaveBeenCalledTimes(3);
+      });
+      expect(setMessageSnoozed).toHaveBeenLastCalledWith('q-tour', 60);
+    });
+
+    it('does not arm a wakeup timer beyond the setTimeout int32 range', async () => {
+      const { setMessageSnoozed } = await import('./message-user-queue-manager');
+      const message = await setupTapMessage(true);
+      const timeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+
+      dispatchTap(message.instanceId, 'gist://snooze?showIn=99999999');
+
+      await vi.waitFor(() => {
+        expect(setMessageSnoozed).toHaveBeenCalledWith('q-tour', 99999999);
+      });
+      const oversized = timeoutSpy.mock.calls.filter(
+        ([, delay]) => typeof delay === 'number' && delay > 2 ** 31 - 1
+      );
+      expect(oversized).toHaveLength(0);
+      timeoutSpy.mockRestore();
+    });
+
+    it('closes a non-persistent message instead of snoozing it', async () => {
+      const { setMessageSnoozed } = await import('./message-user-queue-manager');
+      const { checkMessageQueue } = await import('./queue-manager');
+      const message = await setupTapMessage(false);
+
+      dispatchTap(message.instanceId, 'gist://snooze?showIn=30');
+
+      await vi.waitFor(() => {
+        expect(checkMessageQueue).toHaveBeenCalled();
+      });
+      expect(mockGist.messageDismissed).toHaveBeenCalledWith(message);
+      expect(setMessageSnoozed).not.toHaveBeenCalled();
+    });
+
+    it('marks a non-persistent broadcast as dismissed, matching gist://close', async () => {
+      const { setMessageSnoozed } = await import('./message-user-queue-manager');
+      const { isMessageBroadcast, markBroadcastAsDismissed } =
+        await import('./message-broadcast-manager');
+      vi.mocked(isMessageBroadcast).mockReturnValue(true);
+      const message = await setupTapMessage(false);
+
+      dispatchTap(message.instanceId, 'gist://snooze?showIn=15');
+
+      await vi.waitFor(() => {
+        expect(markBroadcastAsDismissed).toHaveBeenCalledWith('q-tour');
+      });
+      expect(setMessageSnoozed).not.toHaveBeenCalled();
+      vi.mocked(isMessageBroadcast).mockReturnValue(false);
+    });
+  });
+
   describe('tooltip flow', () => {
     function addTargetElement(selector: string): HTMLElement {
       const id = selector.replace(/^#/, '');
@@ -531,6 +1034,27 @@ describe('message-manager', () => {
         properties: {
           gist: { elementId: '#nonexistent', tooltipPosition: 'bottom', livePreview: true },
         },
+      };
+
+      const result = await showMessage(message);
+
+      expect(result).toBe(message);
+      expect(loadTooltipComponent).toHaveBeenCalled();
+      expect(mockGist.messageError).not.toHaveBeenCalled();
+      expect(mockGist.currentMessages).toContain(message);
+    });
+
+    it('loads message for preview bar when the tooltip target is not set yet in live preview', async () => {
+      const { loadTooltipComponent } = await import('./message-component-manager');
+      const { resolveMessageProperties } = await import('./gist-properties-manager');
+      vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties(''));
+
+      mockGist.config.isPreviewSession = true;
+
+      const message: GistMessage = {
+        messageId: 'tooltip-preview-empty',
+        tooltipPosition: 'bottom',
+        properties: { gist: { elementId: '', tooltipPosition: 'bottom', livePreview: true } },
       };
 
       const result = await showMessage(message);

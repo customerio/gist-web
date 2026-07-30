@@ -16,6 +16,7 @@ import {
   elementHasHeight,
   changeOverlayTitle,
   sendDisplaySettingsToIframe,
+  sendShowStepToIframe,
   loadTooltipComponent,
   showTooltipComponent,
   hideTooltipComponent,
@@ -36,6 +37,7 @@ import {
   saveMessageState,
   clearMessageState,
   setMessageLoaded,
+  setMessageSnoozed,
 } from './message-user-queue-manager';
 import {
   fetchMessageByInstanceId,
@@ -46,13 +48,19 @@ import {
   hasDisplayChanged,
   applyDisplaySettings,
   getCurrentDisplayType,
+  matchesPageUrl,
 } from '../utilities/message-utils';
 import {
   updatePreviewBarMessage,
   updatePreviewBarStep,
   clearPreviewBarMessage,
+  flushPreviewDisplaySettings,
 } from './preview-bar-manager';
-import { PREVIEW_PARAM_ID, PREVIEW_SETTINGS_PARAM } from '../utilities/preview-mode';
+import {
+  PREVIEW_PARAM_ID,
+  PREVIEW_SETTINGS_PARAM,
+  withPreviewSession,
+} from '../utilities/preview-mode';
 import type { GistMessage, DisplaySettings, MessageProperties } from '../types';
 
 interface GistEventData {
@@ -62,6 +70,8 @@ interface GistEventData {
     parameters: Record<string, unknown>;
   };
 }
+
+const defaultSnoozeDurationInMinutes = 60;
 
 export async function showMessage(message: GistMessage): Promise<GistMessage | null> {
   if (!Gist.isDocumentVisible) {
@@ -110,16 +120,19 @@ function showTooltipMessage(
   properties: ReturnType<typeof resolveMessageProperties>
 ): GistMessage | null {
   const targetSelector = properties.elementId || message.elementId;
-  if (!targetSelector) {
-    log(`No target selector specified for tooltip message ${message.messageId}`);
-    Gist.messageError(message);
-    return null;
-  }
+  const isLivePreview = Gist.config.isPreviewSession && message.properties?.gist?.livePreview;
 
-  // Verify target element exists in the DOM
-  const targetElement = findElement(targetSelector);
-  if (!targetElement) {
-    const isLivePreview = Gist.config.isPreviewSession && message.properties?.gist?.livePreview;
+  // In live preview we load the message even when the target is missing or not
+  // yet set, so the preview bar renders and the author can pick a target. A
+  // real session can't show a tooltip without one, so it errors out.
+  if (!targetSelector) {
+    if (!isLivePreview) {
+      log(`No target selector specified for tooltip message ${message.messageId}`);
+      Gist.messageError(message);
+      return null;
+    }
+    log(`Preview: no tooltip target yet, loading message for preview bar`);
+  } else if (!findElement(targetSelector)) {
     if (!isLivePreview) {
       log(
         `Tooltip target element "${targetSelector}" not found for message ${message.messageId}, skipping display`
@@ -345,6 +358,79 @@ function handleTouchStartEvents(): void {
   // Added this to avoid errors in the console
 }
 
+// Whether a (possibly relative) target resolves to an http(s) URL — the only
+// scheme family navigateToPage will navigate to. Checked up front by the
+// cross-page step flow so a refused target degrades to a local step change.
+function isHttpNavigable(url: string): boolean {
+  try {
+    const protocol = new URL(url, window.location.href).protocol;
+    return protocol === 'https:' || protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
+// Whether a (possibly relative) navigation target resolves to the same origin
+// as the current page. Used to decide if the preview-session token is safe to
+// carry across a hop — appending it to a cross-origin destination would leak
+// the preview credential to a third-party host. Derives the current origin from
+// window.location.href (not window.location.origin) so it resolves correctly
+// even against relative targets.
+function isSameOriginAsCurrent(url: string): boolean {
+  try {
+    const current = new URL(window.location.href);
+    const destination = new URL(url, window.location.href);
+    return destination.origin === current.origin;
+  } catch {
+    // Unparseable target: treat as cross-origin so we never risk leaking the token.
+    return false;
+  }
+}
+
+// Shared by loadPage taps and cross-page step navigation: absolute http(s),
+// mailto and root-relative paths navigate as-is; anything else resolves
+// against the current location.
+function navigateToPage(url: string): void {
+  if (
+    url.startsWith('mailto:') ||
+    url.startsWith('https://') ||
+    url.startsWith('http://') ||
+    url.startsWith('/')
+  ) {
+    window.location.href = url;
+    return;
+  }
+  // Resolve bare-relative targets against the current location the same way
+  // matchesPageUrl and withPreviewSession do (new URL(url, base)), so a
+  // relative page-url navigates to a URL the restore-side gate can match.
+  // Only an http(s) result may navigate: resolution keeps absolute schemes
+  // verbatim, so without the protocol guard a crafted `javascript:` target
+  // would execute in the host page — the legacy string concat this replaced
+  // was accidentally inert against that, and it must stay inert.
+  try {
+    const destination = new URL(url, window.location.href);
+    if (destination.protocol === 'https:' || destination.protocol === 'http:') {
+      window.location.href = destination.href;
+    } else {
+      log(`Refusing to navigate to non-http(s) target: ${url}`);
+    }
+  } catch {
+    log(`Refusing to navigate to unparseable target: ${url}`);
+  }
+}
+
+// Re-check the queue when a snooze lapses so a tab that just stays open
+// re-shows the message on time. Longer snoozes overflow setTimeout's int32
+// range and are picked up by the regular queue checks instead (polling,
+// route and visibility changes, page loads).
+function scheduleSnoozeWakeup(showInMinutes: number): void {
+  const delayMs = showInMinutes * 60 * 1000;
+  if (delayMs > 2 ** 31 - 1) return;
+  setTimeout(() => {
+    void checkMessageQueue();
+  }, delayMs);
+}
+
 async function handleGistEvents(e: MessageEvent): Promise<void> {
   const env = Gist.config.env as keyof typeof settings.RENDERER_HOST;
   const data = e.data as GistEventData;
@@ -465,6 +551,31 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
                 await hideMessage(currentMessage);
                 await checkMessageQueue();
                 break;
+              case 'snooze': {
+                const parsedShowIn = Number.parseInt(
+                  actionUrl.searchParams.get('showIn') ?? '',
+                  10
+                );
+                const showInMinutes =
+                  Number.isFinite(parsedShowIn) && parsedShowIn > 0
+                    ? parsedShowIn
+                    : defaultSnoozeDurationInMinutes;
+                if (messageProperties.persistent && currentMessage.queueId) {
+                  // No removePersistentMessage here: skipping the view log
+                  // keeps the server re-delivering the message (with its saved
+                  // step state intact); the snoozed key hides it until it
+                  // lapses.
+                  await setMessageSnoozed(currentMessage.queueId, showInMinutes);
+                  scheduleSnoozeWakeup(showInMinutes);
+                } else {
+                  log('Snooze is only supported for persistent queue messages, closing instead');
+                  await removePersistentMessage(currentMessage);
+                  await logBroadcastDismissedLocally(currentMessage);
+                }
+                await hideMessage(currentMessage);
+                await checkMessageQueue();
+                break;
+              }
               case 'showMessage': {
                 const messageId = actionUrl.searchParams.get('messageId');
                 const propertiesParam = actionUrl.searchParams.get('properties');
@@ -482,16 +593,7 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
               case 'loadPage': {
                 const redirectUrl = actionUrl.href.substring(actionUrl.href.indexOf('?url=') + 5);
                 if (redirectUrl) {
-                  if (
-                    redirectUrl.startsWith('mailto:') ||
-                    redirectUrl.startsWith('https://') ||
-                    redirectUrl.startsWith('http://') ||
-                    redirectUrl.startsWith('/')
-                  ) {
-                    window.location.href = redirectUrl;
-                  } else {
-                    window.location.href = window.location + redirectUrl;
-                  }
+                  navigateToPage(redirectUrl);
                 }
                 break;
               }
@@ -501,6 +603,41 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
           // If the action is not a URL, we don't need to do anything.
         }
 
+        break;
+      }
+      case 'stepChangeRequested': {
+        // A tap targeted a step that declares a page-url; the renderer
+        // withheld its local toggle and deferred the decision to us
+        // (INAPP-14575). Either the step belongs to another page — persist it,
+        // then navigate; the assignment only starts the navigation, so
+        // awaiting the save keeps the order safe — or it belongs here and the
+        // renderer is instructed to show it locally.
+        const displaySettings = data.gist.parameters.displaySettings as DisplaySettings | undefined;
+        const messageStepName = data.gist.parameters.messageStepName as string | undefined;
+        if (!messageStepName) {
+          // The renderer withheld its local toggle and deferred the step change
+          // to us, but sent no target step name. We can't navigate or toggle a
+          // specific step, so leave the currently shown step in place rather
+          // than silently stranding the tour with no recovery.
+          log(
+            `stepChangeRequested for message ${currentMessage.messageId} arrived without a messageStepName; keeping the current step visible`
+          );
+          break;
+        }
+        const navigated = await navigateForCrossPageStep(
+          currentMessage,
+          messageStepName,
+          displaySettings,
+          (data.gist.parameters.name as string | undefined) ?? ''
+        );
+        if (!navigated) {
+          log(`Step "${messageStepName}" stays on this page, instructing renderer to show it`);
+          sendShowStepToIframe(
+            currentMessage,
+            messageStepName,
+            data.gist.parameters.requestId as number | undefined
+          );
+        }
         break;
       }
       case 'changeMessageStep': {
@@ -636,6 +773,77 @@ export async function hideMessageVisually(message: GistMessage): Promise<void> {
   } else if (message.elementId) {
     hideEmbedComponent(message.elementId);
   }
+}
+
+/**
+ * Cross-page step routing (INAPP-14575), shared by the button-tap
+ * `stepChangeRequested` handler and the preview bar's step switcher. If the
+ * target step belongs to a different page, it persists the step and navigates
+ * (rehearsing the hop with the preview session in preview mode) and returns
+ * true. Otherwise it returns false and the caller performs its normal in-place
+ * step change.
+ */
+export async function navigateForCrossPageStep(
+  message: GistMessage,
+  stepName: string,
+  displaySettings: DisplaySettings | undefined,
+  trackingName = ''
+): Promise<boolean> {
+  const stepPageUrl = displaySettings?.pageUrl;
+  if (!stepPageUrl || matchesPageUrl(stepPageUrl)) {
+    return false;
+  }
+
+  // Gate on navigability BEFORE dispatching analytics or saving state: a
+  // target navigateToPage would refuse (non-http(s), e.g. javascript: or
+  // unparseable garbage) must degrade to a local step change, not a dead tap
+  // with a phantom loadPage action and poisoned saved state.
+  if (!isHttpNavigable(stepPageUrl)) {
+    log(
+      `Step "${stepName}" page-url is not a navigable http(s) target (${stepPageUrl}); treating as a local step change`
+    );
+    return false;
+  }
+
+  const messageProperties = resolveMessageProperties(message);
+  // Parity with plain openUrl buttons: the navigation surfaces as the same
+  // loadPage message action.
+  Gist.messageAction(message, `gist://loadPage?url=${stepPageUrl}`, trackingName);
+  if (messageProperties.persistent || isShowAlwaysBroadcast(message)) {
+    log(`Saving step "${stepName}" before navigating to ${stepPageUrl}`);
+    try {
+      await saveMessageState(message.queueId ?? '', stepName, displaySettings);
+    } catch (error) {
+      // Losing the resume state is better than a dead tap (the navigation
+      // would otherwise be swallowed by the rejection) — log and navigate
+      // anyway, same philosophy as the preview flush below.
+      log(`Failed to save step state before navigating: ${error}`);
+    }
+  }
+  if (Gist.config.isPreviewSession) {
+    // Flush any pending per-step settings edit so it isn't lost to the
+    // navigation aborting the in-flight save, then rehearse the real hop.
+    await flushPreviewDisplaySettings();
+    if (isSameOriginAsCurrent(stepPageUrl)) {
+      // Same-origin: carry the preview params so the destination re-bootstraps
+      // the preview bar and restores the saved step exactly like production.
+      window.location.href = withPreviewSession(
+        stepPageUrl,
+        stepName,
+        displaySettings?.displayType
+      );
+    } else {
+      // Cross-origin destination: never hand the preview-session token to a
+      // third-party host. Navigate plainly, exactly like a normal loadPage tap.
+      log(
+        `Preview: step "${stepName}" targets a different origin (${stepPageUrl}); navigating without the preview session token`
+      );
+      navigateToPage(stepPageUrl);
+    }
+  } else {
+    navigateToPage(stepPageUrl);
+  }
+  return true;
 }
 
 export async function applyMessageStepChange(

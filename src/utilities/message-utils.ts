@@ -99,6 +99,23 @@ export function matchesRouteRule(rule: string): boolean {
   }
 }
 
+/**
+ * Whether a step's page-url refers to the page the visitor is currently on.
+ * Compared by pathname only: authored URLs stay environment-agnostic (staging
+ * and production hosts differ) and query/hash noise is ignored. Relative URLs
+ * resolve against the current location. Unparseable values fail open (treated
+ * as matching) so a bad authored URL can't strand a tour mid-way.
+ */
+export function matchesPageUrl(pageUrl: string): boolean {
+  try {
+    const stepPath = new URL(pageUrl, window.location.href).pathname.replace(/\/+$/, '') || '/';
+    const currentPath = new URL(window.location.href).pathname.replace(/\/+$/, '') || '/';
+    return stepPath === currentPath;
+  } catch {
+    return true;
+  }
+}
+
 export function getCurrentDisplayType(
   message: GistMessage
 ): 'modal' | 'overlay' | 'inline' | 'tooltip' {

@@ -4,12 +4,14 @@ import {
   stopSSEListener,
   pullMessagesFromQueue,
   handleMessage,
+  checkCurrentMessagesAfterRouteChange,
 } from './queue-manager';
 import { getEligibleBroadcasts } from './message-broadcast-manager';
-import { getMessagesFromLocalStore } from './message-user-queue-manager';
+import { getMessagesFromLocalStore, getSavedMessageState } from './message-user-queue-manager';
 import { showMessage, embedMessage } from './message-manager';
 import { resolveMessageProperties } from './gist-properties-manager';
-import { findElement } from '../utilities/dom';
+import { applyDisplaySettings } from '../utilities/message-utils';
+import { findElement, waitForElement } from '../utilities/dom';
 import { settings } from '../services/settings';
 import Gist from '../gist';
 import type { GistMessage } from '../types';
@@ -60,6 +62,7 @@ vi.mock('./message-user-queue-manager', () => ({
   isMessageLoading: vi.fn(() => Promise.resolve(false)),
   setMessageLoading: vi.fn(),
   getSavedMessageState: vi.fn(() => Promise.resolve(null)),
+  isMessageSnoozed: vi.fn(() => Promise.resolve(false)),
 }));
 vi.mock('./inbox-message-manager', () => ({
   updateInboxMessagesLocalStore: vi.fn(),
@@ -100,6 +103,7 @@ vi.mock('../utilities/message-utils', async (importOriginal) => {
 });
 vi.mock('../utilities/dom', () => ({
   findElement: vi.fn(() => null),
+  waitForElement: vi.fn(() => Promise.resolve(null)),
 }));
 vi.mock('../gist', () => ({
   default: {
@@ -109,6 +113,7 @@ vi.mock('../gist', () => ({
     currentMessages: [],
     overlayInstanceId: null,
     config: {},
+    messageError: vi.fn(),
   },
 }));
 
@@ -137,6 +142,39 @@ describe('queue-manager', () => {
       expect(showMessage).toHaveBeenCalledTimes(2);
       expect(showMessage).toHaveBeenNthCalledWith(1, broadcastMsg);
       expect(showMessage).toHaveBeenNthCalledWith(2, userMsg);
+    });
+  });
+
+  describe('handleMessage – snoozed messages', () => {
+    it('skips a message whose queueId is actively snoozed', async () => {
+      const { isMessageSnoozed } = await import('./message-user-queue-manager');
+      vi.mocked(isMessageSnoozed).mockResolvedValue(true);
+      const message: GistMessage = { messageId: 'm1', queueId: 'q1' };
+
+      const result = await handleMessage(message);
+
+      expect(result).toBe(false);
+      expect(showMessage).not.toHaveBeenCalled();
+    });
+
+    it('processes the message again once the snooze has lapsed', async () => {
+      const { isMessageSnoozed } = await import('./message-user-queue-manager');
+      vi.mocked(isMessageSnoozed).mockResolvedValue(false);
+      const message: GistMessage = { messageId: 'm1', queueId: 'q1' };
+
+      await handleMessage(message);
+
+      expect(showMessage).toHaveBeenCalledWith(message);
+    });
+
+    it('does not consult the snooze store for messages without a queueId', async () => {
+      const { isMessageSnoozed } = await import('./message-user-queue-manager');
+      const message: GistMessage = { messageId: 'm1' };
+
+      await handleMessage(message);
+
+      expect(isMessageSnoozed).not.toHaveBeenCalled();
+      expect(showMessage).toHaveBeenCalledWith(message);
     });
   });
 
@@ -812,6 +850,319 @@ describe('queue-manager', () => {
 
         expect(result).toBe(false);
         expect(showMessage).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('handleMessage – cross-page tour continuation (INAPP-14575)', () => {
+    const persistentProperties = {
+      isEmbedded: false,
+      elementId: '',
+      hasRouteRule: false,
+      routeRule: '',
+      position: '',
+      hasPosition: false,
+      tooltipPosition: '',
+      hasTooltipPosition: false,
+      tooltipArrowColor: '#fff',
+      shouldScale: false,
+      campaignId: null,
+      messageWidth: 414,
+      overlayColor: '#00000033',
+      persistent: true,
+      exitClick: false,
+      hasCustomWidth: false,
+    };
+
+    function navigateTo(path: string) {
+      window.history.pushState({}, '', path);
+    }
+
+    function withSavedState(stepName: string, pageUrl?: string) {
+      vi.mocked(getSavedMessageState).mockResolvedValue({
+        stepName,
+        displaySettings: { displayType: 'modal', ...(pageUrl ? { pageUrl } : {}) },
+      });
+    }
+
+    beforeEach(() => {
+      (Gist as unknown as Record<string, unknown>).currentRoute = null;
+      (Gist as unknown as Record<string, unknown>).config = {};
+      vi.mocked(resolveMessageProperties).mockReturnValue(persistentProperties);
+      navigateTo('/');
+    });
+
+    it('does not restore a saved step that belongs to a different page', async () => {
+      withSavedState('step-2', '/settings');
+      navigateTo('/pricing');
+      const message: GistMessage = { messageId: 'm1', queueId: 'q-cross-1' };
+
+      const result = await handleMessage(message);
+
+      expect(result).toBe(false);
+      expect(showMessage).not.toHaveBeenCalled();
+      expect(applyDisplaySettings).not.toHaveBeenCalled();
+      expect(message.savedStepName).toBeUndefined();
+    });
+
+    it('restores the saved step on its own page', async () => {
+      withSavedState('step-2', '/settings');
+      navigateTo('/settings');
+      const message: GistMessage = { messageId: 'm2', queueId: 'q-cross-2' };
+
+      await handleMessage(message);
+
+      expect(applyDisplaySettings).toHaveBeenCalled();
+      expect(message.savedStepName).toBe('step-2');
+      expect(showMessage).toHaveBeenCalledWith(message);
+    });
+
+    it('compares by pathname so absolute URLs from another environment still match', async () => {
+      withSavedState('step-3', 'https://staging.example.com/settings?tab=1');
+      navigateTo('/settings');
+      const message: GistMessage = { messageId: 'm3', queueId: 'q-cross-3' };
+
+      await handleMessage(message);
+
+      expect(message.savedStepName).toBe('step-3');
+      expect(showMessage).toHaveBeenCalledWith(message);
+    });
+
+    it('restores steps without a page-url everywhere (single-page tours unchanged)', async () => {
+      withSavedState('step-2');
+      navigateTo('/anywhere');
+      const message: GistMessage = { messageId: 'm4', queueId: 'q-cross-4' };
+
+      await handleMessage(message);
+
+      expect(message.savedStepName).toBe('step-2');
+      expect(showMessage).toHaveBeenCalledWith(message);
+    });
+
+    it('fails open when the saved page-url cannot be parsed', async () => {
+      withSavedState('step-2', 'http://');
+      navigateTo('/anywhere');
+      const message: GistMessage = { messageId: 'm5', queueId: 'q-cross-5' };
+
+      await handleMessage(message);
+
+      expect(message.savedStepName).toBe('step-2');
+      expect(showMessage).toHaveBeenCalledWith(message);
+    });
+
+    describe('anchor readiness after a hop', () => {
+      const tooltipProperties = {
+        ...persistentProperties,
+        tooltipPosition: 'top',
+        hasTooltipPosition: true,
+        elementId: '#tour-anchor',
+      };
+
+      it('waits for a missing tooltip anchor instead of showing or erroring immediately', async () => {
+        vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties);
+        withSavedState('step-2', '/settings');
+        navigateTo('/settings');
+        vi.mocked(findElement).mockReturnValue(null);
+        let resolveWait: (element: HTMLElement | null) => void = () => {};
+        vi.mocked(waitForElement).mockReturnValue(
+          new Promise((resolve) => {
+            resolveWait = resolve;
+          })
+        );
+        const message: GistMessage = { messageId: 'm6', queueId: 'q-anchor-1' };
+
+        const result = await handleMessage(message);
+
+        expect(result).toBe(false);
+        expect(showMessage).not.toHaveBeenCalled();
+        expect(waitForElement).toHaveBeenCalledWith('#tour-anchor', 10000);
+
+        // Anchor appears: the queue is re-checked so the show re-runs all
+        // gates. findElement must agree with the resolved wait, otherwise the
+        // re-check would just start another wait.
+        const anchor = document.createElement('div');
+        vi.mocked(findElement).mockReturnValue(anchor);
+        vi.mocked(getEligibleBroadcasts).mockClear();
+        resolveWait(anchor);
+        await vi.waitFor(() => {
+          expect(getEligibleBroadcasts).toHaveBeenCalled();
+        });
+      });
+
+      it('emits messageError when the anchor never appears', async () => {
+        vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties);
+        withSavedState('step-2', '/settings');
+        navigateTo('/settings');
+        vi.mocked(findElement).mockReturnValue(null);
+        vi.mocked(waitForElement).mockResolvedValue(null);
+        const message: GistMessage = { messageId: 'm7', queueId: 'q-anchor-2' };
+
+        const result = await handleMessage(message);
+
+        expect(result).toBe(false);
+        await vi.waitFor(() => {
+          expect(Gist.messageError).toHaveBeenCalledWith(message);
+        });
+      });
+
+      it('starts a single wait per queueId across repeated queue checks', async () => {
+        vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties);
+        withSavedState('step-2', '/settings');
+        navigateTo('/settings');
+        vi.mocked(findElement).mockReturnValue(null);
+        let resolveWait: (element: HTMLElement | null) => void = () => {};
+        vi.mocked(waitForElement).mockReturnValue(
+          new Promise((resolve) => {
+            resolveWait = resolve;
+          })
+        );
+        const message: GistMessage = { messageId: 'm8', queueId: 'q-anchor-3' };
+
+        await handleMessage(message);
+        await handleMessage(message);
+
+        expect(waitForElement).toHaveBeenCalledTimes(1);
+        resolveWait(null);
+      });
+
+      it('does not re-arm or re-error on the same page after the wait times out', async () => {
+        vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties);
+        withSavedState('step-2', '/settings');
+        navigateTo('/settings');
+        vi.mocked(findElement).mockReturnValue(null);
+        vi.mocked(waitForElement).mockResolvedValue(null);
+        const message: GistMessage = { messageId: 'm-abandon', queueId: 'q-abandon' };
+
+        // First check: arms, times out, errors once.
+        await handleMessage(message);
+        await vi.waitFor(() => {
+          expect(Gist.messageError).toHaveBeenCalledTimes(1);
+        });
+
+        // Subsequent checks on the same page (SSE polls) must not re-arm the
+        // wait nor emit further errors — the loop has a terminal state now.
+        vi.mocked(waitForElement).mockClear();
+        await handleMessage(message);
+        await handleMessage(message);
+
+        expect(waitForElement).not.toHaveBeenCalled();
+        expect(Gist.messageError).toHaveBeenCalledTimes(1);
+      });
+
+      it('ignores a timed-out wait after navigating away: no error, no stale abandonment', async () => {
+        vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties);
+        withSavedState('step-2', '/settings');
+        navigateTo('/settings');
+        vi.mocked(findElement).mockReturnValue(null);
+        let resolveWait: (element: HTMLElement | null) => void = () => {};
+        vi.mocked(waitForElement).mockReturnValue(
+          new Promise((resolve) => {
+            resolveWait = resolve;
+          })
+        );
+        const message: GistMessage = { messageId: 'm-left', queueId: 'q-left' };
+
+        // Arm on /settings, then leave the page before the wait times out.
+        await handleMessage(message);
+        expect(waitForElement).toHaveBeenCalledTimes(1);
+        navigateTo('/other');
+        resolveWait(null);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        // The tour is merely deferred to /settings — not an error.
+        expect(Gist.messageError).not.toHaveBeenCalled();
+
+        // No stale abandonment was recorded either: returning to /settings
+        // re-arms immediately, without needing a route-change sweep.
+        vi.mocked(waitForElement).mockClear();
+        vi.mocked(waitForElement).mockReturnValue(new Promise(() => {}));
+        navigateTo('/settings');
+        await handleMessage(message);
+        expect(waitForElement).toHaveBeenCalledTimes(1);
+      });
+
+      it('re-arms on return after navigating away clears the abandoned page entry', async () => {
+        vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties);
+        withSavedState('step-2', '/settings');
+        navigateTo('/settings');
+        vi.mocked(findElement).mockReturnValue(null);
+        vi.mocked(waitForElement).mockResolvedValue(null);
+        const message: GistMessage = { messageId: 'm-return', queueId: 'q-return' };
+
+        // First visit to /settings: arms, times out, records the abandonment.
+        await handleMessage(message);
+        await vi.waitFor(() => {
+          expect(Gist.messageError).toHaveBeenCalledWith(message);
+        });
+
+        // Still on /settings: suppressed, no re-arm (the terminal-state guard).
+        vi.mocked(waitForElement).mockClear();
+        await handleMessage(message);
+        expect(waitForElement).not.toHaveBeenCalled();
+
+        // Navigate away: the route change clears the /settings abandonment.
+        navigateTo('/other');
+        await checkCurrentMessagesAfterRouteChange();
+
+        // Return to /settings: the wait must re-arm so the saved step retries.
+        navigateTo('/settings');
+        await checkCurrentMessagesAfterRouteChange();
+        await handleMessage(message);
+
+        expect(waitForElement).toHaveBeenCalledTimes(1);
+      });
+
+      it('re-arms after a prior wait on the same page succeeded (abandonment cleared)', async () => {
+        vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties);
+        withSavedState('step-2', '/settings');
+        navigateTo('/settings');
+        vi.mocked(findElement).mockReturnValue(null);
+        // The success branch re-runs checkMessageQueue; keep it a no-op so it
+        // can't re-enter handleMessage (some earlier test leaves queue mocks
+        // returning messages — clearAllMocks doesn't reset return values).
+        vi.mocked(getEligibleBroadcasts).mockResolvedValue([]);
+        vi.mocked(getMessagesFromLocalStore).mockResolvedValue([]);
+        vi.mocked(waitForElement).mockResolvedValueOnce(document.createElement('div'));
+        const message: GistMessage = { messageId: 'm-clear', queueId: 'q-clear' };
+
+        // First wait resolves with the anchor → its .then runs checkMessageQueue
+        // and must NOT record an abandonment.
+        await handleMessage(message);
+        await vi.waitFor(() => {
+          expect(getEligibleBroadcasts).toHaveBeenCalled();
+        });
+
+        vi.mocked(waitForElement).mockReset();
+        vi.mocked(waitForElement).mockResolvedValue(null);
+        await handleMessage(message);
+
+        // Armed again (not suppressed) because success cleared the abandonment.
+        expect(waitForElement).toHaveBeenCalledTimes(1);
+      });
+
+      it('shows immediately when the anchor is already present', async () => {
+        vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties);
+        withSavedState('step-2', '/settings');
+        navigateTo('/settings');
+        vi.mocked(findElement).mockReturnValue(document.createElement('div'));
+        const message: GistMessage = { messageId: 'm9', queueId: 'q-anchor-4' };
+
+        await handleMessage(message);
+
+        expect(waitForElement).not.toHaveBeenCalled();
+        expect(showMessage).toHaveBeenCalledWith(message);
+      });
+
+      it('does not gate steps without saved state on anchor readiness', async () => {
+        vi.mocked(resolveMessageProperties).mockReturnValue(tooltipProperties);
+        vi.mocked(getSavedMessageState).mockResolvedValue(null);
+        vi.mocked(findElement).mockReturnValue(null);
+        const message: GistMessage = { messageId: 'm10', queueId: 'q-anchor-5' };
+
+        await handleMessage(message);
+
+        expect(waitForElement).not.toHaveBeenCalled();
+        expect(showMessage).toHaveBeenCalledWith(message);
       });
     });
   });

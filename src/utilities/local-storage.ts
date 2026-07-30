@@ -84,7 +84,8 @@ function checkKeyForExpiry(key: string | null): unknown | null {
           !key.endsWith('numberOfTimesShown')) ||
         (key.startsWith('gist.web.message.user') &&
           !key.endsWith('seen') &&
-          !key.endsWith('state'));
+          !key.endsWith('state') &&
+          !key.endsWith('snoozed'));
       const sixtyMinutesFromNow = new Date(now.getTime() + 61 * 60 * 1000);
       if (isBroadcastOrUserKey && expiryTime.getTime() > sixtyMinutesFromNow.getTime()) {
         clearKeyFromLocalStore(key);

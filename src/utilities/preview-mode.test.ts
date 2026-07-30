@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { setupPreview } from './preview-mode';
+import { setupPreview, withPreviewSession } from './preview-mode';
 
 vi.mock('../gist', () => ({
   default: {
@@ -19,15 +19,22 @@ vi.mock('../managers/preview-bar-manager', () => ({
   setPreviewBarInitialStep: vi.fn(),
 }));
 
+vi.mock('../managers/user-manager', () => ({
+  clearUserToken: vi.fn(),
+  getUserToken: vi.fn(() => 'preview-token-123'),
+}));
+
 import Gist from '../gist';
 import { shouldPersistSession, isSessionBeingPersisted } from './local-storage';
 import { initPreviewBar, setPreviewBarInitialStep } from '../managers/preview-bar-manager';
+import { getUserToken } from '../managers/user-manager';
 
 const mockSetUserToken = vi.mocked(Gist.setUserToken);
 const mockShouldPersistSession = vi.mocked(shouldPersistSession);
 const mockIsSessionBeingPersisted = vi.mocked(isSessionBeingPersisted);
 const mockInitPreviewBar = vi.mocked(initPreviewBar);
 const mockSetPreviewBarInitialStep = vi.mocked(setPreviewBarInitialStep);
+const mockGetUserToken = vi.mocked(getUserToken);
 
 function setSearchParams(params: string) {
   Object.defineProperty(window, 'location', {
@@ -144,5 +151,56 @@ describe('setupPreview', () => {
 
     expect(() => setupPreview()).not.toThrow();
     expect(mockSetPreviewBarInitialStep).not.toHaveBeenCalled();
+  });
+});
+
+function setLocation(href: string) {
+  Object.defineProperty(window, 'location', {
+    value: { href, search: new URL(href).search },
+    writable: true,
+  });
+}
+
+describe('withPreviewSession', () => {
+  beforeEach(() => {
+    mockGetUserToken.mockReturnValue('preview-token-123');
+    setLocation('https://app.example.com/start');
+  });
+
+  it('resolves relative urls against the current page and appends the session', () => {
+    const result = new URL(withPreviewSession('/settings', 'step-2', 'tooltip'));
+
+    expect(result.origin).toBe('https://app.example.com');
+    expect(result.pathname).toBe('/settings');
+    expect(result.searchParams.get('cioPreviewId')).toBe('preview-token-123');
+    expect(JSON.parse(atob(result.searchParams.get('cioPreviewSettings') ?? ''))).toEqual({
+      stepName: 'step-2',
+      displayType: 'tooltip',
+    });
+  });
+
+  it('preserves existing query params and hash on the destination', () => {
+    const result = new URL(
+      withPreviewSession('https://site.example.com/pricing?plan=pro#faq', 'step-3', 'modal')
+    );
+
+    expect(result.searchParams.get('plan')).toBe('pro');
+    expect(result.hash).toBe('#faq');
+    expect(result.searchParams.get('cioPreviewId')).toBe('preview-token-123');
+  });
+
+  it('returns the url unchanged when no preview token exists', () => {
+    mockGetUserToken.mockReturnValue(null);
+
+    expect(withPreviewSession('/settings', 'step-2', 'modal')).toBe('/settings');
+  });
+
+  it('keeps the session id even when the step name cannot be base64-encoded', () => {
+    const result = new URL(withPreviewSession('/settings', 'étape-🚀', 'modal'));
+
+    expect(result.searchParams.get('cioPreviewId')).toBe('preview-token-123');
+    // The saved step state still opens the right step on the destination page;
+    // only the preview bar's step pre-seed is skipped.
+    expect(result.searchParams.get('cioPreviewSettings')).toBeNull();
   });
 });

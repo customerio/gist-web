@@ -1,0 +1,210 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Gist Demo — Tooltips</title>
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <meta charset="utf-8" />
+    <link href="styles.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div class="inbox-header">
+      <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Toggle dark mode">
+        <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+        <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+      </button>
+      <div class="inbox-icon-container toggle-inbox">
+        <svg class="inbox-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+          <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+        </svg>
+        <span class="inbox-badge" id="inboxBadge" style="display: none;">0</span>
+      </div>
+    </div>
+    <div class="inbox-panel" id="inboxPanel" style="display: none;">
+      <div class="inbox-panel-header">
+        <h3>Inbox Messages</h3>
+        <button class="close-btn toggle-inbox">×</button>
+      </div>
+      <div class="inbox-panel-content" id="inboxPanelContent">
+        <p class="no-messages">No messages</p>
+      </div>
+    </div>
+    <nav class="page-nav" aria-label="Demo pages">
+      <span class="page-nav-label">Pages</span>
+      <a id="nav-messages" href="index.html">Messages</a>
+      <a id="nav-tooltips" href="tooltips.html" aria-current="page">Tooltips</a>
+      <a id="nav-debug" href="debug.html">Debug Console</a>
+    </nav>
+    <main class="demo-page">
+      <p class="page-meta">Path <code>/examples/tooltips.html</code> · Route <code>tooltips</code></p>
+
+      <div class="page-section">
+        <h3>Basic Positioning</h3>
+        <p>Click a button to show a tooltip anchored in that direction. Each button is centered in a large area so the tooltip has room to appear in the requested position.</p>
+        <div class="tooltip-position-grid">
+          <div class="tooltip-position-cell">
+            <button id="target-top" class="tooltip-target btn-blue" onclick="showTooltipAt('#target-top', 'top')">↑ Top</button>
+          </div>
+          <div class="tooltip-position-cell">
+            <button id="target-bottom" class="tooltip-target btn-green" onclick="showTooltipAt('#target-bottom', 'bottom')">↓ Bottom</button>
+          </div>
+          <div class="tooltip-position-cell">
+            <button id="target-left" class="tooltip-target btn-orange" onclick="showTooltipAt('#target-left', 'left')">← Left</button>
+          </div>
+          <div class="tooltip-position-cell">
+            <button id="target-right" class="tooltip-target btn-purple" onclick="showTooltipAt('#target-right', 'right')">→ Right</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-section">
+        <h3>Edge Detection &amp; Auto-Flip</h3>
+        <p>These targets sit near edges. The tooltip auto-flips or slides to stay fully visible.</p>
+        <div class="edge-demo-area">
+          <button id="edge-top-left" class="tooltip-target btn-blue edge-tl" onclick="showTooltipAt('#edge-top-left', 'top')">↑ Top</button>
+          <button id="edge-top-right" class="tooltip-target btn-green edge-tr" onclick="showTooltipAt('#edge-top-right', 'right')">→ Right</button>
+          <button id="edge-bottom-left" class="tooltip-target btn-orange edge-bl" onclick="showTooltipAt('#edge-bottom-left', 'left')">← Left</button>
+          <button id="edge-bottom-right" class="tooltip-target btn-purple edge-br" onclick="showTooltipAt('#edge-bottom-right', 'bottom')">↓ Bottom</button>
+        </div>
+      </div>
+
+      <div class="page-section">
+        <h3>Scroll Container Support</h3>
+        <p>Tooltips reposition when scrollable containers scroll. Scroll the list and click "Info" on any item.</p>
+        <div class="tooltip-scroll-container" id="scrollDemo">
+          <div class="scroll-item">Feature A <button id="scroll-item-1" class="scroll-item-btn" onclick="showTooltipAt('#scroll-item-1', 'right')">Info</button></div>
+          <div class="scroll-item">Feature B <button id="scroll-item-2" class="scroll-item-btn" onclick="showTooltipAt('#scroll-item-2', 'right')">Info</button></div>
+          <div class="scroll-item">Feature C <button id="scroll-item-3" class="scroll-item-btn" onclick="showTooltipAt('#scroll-item-3', 'right')">Info</button></div>
+          <div class="scroll-item">Feature D <button id="scroll-item-4" class="scroll-item-btn" onclick="showTooltipAt('#scroll-item-4', 'right')">Info</button></div>
+          <div class="scroll-item">Feature E <button id="scroll-item-5" class="scroll-item-btn" onclick="showTooltipAt('#scroll-item-5', 'right')">Info</button></div>
+          <div class="scroll-item">Feature F <button id="scroll-item-6" class="scroll-item-btn" onclick="showTooltipAt('#scroll-item-6', 'right')">Info</button></div>
+          <div class="scroll-item">Feature G <button id="scroll-item-7" class="scroll-item-btn" onclick="showTooltipAt('#scroll-item-7', 'right')">Info</button></div>
+          <div class="scroll-item">Feature H <button id="scroll-item-8" class="scroll-item-btn" onclick="showTooltipAt('#scroll-item-8', 'right')">Info</button></div>
+        </div>
+      </div>
+
+      <div class="page-section">
+        <h3>Programmatic Dismiss</h3>
+        <div class="tooltip-btn-row">
+          <button class="tooltip-target btn-pink" onclick="dismissActiveTooltip()">✕ Dismiss Active Tooltip</button>
+        </div>
+      </div>
+
+      <div class="page-section">
+        <h3>Auto-Scroll Into View</h3>
+        <p>Targets that exist in the page but are outside the viewport (or scrolled out of a container) get smoothly scrolled into view before the tooltip appears. Scrolling only happens when the SDK can guarantee the tooltip will render successfully.</p>
+        <div class="tooltip-btn-row">
+          <button class="tooltip-target btn-blue" onclick="showTooltipAt('#offscreen-target', 'top')">Offscreen Page Target ↓</button>
+          <button class="tooltip-target btn-orange" onclick="showTooltipAt('#scroll-item-8', 'right')">Scroll Container Target (Feature H)</button>
+        </div>
+      </div>
+
+      <div class="page-section">
+        <h3>Late-Mounting Target</h3>
+        <p><code>#late-target</code> mounts ~3 seconds after page load, like an app section that renders after fetching data. Point a tour step at it to test the SDK waiting (up to 10s) for anchors that appear after a cross-page hop.</p>
+        <div class="embed-slot" id="lateTargetSlot" data-hint="#late-target mounts in 3s…"></div>
+      </div>
+    </main>
+
+    <div style="height: 120vh;"></div>
+    <div style="text-align: center; padding: 40px 20px;">
+      <button id="offscreen-target" class="tooltip-target btn-green" onclick="showTooltipAt('#offscreen-target', 'top')" style="font-size: 16px; padding: 14px 28px;">
+        I'm the offscreen target
+      </button>
+      <p style="margin-top: 12px; color: var(--text-muted); font-size: 14px;">This element starts below the fold. The SDK scrolled here because it predicted a valid tooltip placement.</p>
+    </div>
+
+    <script src="settings.js"></script>
+    <script src="demo-page.js"></script>
+    <script src="../dist/gist.js"></script>
+    <script type="text/javascript">
+      var EncodedTestTooltipMessage = "H4sIAAAAAAAC/2VTTY+bMBC976+YUlW7KwVCks1ulgBS1c9be9ge9mjwAFaMjWwTNq363zsmrJpSzcHy88ybN48hffPx24en5++foHGtzK9Sf4Bkqs4CVIEHkHE6WnQMyoYZiy4Lfjx9DnfBK6xYi1lwFDh02rgASq0cKkobBHdNxvEoSgzHywKEEk4wGdqSScxWUexprDtJzK8ACs1P8AtaZmqhEoj3UBFZWLFWyFMC7w2VLsAyZUOLRlR7+E1VkdNaOtFRZcHKQ210r3gCb6uKEgptOJrQMC56m8Cue9lDxzgXqk5gde+vo7QE1ruYbsTndbyEVvwccyYCgvZnvGFcDyQO1t2L5wNTF+wmXowRrba3M1XN5nIkirHpOBj1QFKx9UCppTakOn6kKGYc3YxidTfn2HhACoVhg6JuHEHR3V/W7Zpizlr0zmlF1JMDqzh+9+rY6P7MvPt/zHuk0ePJr0vb43j7UF60Hj/Df1JHYJikPsTUrOyN9QWdFrRAxmtNl9NqpMtpEf2G+E1JuThCKZm1WTCNE+SjlrTZ5M+6vzYInJhqqA0yRwSb6b3Lv6LBawsMGpRd1UuoKKOnAtcwRz4f0MJJ9wYGbQ6V1ANUzJKkKF12E8lknValFOUhC1q0ltUYcWFbYe3NbZB/0Q4ENT6njqKXpNoPc56CNI1/3R+Nud3GhgMAAA==";
+
+      initDemoPage('tooltips');
+
+      // ─── Tooltip Demo ─────────────────────────────────
+      let activeTooltipInstanceId = null;
+
+      Gist.events.on('messageShown', function (message) {
+        if (message.messageId === 'tooltip-demo') {
+          activeTooltipInstanceId = message.instanceId;
+        }
+      });
+
+      Gist.events.on('messageDismissed', function (message) {
+        if (activeTooltipInstanceId === message.instanceId) {
+          activeTooltipInstanceId = null;
+        }
+      });
+
+      function showTooltipAt(selector, position) {
+        if (activeTooltipInstanceId) {
+          Gist.dismissMessage(activeTooltipInstanceId);
+          activeTooltipInstanceId = null;
+        }
+
+        Gist.showMessage({
+          messageId: 'tooltip-demo',
+          properties: {
+            gist: {
+              encodedMessageHtml: EncodedTestTooltipMessage,
+              elementId: selector,
+              tooltipPosition: position,
+              tooltipArrowColor: '#0057c4',
+              messageWidth: 280,
+            },
+          },
+        });
+      }
+
+      function dismissActiveTooltip() {
+        if (activeTooltipInstanceId) {
+          Gist.dismissMessage(activeTooltipInstanceId);
+          activeTooltipInstanceId = null;
+        } else {
+          logPageEvent('error', 'No active tooltip to dismiss');
+        }
+      }
+
+      // Simulates an app section that renders late (e.g. after a data fetch):
+      // counts down inside the placeholder, then swaps in the real target.
+      (function () {
+        let remaining = 3;
+        const slot = document.getElementById('lateTargetSlot');
+        const tick = setInterval(function () {
+          remaining -= 1;
+          if (remaining > 0) {
+            slot.dataset.hint = `#late-target mounts in ${remaining}s…`;
+            return;
+          }
+          clearInterval(tick);
+          const button = document.createElement('button');
+          button.className = 'tooltip-target btn-green';
+          button.id = 'late-target';
+          button.textContent = 'I mounted ~3s after load';
+          button.addEventListener('click', function () {
+            showTooltipAt('#late-target', 'top');
+          });
+          slot.replaceWith(button);
+          logPageEvent('page', 'Late anchor #late-target mounted');
+        }, 1000);
+      })();
+    </script>
+    <script src="inbox.js"></script>
+  </body>
+</html>

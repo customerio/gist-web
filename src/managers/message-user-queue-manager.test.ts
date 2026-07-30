@@ -9,6 +9,8 @@ import {
   isMessageLoading,
   setMessageLoading,
   setMessageLoaded,
+  setMessageSnoozed,
+  isMessageSnoozed,
 } from './message-user-queue-manager';
 import {
   setKeyToLocalStore,
@@ -152,5 +154,46 @@ describe('message-user-queue-manager', () => {
     expect(clearKeyFromLocalStore).toHaveBeenCalledWith(
       'gist.web.message.user.hashed-token.message.q1.loading'
     );
+  });
+
+  it('setMessageSnoozed stores a key expiring after the requested minutes', async () => {
+    await setMessageSnoozed('q1', 30);
+    expect(setKeyToLocalStore).toHaveBeenCalledWith(
+      'gist.web.message.user.hashed-token.message.q1.snoozed',
+      true,
+      expect.any(Date)
+    );
+    const expiry = vi.mocked(setKeyToLocalStore).mock.calls[0][2] as Date;
+    expect(Math.abs(expiry.getTime() - (Date.now() + 30 * 60 * 1000))).toBeLessThan(5000);
+  });
+
+  it('setMessageSnoozed clamps the duration between 1 minute and 30 days', async () => {
+    await setMessageSnoozed('q1', 0);
+    let expiry = vi.mocked(setKeyToLocalStore).mock.calls[0][2] as Date;
+    expect(Math.abs(expiry.getTime() - (Date.now() + 60 * 1000))).toBeLessThan(5000);
+
+    await setMessageSnoozed('q1', 99999999);
+    expiry = vi.mocked(setKeyToLocalStore).mock.calls[1][2] as Date;
+    const thirtyDays = 43200 * 60 * 1000;
+    expect(Math.abs(expiry.getTime() - (Date.now() + thirtyDays))).toBeLessThan(5000);
+  });
+
+  it('isMessageSnoozed reflects the presence of the snoozed key', async () => {
+    vi.mocked(getKeyFromLocalStore).mockReturnValue(null);
+    expect(await isMessageSnoozed('q1')).toBe(false);
+
+    vi.mocked(getKeyFromLocalStore).mockReturnValue(true);
+    expect(await isMessageSnoozed('q1')).toBe(true);
+    expect(getKeyFromLocalStore).toHaveBeenLastCalledWith(
+      'gist.web.message.user.hashed-token.message.q1.snoozed'
+    );
+  });
+
+  it('snooze helpers no-op without a user token', async () => {
+    vi.mocked(getHashedUserToken).mockResolvedValue(null);
+    await setMessageSnoozed('q1', 30);
+    expect(setKeyToLocalStore).not.toHaveBeenCalled();
+    expect(await isMessageSnoozed('q1')).toBe(false);
+    expect(getKeyFromLocalStore).not.toHaveBeenCalled();
   });
 });

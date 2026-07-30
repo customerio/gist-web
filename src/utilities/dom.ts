@@ -7,6 +7,37 @@ export function findElement(selector: string): HTMLElement | null {
   }
 }
 
+/**
+ * Resolves with the element once it appears in the DOM, or null after the
+ * timeout. Used for tour continuations: after a cross-page hop the queue check
+ * usually beats the app rendering a tooltip/inline anchor, so a one-shot
+ * lookup would fail on exactly the step that just navigated (INAPP-14575).
+ */
+export function waitForElement(selector: string, timeoutMs: number): Promise<HTMLElement | null> {
+  const immediate = findElement(selector);
+  if (immediate) {
+    return Promise.resolve(immediate);
+  }
+
+  return new Promise((resolve) => {
+    const observer = new MutationObserver(() => {
+      const element = findElement(selector);
+      if (element) {
+        clearTimeout(timer);
+        observer.disconnect();
+        resolve(element);
+      }
+    });
+
+    const timer = setTimeout(() => {
+      observer.disconnect();
+      resolve(null);
+    }, timeoutMs);
+
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+  });
+}
+
 export function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   attrs: Partial<HTMLElementTagNameMap[K]> & { [k: string]: unknown } = {}
