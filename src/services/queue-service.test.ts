@@ -153,6 +153,7 @@ describe('queue-service', () => {
     expect(result).toContain('userToken=encoded-token-123');
     expect(result).toContain('siteId=test-site-id');
     expect(result).toContain('sessionId=session-456');
+    expect(result).toContain('platform=web');
   });
 
   it('getUserQueue() calls processInboxConfig with the response', async () => {

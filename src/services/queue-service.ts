@@ -107,7 +107,7 @@ export function getQueueSSEEndpoint(): string | null {
   }
   return (
     settings.GIST_QUEUE_REALTIME_API_ENDPOINT[Gist.config.env ?? 'prod'] +
-    `/api/v3/sse?userToken=${encodedUserToken}&siteId=${Gist.config.siteId}&sessionId=${getSessionId()}`
+    `/api/v3/sse?userToken=${encodedUserToken}&siteId=${Gist.config.siteId}&sessionId=${getSessionId()}&platform=web`
   );
 }
 
