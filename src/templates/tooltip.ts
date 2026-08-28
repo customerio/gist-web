@@ -2,6 +2,11 @@ import type { ResolvedMessageProperties } from '../types';
 
 export const ARROW_SIZE = 10;
 
+// Soft shadow so the arrow stays visible when it matches the page background
+// (e.g. white on white). Offset points outward (toward the tip) per position
+// so no shadow is cast over the seam where the arrow base meets the frame.
+const ARROW_SHADOW_COLOR = 'rgba(0, 0, 0, 0.2)';
+
 function getArrowClass(tooltipPosition: string): string {
   switch (tooltipPosition) {
     case 'top':
@@ -70,7 +75,8 @@ export function tooltipHTMLTemplate(
                 transform: translateX(-50%) translateY(100%);
                 border-left: ${ARROW_SIZE}px solid transparent;
                 border-right: ${ARROW_SIZE}px solid transparent;
-                border-top: ${ARROW_SIZE}px solid ${arrowColor};
+                border-top: ${ARROW_SIZE}px solid var(--gist-tooltip-arrow-color, ${arrowColor});
+                filter: drop-shadow(0 1px 2px ${ARROW_SHADOW_COLOR});
             }
             ${scope}.gist-tooltip-arrow.gist-arrow-top {
                 top: 0;
@@ -78,7 +84,8 @@ export function tooltipHTMLTemplate(
                 transform: translateX(-50%) translateY(-100%);
                 border-left: ${ARROW_SIZE}px solid transparent;
                 border-right: ${ARROW_SIZE}px solid transparent;
-                border-bottom: ${ARROW_SIZE}px solid ${arrowColor};
+                border-bottom: ${ARROW_SIZE}px solid var(--gist-tooltip-arrow-color, ${arrowColor});
+                filter: drop-shadow(0 -1px 2px ${ARROW_SHADOW_COLOR});
             }
             ${scope}.gist-tooltip-arrow.gist-arrow-right {
                 right: 0;
@@ -86,7 +93,8 @@ export function tooltipHTMLTemplate(
                 transform: translateY(-50%) translateX(100%);
                 border-top: ${ARROW_SIZE}px solid transparent;
                 border-bottom: ${ARROW_SIZE}px solid transparent;
-                border-left: ${ARROW_SIZE}px solid ${arrowColor};
+                border-left: ${ARROW_SIZE}px solid var(--gist-tooltip-arrow-color, ${arrowColor});
+                filter: drop-shadow(1px 0 2px ${ARROW_SHADOW_COLOR});
             }
             ${scope}.gist-tooltip-arrow.gist-arrow-left {
                 left: 0;
@@ -94,7 +102,8 @@ export function tooltipHTMLTemplate(
                 transform: translateY(-50%) translateX(-100%);
                 border-top: ${ARROW_SIZE}px solid transparent;
                 border-bottom: ${ARROW_SIZE}px solid transparent;
-                border-right: ${ARROW_SIZE}px solid ${arrowColor};
+                border-right: ${ARROW_SIZE}px solid var(--gist-tooltip-arrow-color, ${arrowColor});
+                filter: drop-shadow(-1px 0 2px ${ARROW_SHADOW_COLOR});
             }
             @media (max-width: ${maxWidthBreakpoint}px) {
                 ${scope}.gist-tooltip-frame {

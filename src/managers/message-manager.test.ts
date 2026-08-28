@@ -403,6 +403,76 @@ describe('message-manager', () => {
     });
   });
 
+  describe('handleGistEvents messageBackgroundChanged', () => {
+    let wrapper: HTMLElement;
+
+    async function setupMessage(displayType: 'tooltip' | 'modal') {
+      const { fetchMessageByInstanceId, getCurrentDisplayType } =
+        await import('../utilities/message-utils');
+
+      const message: GistMessage = { messageId: 'msg-1' };
+      vi.mocked(getCurrentDisplayType).mockReturnValue(displayType);
+      await showMessage(message);
+      vi.mocked(fetchMessageByInstanceId).mockReturnValue(message);
+
+      wrapper = document.createElement('div');
+      wrapper.id = `gist-tooltip-${message.instanceId}`;
+      document.body.appendChild(wrapper);
+
+      return message;
+    }
+
+    async function dispatchBackgroundChanged(
+      instanceId: string | undefined,
+      backgroundColor: string | null
+    ) {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: {
+            gist: {
+              method: 'messageBackgroundChanged',
+              instanceId,
+              parameters: { backgroundColor },
+            },
+          },
+          origin: 'https://renderer.test',
+        })
+      );
+      await vi.dynamicImportSettled();
+    }
+
+    afterEach(async () => {
+      wrapper?.remove();
+      const { getCurrentDisplayType } = await import('../utilities/message-utils');
+      vi.mocked(getCurrentDisplayType).mockReturnValue('modal');
+    });
+
+    it('sets the arrow color variable on the tooltip wrapper', async () => {
+      const message = await setupMessage('tooltip');
+
+      await dispatchBackgroundChanged(message.instanceId, 'rgb(26, 26, 46)');
+
+      expect(wrapper.style.getPropertyValue('--gist-tooltip-arrow-color')).toBe('rgb(26, 26, 46)');
+    });
+
+    it('removes the arrow color variable when no background is reported', async () => {
+      const message = await setupMessage('tooltip');
+      wrapper.style.setProperty('--gist-tooltip-arrow-color', 'rgb(26, 26, 46)');
+
+      await dispatchBackgroundChanged(message.instanceId, null);
+
+      expect(wrapper.style.getPropertyValue('--gist-tooltip-arrow-color')).toBe('');
+    });
+
+    it('ignores the event for non-tooltip display types', async () => {
+      const message = await setupMessage('modal');
+
+      await dispatchBackgroundChanged(message.instanceId, 'rgb(26, 26, 46)');
+
+      expect(wrapper.style.getPropertyValue('--gist-tooltip-arrow-color')).toBe('');
+    });
+  });
+
   describe('handleGistEvents stepChangeRequested (INAPP-14575)', () => {
     let originalLocation: Location;
 
