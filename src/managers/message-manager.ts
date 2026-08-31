@@ -694,6 +694,25 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
         changeOverlayTitle(currentInstanceId, data.gist.parameters.title as string);
         break;
       }
+      case 'messageBackgroundChanged': {
+        // The renderer reports the effective (color-scheme-resolved) message
+        // background, which this page can't read cross-origin; the tooltip
+        // arrow follows it so a dark-mode message gets a matching arrow.
+        if (getCurrentDisplayType(currentMessage) !== 'tooltip') {
+          break;
+        }
+        const wrapper = findElement(`gist-tooltip-${currentInstanceId}`);
+        if (!wrapper) {
+          break;
+        }
+        const backgroundColor = data.gist.parameters.backgroundColor as string | null | undefined;
+        if (backgroundColor) {
+          wrapper.style.setProperty('--gist-tooltip-arrow-color', backgroundColor);
+        } else {
+          wrapper.style.removeProperty('--gist-tooltip-arrow-color');
+        }
+        break;
+      }
       case 'eventDispatched': {
         Gist.events.dispatch('eventDispatched', {
           name: data.gist.parameters.name,

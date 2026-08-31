@@ -162,24 +162,49 @@ describe('tooltipHTMLTemplate', () => {
     expect(arrow).not.toBeNull();
   });
 
-  it('uses tooltipArrowColor from message properties in arrow styles', () => {
+  it('uses tooltipArrowColor as the arrow color variable fallback', () => {
     const html = tooltipHTMLTemplate(
       'el',
       makeProps({ tooltipPosition: 'top', tooltipArrowColor: '#003780' }),
       'https://example.com'
     );
 
-    expect(html).toContain('border-top: 10px solid #003780');
+    expect(html).toContain('border-top: 10px solid var(--gist-tooltip-arrow-color, #003780)');
   });
 
-  it('defaults arrow color to #fff when tooltipArrowColor is not customized', () => {
+  it('defaults arrow color fallback to #fff when tooltipArrowColor is not customized', () => {
     const html = tooltipHTMLTemplate(
       'el',
       makeProps({ tooltipPosition: 'top' }),
       'https://example.com'
     );
 
-    expect(html).toContain('border-top: 10px solid #fff');
+    expect(html).toContain('border-top: 10px solid var(--gist-tooltip-arrow-color, #fff)');
+  });
+
+  it('reads the arrow color variable in all four position rules', () => {
+    const html = tooltipHTMLTemplate('el', makeProps(), 'https://example.com');
+
+    const varUsages = html.match(/var\(--gist-tooltip-arrow-color, #fff\)/g) ?? [];
+    expect(varUsages).toHaveLength(4);
+  });
+
+  it('applies a drop-shadow filter to all four arrow position rules', () => {
+    const html = tooltipHTMLTemplate('el', makeProps(), 'https://example.com');
+
+    const shadows = html.match(/filter: drop-shadow\(/g) ?? [];
+    expect(shadows).toHaveLength(4);
+  });
+
+  it('points each drop-shadow offset away from the tooltip body', () => {
+    const html = tooltipHTMLTemplate('el', makeProps(), 'https://example.com');
+
+    // Arrow class names describe where the arrow sits, so the shadow offset
+    // must push in that same direction: bottom => +y, top => -y, etc.
+    expect(html).toMatch(/gist-arrow-bottom \{[^}]*drop-shadow\(0 1px/);
+    expect(html).toMatch(/gist-arrow-top \{[^}]*drop-shadow\(0 -1px/);
+    expect(html).toMatch(/gist-arrow-right \{[^}]*drop-shadow\(1px 0/);
+    expect(html).toMatch(/gist-arrow-left \{[^}]*drop-shadow\(-1px 0/);
   });
 
   it('uses position: absolute on the wrapper', () => {
