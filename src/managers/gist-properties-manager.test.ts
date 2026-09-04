@@ -19,6 +19,10 @@ const defaults = {
   persistent: false,
   exitClick: false,
   hasCustomWidth: false,
+  isEmbed: false,
+  embedFrequency: 'always' as const,
+  embedReshowAfterMinutes: 0,
+  embedLogView: false,
 };
 
 describe('resolveMessageProperties', () => {

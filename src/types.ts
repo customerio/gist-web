@@ -4,6 +4,14 @@ export type ColorScheme = 'default' | 'auto' | 'system';
 
 export interface GistConfig {
   siteId: string;
+  /**
+   * Renderer-only mode for embedded messages: the SDK renders messages handed
+   * to it directly (Gist.embed) and starts none of the delivery machinery — no
+   * user queue, SSE, guest session, inbox or preview session. Set by hosts that
+   * only place embeds (e.g. a landing page snippet), never by a workspace that
+   * also receives queue-delivered in-app messages on the same page.
+   */
+  embedOnly?: boolean;
   dataCenter?: string;
   env?: GistEnv;
   logging?: boolean;
@@ -16,6 +24,12 @@ export interface GistConfig {
 export interface GistMessage {
   messageId: string;
   queueId?: string;
+  /**
+   * Set when the message was placed by Gist.embed rather than delivered
+   * through the queue. Identifies the embed for frequency state and reporting,
+   * and marks the message as pinned inside its host element.
+   */
+  embedId?: string;
   instanceId?: string;
   overlay?: boolean;
   elementId?: string | null;
@@ -54,6 +68,47 @@ export interface StepDisplayConfig {
   displaySettings: DisplaySettings;
 }
 
+/**
+ * How often an embedded message renders. One dimension rather than several
+ * booleans, so no combination can contradict itself.
+ *
+ * - `always` — render on every page load; closing hides it for that load only.
+ *   Writes nothing to storage.
+ * - `untilDismissed` — once closed, stay hidden (see `reshowAfterMinutes`).
+ * - `onceEver` — render once per browser, then never again.
+ * - `oncePerSession` — render once per tab session.
+ */
+export type EmbedFrequency = 'always' | 'untilDismissed' | 'onceEver' | 'oncePerSession';
+
+export interface EmbedDisplayConfig {
+  frequency?: EmbedFrequency;
+  /**
+   * With `untilDismissed`, re-show this long after a close instead of never.
+   * Zero or absent means the dismissal is permanent.
+   */
+  reshowAfterMinutes?: number;
+  /**
+   * Log the view to the Gist consumer API. Off by default: an embed has no
+   * queue entry, and reporting is owned by the analytics layer above the SDK.
+   */
+  logView?: boolean;
+}
+
+/**
+ * The snippet-shaped input accepted by Gist.embed — the message payload plus
+ * everything needed to place and gate it. Also the JSON contract of a
+ * `<script type="application/json" data-cio-embed>` block on the host page.
+ */
+export interface EmbedPayload {
+  v?: number;
+  embedId: string;
+  /** Element to render into. Defaults to `[data-cio-embed="<embedId>"]`. */
+  target?: string;
+  siteId?: string;
+  display?: EmbedDisplayConfig;
+  message: GistMessage;
+}
+
 export interface MessageProperties {
   gist?: GistProperties;
   [key: string]: unknown;
@@ -71,6 +126,7 @@ export interface GistProperties {
   scale?: boolean;
   campaignId?: string | null;
   persistent?: boolean;
+  embed?: EmbedDisplayConfig;
   [key: string]: unknown;
 }
 
@@ -146,6 +202,10 @@ export interface ResolvedMessageProperties {
   persistent: boolean;
   exitClick: boolean;
   hasCustomWidth: boolean;
+  isEmbed: boolean;
+  embedFrequency: EmbedFrequency;
+  embedReshowAfterMinutes: number;
+  embedLogView: boolean;
 }
 
 export type InboxActionBehavior = 'openUrl' | 'dismiss' | 'openDeeplink' | 'performAction';

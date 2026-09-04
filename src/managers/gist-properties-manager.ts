@@ -17,7 +17,16 @@ export const MESSAGE_PROPERTY_DEFAULTS: ResolvedMessageProperties = {
   persistent: false,
   exitClick: false,
   hasCustomWidth: false,
+  isEmbed: false,
+  embedFrequency: 'always',
+  embedReshowAfterMinutes: 0,
+  embedLogView: false,
 };
+
+function resolveReshowAfterMinutes(value: unknown): number {
+  const minutes = Math.floor(Number(value));
+  return Number.isFinite(minutes) && minutes > 0 ? minutes : 0;
+}
 
 function resolveMessageTooltipColor(message: GistMessage): string {
   let tooltipColor = MESSAGE_PROPERTY_DEFAULTS.tooltipArrowColor;
@@ -52,7 +61,12 @@ export function resolveMessageProperties(message: GistMessage): ResolvedMessageP
   const defaults = MESSAGE_PROPERTY_DEFAULTS;
 
   const gist = message?.properties?.gist;
-  if (!gist) return defaults;
+  // isEmbed is driven by the message, not by properties.gist.embed: an embed
+  // that takes every display default still has to resolve as one.
+  const isEmbed = !!message?.embedId;
+  if (!gist) return { ...defaults, isEmbed };
+
+  const embed = gist.embed;
 
   return {
     isEmbedded: !!gist.elementId && !gist.tooltipPosition,
@@ -74,5 +88,9 @@ export function resolveMessageProperties(message: GistMessage): ResolvedMessageP
     overlayColor: gist.overlayColor || defaults.overlayColor,
     persistent: !!gist.persistent,
     exitClick: !!gist.exitClick,
+    isEmbed,
+    embedFrequency: embed?.frequency ?? defaults.embedFrequency,
+    embedReshowAfterMinutes: resolveReshowAfterMinutes(embed?.reshowAfterMinutes),
+    embedLogView: !!embed?.logView,
   };
 }

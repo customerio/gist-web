@@ -25,6 +25,10 @@ function makeProps(overrides: Partial<ResolvedMessageProperties> = {}): Resolved
     persistent: false,
     exitClick: false,
     hasCustomWidth: false,
+    isEmbed: false,
+    embedFrequency: 'always' as const,
+    embedReshowAfterMinutes: 0,
+    embedLogView: false,
     ...overrides,
   };
 }

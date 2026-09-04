@@ -29,6 +29,7 @@ import {
   removeCustomAttribute,
 } from './managers/custom-attribute-manager';
 import { setupPreview } from './utilities/preview-mode';
+import { renderEmbed, mountEmbedsFromDom, clearEmbedState } from './managers/embed-manager';
 import { setupDebugOverlay } from './utilities/debug-mode';
 import {
   getInboxMessagesFromLocalStore,
@@ -37,7 +38,7 @@ import {
 } from './managers/inbox-message-manager';
 import { isInboxEnabled, initializeInboxFromCache } from './managers/inbox-config-manager';
 import { destroyInbox } from './managers/inbox-component-manager';
-import type { GistConfig, GistMessage, DisplaySettings, ColorScheme } from './types';
+import type { GistConfig, GistMessage, DisplaySettings, ColorScheme, EmbedPayload } from './types';
 import type { InboxMessage } from './managers/inbox-message-manager';
 
 const ROUTE_INIT_GRACE_PERIOD_MS = 2000;
@@ -67,6 +68,7 @@ export default class Gist {
       logging: config.logging ?? false,
       experiments: config.experiments ?? false,
       colorScheme: config.colorScheme ?? 'default',
+      embedOnly: config.embedOnly ?? false,
     };
     this.currentMessages = [];
     clearAllTooltipHandles();
@@ -74,15 +76,28 @@ export default class Gist {
     this.currentRoute = null;
     this.routeInitialized = false;
     this.isDocumentVisible = true;
-    this.config.isPreviewSession = setupPreview();
+    // Embed-only hosts run none of the delivery machinery: there is no user to
+    // pull a queue for, no inbox, and a stray preview param on a customer's
+    // page must not raise a preview bar. The debug overlay stays available —
+    // it only activates on an explicit query param, and it is as useful for
+    // diagnosing an embed as anything else.
+    this.config.isPreviewSession = this.config.embedOnly ? false : setupPreview();
     setupDebugOverlay();
     clearExpiredFromLocalStore();
-    initializeInboxFromCache();
+    if (!this.config.embedOnly) {
+      initializeInboxFromCache();
+    }
     if (this.config.colorScheme === 'auto') {
       startColorSchemeObserver();
     }
 
-    log(`Setup complete on ${this.config.env} environment.`);
+    log(
+      `Setup complete on ${this.config.env} environment${this.config.embedOnly ? ' in embed-only mode' : ''}.`
+    );
+
+    if (this.config.embedOnly) {
+      return;
+    }
 
     if (
       !this.config.isPreviewSession &&
@@ -130,6 +145,13 @@ export default class Gist {
 
   static async setUserToken(userToken: string, expiryDate?: Date): Promise<void> {
     if (this.config.isPreviewSession) return;
+    // Embed-only mode owns no user state: identifying a visitor must not bring
+    // the queue up behind the host's back, which is what setting a token
+    // otherwise does.
+    if (this.config.embedOnly) {
+      log('Embed-only mode, ignoring user token.');
+      return;
+    }
     setUserToken(userToken, expiryDate);
     stopSSEListener(true);
     await startQueueListener();
@@ -159,6 +181,10 @@ export default class Gist {
 
   static async clearUserToken(): Promise<void> {
     if (this.config.isPreviewSession) return;
+    if (this.config.embedOnly) {
+      log('Embed-only mode, ignoring user token reset.');
+      return;
+    }
     clearUserToken();
     destroyInbox();
     if (this.config.useAnonymousSession) {
@@ -180,6 +206,35 @@ export default class Gist {
   static async embedMessage(message: GistMessage, elementId: string): Promise<string | null> {
     const messageResponse = embedMessage(message, elementId);
     return messageResponse?.instanceId ?? null;
+  }
+
+  /**
+   * Renders a message the host supplies directly — no queue, no campaign —
+   * into an element on the page, honouring the payload's frequency rule.
+   * Auto-initializes the SDK in embed-only mode when nothing else has set it up.
+   */
+  static async embed(payload: EmbedPayload): Promise<string | null> {
+    if (!this.initialized) {
+      await this.setup({ siteId: payload.siteId ?? '', embedOnly: true });
+    }
+    return renderEmbed(payload);
+  }
+
+  /**
+   * Renders every embed payload declared on the page. Safe to call more than
+   * once: already-rendered embeds are skipped, so a host can call it again
+   * after injecting markup.
+   */
+  static async mountEmbeds(): Promise<string[]> {
+    if (!this.initialized) {
+      await this.setup({ siteId: '', embedOnly: true });
+    }
+    return mountEmbedsFromDom();
+  }
+
+  /** Forgets an embed's stored frequency state so it becomes eligible again. */
+  static resetEmbed(embedId: string): void {
+    clearEmbedState(embedId);
   }
 
   static async showMessage(message: GistMessage): Promise<string | null> {

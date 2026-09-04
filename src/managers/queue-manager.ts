@@ -137,6 +137,12 @@ export async function startQueueListener(): Promise<void> {
 }
 
 export async function checkMessageQueue(): Promise<void> {
+  // Embed-only hosts have no queue to check: no user token means no broadcast
+  // or user-queue store to read, so this is dead work on every dismissal.
+  if (Gist.config?.embedOnly) {
+    return;
+  }
+
   const broadcastMessages = await getEligibleBroadcasts();
   const userMessages = await getMessagesFromLocalStore();
   const allMessages = broadcastMessages.concat(userMessages);

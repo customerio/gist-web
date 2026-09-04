@@ -48,6 +48,10 @@ vi.mock('../managers/gist-properties-manager', () => ({
     persistent: false,
     exitClick: false,
     hasCustomWidth: false,
+    isEmbed: false,
+    embedFrequency: 'always' as const,
+    embedReshowAfterMinutes: 0,
+    embedLogView: false,
   },
   resolveMessageProperties: vi.fn((message: GistMessage) => {
     const gist = message?.properties?.gist;

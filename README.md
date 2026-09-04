@@ -15,6 +15,53 @@
 npm install customerio-gist-web
 ```
 
+## 📌 Embedded messages
+
+An embedded message is one the host page supplies directly, rather than one
+delivered through a campaign or broadcast. The message travels in the page's own
+markup, so it renders on a landing page that has no other Customer.io setup.
+
+Declare a container and a payload block:
+
+```html
+<div data-cio-embed="emb_7Fq2xk"></div>
+<script type="application/json" data-cio-embed-payload="emb_7Fq2xk">
+  {
+    "v": 1,
+    "embedId": "emb_7Fq2xk",
+    "display": { "frequency": "untilDismissed" },
+    "message": {
+      "messageId": "gist-html-9f2c8b",
+      "properties": { "gist": { "encodedMessageHtml": "H4sIAAAA…" } }
+    }
+  }
+</script>
+```
+
+`Gist.mountEmbeds()` renders every block on the page; `Gist.embed(payload)`
+renders one programmatically. Both initialize the SDK in embed-only mode when
+nothing else has set it up, and both are safe to call more than once — an embed
+already rendered on the page is skipped, so a host can call them again after
+injecting markup.
+
+`frequency` decides how often the message comes back:
+
+| Value              | Behaviour                                                                        |
+| ------------------ | -------------------------------------------------------------------------------- |
+| `always` (default) | Renders on every page load; closing hides it for that load only. Stores nothing. |
+| `untilDismissed`   | Once closed, stays hidden — permanently, or for `reshowAfterMinutes`.            |
+| `onceEver`         | Renders once per browser.                                                        |
+| `oncePerSession`   | Renders once per tab session.                                                    |
+
+State is stored per embed id in the page's own storage, and any storage failure
+resolves to "render" so a blocked store can never leave a hole in the layout.
+`Gist.resetEmbed(embedId)` forgets it.
+
+Embed-only mode (`Gist.setup({ embedOnly: true })`) starts none of the delivery
+machinery: no user queue, SSE, guest session, inbox or preview session, and user
+tokens are ignored. Leave it unset on a page that also receives in-app messages —
+embeds and queue-delivered messages work side by side.
+
 ## 🧪 Development
 
 ### Local Testing

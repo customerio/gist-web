@@ -40,4 +40,7 @@ export type {
   GistMessage,
   DisplaySettings,
   MessageProperties,
+  EmbedFrequency,
+  EmbedDisplayConfig,
+  EmbedPayload,
 } from './types';

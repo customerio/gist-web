@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
+  sendOptionsToIframe,
   showEmbedComponent,
   hideEmbedComponent,
   elementHasHeight,
@@ -44,6 +45,10 @@ vi.mock('./gist-properties-manager', () => ({
     persistent: false,
     exitClick: false,
     hasCustomWidth: false,
+    isEmbed: false,
+    embedFrequency: 'always' as const,
+    embedReshowAfterMinutes: 0,
+    embedLogView: false,
   })),
 }));
 vi.mock('../templates/embed', () => ({
@@ -160,6 +165,10 @@ describe('message-component-manager', () => {
       persistent: false,
       exitClick: false,
       hasCustomWidth: false,
+      isEmbed: false,
+      embedFrequency: 'always' as const,
+      embedReshowAfterMinutes: 0,
+      embedLogView: false,
     };
 
     function setupOverlay(exitClick: boolean): GistMessage {
@@ -310,6 +319,10 @@ describe('message-component-manager', () => {
         persistent: false,
         exitClick: false,
         hasCustomWidth: false,
+        isEmbed: false,
+        embedFrequency: 'always' as const,
+        embedReshowAfterMinutes: 0,
+        embedLogView: false,
       });
 
       const message: GistMessage = {
@@ -381,6 +394,10 @@ describe('message-component-manager', () => {
         persistent: false,
         exitClick: false,
         hasCustomWidth: false,
+        isEmbed: false,
+        embedFrequency: 'always' as const,
+        embedReshowAfterMinutes: 0,
+        embedLogView: false,
       });
 
       const message: GistMessage = {
@@ -419,6 +436,10 @@ describe('message-component-manager', () => {
         persistent: false,
         exitClick: false,
         hasCustomWidth: false,
+        isEmbed: false,
+        embedFrequency: 'always' as const,
+        embedReshowAfterMinutes: 0,
+        embedLogView: false,
       });
 
       const message: GistMessage = {
@@ -639,6 +660,10 @@ describe('message-component-manager', () => {
         persistent: false,
         exitClick: false,
         hasCustomWidth: false,
+        isEmbed: false,
+        embedFrequency: 'always' as const,
+        embedReshowAfterMinutes: 0,
+        embedLogView: false,
       });
 
       const message: GistMessage = {
@@ -817,6 +842,51 @@ describe('message-component-manager', () => {
       hideTooltipComponent({ messageId: 'msg-1', instanceId: 'inst-1' });
 
       expect(mockCleanup).toHaveBeenCalledTimes(1);
+    });
+  });
+  describe('sendOptionsToIframe capabilities', () => {
+    function iframeWithSpy(id: string): ReturnType<typeof vi.fn> {
+      const postMessage = vi.fn();
+      const iframe = document.createElement('iframe');
+      iframe.id = id;
+      document.body.appendChild(iframe);
+      Object.defineProperty(iframe, 'contentWindow', {
+        value: { postMessage },
+        configurable: true,
+      });
+      return postMessage;
+    }
+
+    const baseOptions = {
+      endpoint: 'https://api.test',
+      siteId: 'site',
+      messageId: 'msg-1',
+      instanceId: 'instance-1',
+      livePreview: false,
+    };
+
+    it('advertises every capability for a queue-delivered message', () => {
+      const postMessage = iframeWithSpy('gist-frame-1');
+
+      sendOptionsToIframe('gist-frame-1', { ...baseOptions });
+
+      expect(postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          capabilities: ['MultiStepDisplayTypes', 'CrossPageStepNavigation', 'Snooze'],
+        }),
+        '*'
+      );
+    });
+
+    it('withholds display-type and cross-page capabilities from an embed', () => {
+      const postMessage = iframeWithSpy('gist-frame-2');
+
+      sendOptionsToIframe('gist-frame-2', { ...baseOptions, isEmbed: true });
+
+      expect(postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ capabilities: ['Snooze'] }),
+        '*'
+      );
     });
   });
 });
