@@ -29,7 +29,12 @@ import {
   removeCustomAttribute,
 } from './managers/custom-attribute-manager';
 import { setupPreview } from './utilities/preview-mode';
-import { renderEmbed, mountEmbedsFromDom, clearEmbedState } from './managers/embed-manager';
+import {
+  renderEmbed,
+  renderEmbeds,
+  readEmbedPayloads,
+  clearEmbedState,
+} from './managers/embed-manager';
 import { setupDebugOverlay } from './utilities/debug-mode';
 import {
   getInboxMessagesFromLocalStore,
@@ -55,6 +60,15 @@ export default class Gist {
 
   static async setup(config: GistConfig): Promise<void> {
     if (this.initialized) {
+      // Deliberately not the debug-gated log(): an embed-only auto-init has
+      // swallowed a real setup, so in-app delivery will never start on this
+      // page. That is a page misconfiguration support needs to see.
+      if (this.config?.embedOnly && !config.embedOnly) {
+        console.warn(
+          'Gist: setup() was called after the SDK had already initialized in embed-only mode, ' +
+            'so in-app delivery will not start. Call setup() before mounting embeds.'
+        );
+      }
       log('Gist SDK already initialized, skipping setup.');
       return;
     }
@@ -226,10 +240,20 @@ export default class Gist {
    * after injecting markup.
    */
   static async mountEmbeds(): Promise<string[]> {
-    if (!this.initialized) {
-      await this.setup({ siteId: '', embedOnly: true });
+    // Read before initializing: a page with no embeds must not be locked into
+    // embed-only mode by a snippet that calls this unconditionally, and the
+    // site the embeds belong to is only knowable from their payloads.
+    const payloads = readEmbedPayloads();
+    if (payloads.length === 0) {
+      return [];
     }
-    return mountEmbedsFromDom();
+    if (!this.initialized) {
+      await this.setup({
+        siteId: payloads.find((payload) => payload.siteId)?.siteId ?? '',
+        embedOnly: true,
+      });
+    }
+    return renderEmbeds(payloads);
   }
 
   /** Forgets an embed's stored frequency state so it becomes eligible again. */

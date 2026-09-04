@@ -2,17 +2,13 @@ import { log } from '../utilities/log';
 import { findElement, waitForElement } from '../utilities/dom';
 import { embedMessage } from './message-manager';
 import { resolveMessageProperties } from './gist-properties-manager';
-import {
-  setKeyToLocalStore,
-  getKeyFromLocalStore,
-  clearKeyFromLocalStore,
-  setKeyToSessionStore,
-  getKeyFromSessionStore,
-  clearKeyFromSessionStore,
-} from '../utilities/local-storage';
-import type { EmbedPayload, GistMessage, ResolvedMessageProperties } from '../types';
+import { setKeyToLocalStore, getKeyFromLocalStore } from '../utilities/local-storage';
+import type { EmbedPayload, GistMessage } from '../types';
 
-const embedStoreName = 'gist.web.embed';
+// One key holds the state for every embed on the browser, rather than a key per
+// embed: it keeps the store inspectable in one place, clearable in one call, and
+// stops embed ids from sprawling across the key space.
+const embedStateStoreName = 'gist.web.embeds';
 
 /** Attribute naming the container an embed renders into. */
 export const EMBED_TARGET_ATTRIBUTE = 'data-cio-embed';
@@ -26,19 +22,11 @@ const EMBED_PAYLOAD_SELECTOR = `script[type="application/json"][${EMBED_PAYLOAD_
 // a grace period before we give up on it.
 const TARGET_WAIT_MS = 10000;
 
-// Frequency keys are scoped to the embed, never to the user: every other local
-// store in the SDK derives its key from getHashedUserToken(), which is null on
-// a page with no identified or guest user — exactly the page an embed runs on.
-function hiddenKey(embedId: string): string {
-  return `${embedStoreName}.${embedId}.hidden`;
-}
-
-function shownKey(embedId: string): string {
-  return `${embedStoreName}.${embedId}.shown`;
-}
-
-function sessionShownKey(embedId: string): string {
-  return `${embedStoreName}.${embedId}.sessionShown`;
+interface EmbedState {
+  /** Embeds that must never render again on this browser. */
+  neverShow: string[];
+  /** Embeds hidden until a moment in time, as epoch milliseconds. */
+  hideUntil: Record<string, number>;
 }
 
 // Embeds currently occupying their container. Guards a loader that runs twice, a
@@ -47,86 +35,131 @@ function sessionShownKey(embedId: string): string {
 // embed whose container a route change replaced can be mounted again.
 const renderedEmbeds = new Set<string>();
 
-// Embeds the visitor closed during this page load. Held in memory rather than
-// in the store so an "always" embed still stays closed once dismissed without
+// Embeds the visitor closed during this page load. Held in memory rather than in
+// the store so an "always" embed still stays closed once dismissed without
 // persisting anything about the visitor; a genuine page load clears it.
 const dismissedEmbeds = new Set<string>();
 
+function emptyState(): EmbedState {
+  return { neverShow: [], hideUntil: {} };
+}
+
+// Lapsed hideUntil entries are dropped on the way out, so the record cannot grow
+// without bound and callers never have to reason about stale timestamps.
+function readEmbedState(): EmbedState {
+  const stored = getKeyFromLocalStore(embedStateStoreName) as Partial<EmbedState> | null;
+  if (!stored) return emptyState();
+
+  const now = Date.now();
+  const hideUntil: Record<string, number> = {};
+  for (const [embedId, until] of Object.entries(stored.hideUntil ?? {})) {
+    if (typeof until === 'number' && until > now) {
+      hideUntil[embedId] = until;
+    }
+  }
+
+  return {
+    neverShow: Array.isArray(stored.neverShow) ? stored.neverShow.filter((id) => !!id) : [],
+    hideUntil,
+  };
+}
+
+// Read immediately before every write: the record is shared by every embed on
+// the page, so a stale copy held across an await would drop another embed's
+// state.
+function updateEmbedState(mutate: (state: EmbedState) => void): void {
+  const state = readEmbedState();
+  mutate(state);
+  setKeyToLocalStore(embedStateStoreName, state);
+}
+
 /**
- * Whether the embed's frequency rule allows it to render now. Any storage
- * failure resolves to "render": an embed is page content, and losing frequency
- * capping is a smaller failure than leaving a hole in the customer's layout.
+ * Whether the embed may render now. Deliberately frequency-agnostic: the rule
+ * decides what gets written, and this only reports what was. Any storage failure
+ * resolves to "render" — an embed is page content, and losing frequency capping
+ * is a smaller failure than leaving a hole in the customer's layout.
  */
-export function shouldRenderEmbed(embedId: string, properties: ResolvedMessageProperties): boolean {
-  // A close always wins for the rest of the page load, whatever the rule says
-  // about the next one — re-mounting must not reopen what the visitor shut.
+export function shouldRenderEmbed(embedId: string): boolean {
   if (dismissedEmbeds.has(embedId)) {
     return false;
   }
 
-  switch (properties.embedFrequency) {
-    case 'untilDismissed':
-      return getKeyFromLocalStore(hiddenKey(embedId)) === null;
-    case 'onceEver':
-      return getKeyFromLocalStore(shownKey(embedId)) === null;
-    case 'oncePerSession':
-      return getKeyFromSessionStore(sessionShownKey(embedId)) === null;
-    case 'always':
-    default:
-      // Deliberately touches no storage, so an "always" embed needs no consent
-      // disclosure on the host page.
-      return true;
+  const state = readEmbedState();
+  if (state.neverShow.includes(embedId)) {
+    return false;
   }
+  // Lapsed entries were pruned on read, so any survivor is still in force.
+  return state.hideUntil[embedId] === undefined;
 }
 
+/** Records a render. Only `onceEver` has anything to remember. */
 export function recordEmbedShown(message: GistMessage): void {
   const embedId = message.embedId;
   if (!embedId) return;
 
-  const properties = resolveMessageProperties(message);
-  if (properties.embedFrequency === 'onceEver') {
-    setKeyToLocalStore(shownKey(embedId), true);
-    log(`Embed ${embedId} recorded as shown.`);
-  } else if (properties.embedFrequency === 'oncePerSession') {
-    setKeyToSessionStore(sessionShownKey(embedId), 'true');
-    log(`Embed ${embedId} recorded as shown for this session.`);
-  }
+  if (resolveMessageProperties(message).embedFrequency !== 'onceEver') return;
+
+  updateEmbedState((state) => {
+    if (!state.neverShow.includes(embedId)) {
+      state.neverShow.push(embedId);
+    }
+  });
+  log(`Embed ${embedId} shown once and will not render again.`);
 }
 
 /**
- * Records a close. `hideForMinutes` comes from a gist://snooze action and hides
- * the embed for that long whatever its frequency rule; without it, only an
- * `untilDismissed` embed persists the close — every other mode is expected back
- * on the next page load.
+ * Records that the visitor closed the message. Only `untilDismissed` persists
+ * it; every other rule expects the embed back on the next page load, so the
+ * close is remembered in memory for this one only.
  */
-export function recordEmbedHidden(message: GistMessage, hideForMinutes?: number): void {
+export function recordEmbedDismissed(message: GistMessage): void {
   const embedId = message.embedId;
   if (!embedId) return;
 
   dismissedEmbeds.add(embedId);
 
   const properties = resolveMessageProperties(message);
-  const snoozed = hideForMinutes !== undefined && hideForMinutes > 0;
-  if (!snoozed && properties.embedFrequency !== 'untilDismissed') return;
+  if (properties.embedFrequency !== 'untilDismissed') return;
 
-  const minutes = snoozed ? hideForMinutes : properties.embedReshowAfterMinutes;
-  // No minutes means "permanently": setKeyToLocalStore's default expiry is the
-  // longest the store supports, and a lapsed key simply makes the embed
-  // eligible again.
-  const expiry = minutes > 0 ? new Date(Date.now() + minutes * 60 * 1000) : null;
-  setKeyToLocalStore(hiddenKey(embedId), true, expiry);
-  log(
-    minutes > 0
-      ? `Embed ${embedId} hidden for ${minutes} minute(s).`
-      : `Embed ${embedId} hidden until its state is cleared.`
-  );
+  const minutes = properties.embedReshowAfterMinutes;
+  if (minutes > 0) {
+    const until = Date.now() + minutes * 60 * 1000;
+    updateEmbedState((state) => {
+      state.hideUntil[embedId] = until;
+    });
+    log(`Embed ${embedId} dismissed, hidden for ${minutes} minute(s).`);
+  } else {
+    updateEmbedState((state) => {
+      if (!state.neverShow.includes(embedId)) {
+        state.neverShow.push(embedId);
+      }
+    });
+    log(`Embed ${embedId} dismissed and will not render again.`);
+  }
 }
 
-/** Forgets an embed's frequency state. For QA and for host-app "show me again" affordances. */
+/**
+ * Hides the embed until a later moment. A snooze is not a dismissal — the
+ * visitor asked to see it again — so it never marks the embed as never-show and
+ * never records a dismissal, whatever the frequency rule is.
+ */
+export function snoozeEmbed(message: GistMessage, minutes: number): void {
+  const embedId = message.embedId;
+  if (!embedId || !(minutes > 0)) return;
+
+  const until = Date.now() + minutes * 60 * 1000;
+  updateEmbedState((state) => {
+    state.hideUntil[embedId] = until;
+  });
+  log(`Embed ${embedId} snoozed for ${minutes} minute(s).`);
+}
+
+/** Forgets an embed's stored state. For QA and host "show me again" affordances. */
 export function clearEmbedState(embedId: string): void {
-  clearKeyFromLocalStore(hiddenKey(embedId));
-  clearKeyFromLocalStore(shownKey(embedId));
-  clearKeyFromSessionStore(sessionShownKey(embedId));
+  updateEmbedState((state) => {
+    state.neverShow = state.neverShow.filter((id) => id !== embedId);
+    delete state.hideUntil[embedId];
+  });
   renderedEmbeds.delete(embedId);
   dismissedEmbeds.delete(embedId);
   log(`Embed ${embedId} state cleared.`);
@@ -135,8 +168,8 @@ export function clearEmbedState(embedId: string): void {
 /**
  * Releases an embed's container claim once its message has been torn down, so a
  * host that re-mounts after replacing the markup (an SPA route change, say) can
- * render it again. Whether it *should* render is still the frequency rule's
- * call — a dismissal outlives the claim.
+ * render it again. Whether it *should* render is still the stored state's call —
+ * a dismissal outlives the claim.
  */
 export function releaseEmbedClaim(message: GistMessage): void {
   if (message.embedId) {
@@ -179,10 +212,17 @@ export async function renderEmbed(payload: EmbedPayload): Promise<string | null>
   if (payload.display) {
     message.properties.gist.embed = { ...payload.display, ...message.properties.gist.embed };
   }
+  // An embed is pinned inside the host's element. The payload is host-supplied,
+  // so the display fields that would take the message out of that element are
+  // cleared here, at the boundary, rather than clamped at each point downstream.
+  message.overlay = false;
+  message.tooltipPosition = undefined;
+  message.position = null;
+  delete message.properties.gist.tooltipPosition;
+  delete message.properties.gist.position;
 
-  const properties = resolveMessageProperties(message);
-  if (!shouldRenderEmbed(embedId, properties)) {
-    log(`Embed ${embedId} suppressed by its "${properties.embedFrequency}" frequency rule.`);
+  if (!shouldRenderEmbed(embedId)) {
+    log(`Embed ${embedId} is suppressed by its stored state.`);
     return null;
   }
 
@@ -237,24 +277,26 @@ function parseEmbedPayload(script: Element): EmbedPayload | null {
 }
 
 /**
- * Renders every embed payload declared on the page. Safe to call repeatedly —
- * already-rendered embeds are skipped — so a host can call it again after
- * injecting new markup.
+ * The embed payloads a page declares, without rendering or initializing
+ * anything — so a caller can decide whether there is any work to do (and which
+ * site the work belongs to) before setting the SDK up.
  */
-export async function mountEmbedsFromDom(): Promise<string[]> {
-  const scripts = Array.from(document.querySelectorAll(EMBED_PAYLOAD_SELECTOR));
-  if (scripts.length === 0) {
-    return [];
-  }
-
-  log(`Found ${scripts.length} embed payload(s) on the page.`);
-  const payloads = scripts
+export function readEmbedPayloads(): EmbedPayload[] {
+  return [...document.querySelectorAll(EMBED_PAYLOAD_SELECTOR)]
     .map(parseEmbedPayload)
     .filter((payload): payload is EmbedPayload => payload !== null);
+}
 
-  // Rendered concurrently: each embed waits for its own container to appear, so
-  // one container that never arrives would otherwise hold up every embed behind
-  // it for the whole timeout.
+/**
+ * Renders the given payloads. Safe to call repeatedly — already-rendered embeds
+ * are skipped — so a host can call it again after injecting new markup.
+ *
+ * Rendered concurrently: each embed waits for its own container to appear, so
+ * one container that never arrives would otherwise hold up every embed behind it
+ * for the whole timeout.
+ */
+export async function renderEmbeds(payloads: EmbedPayload[]): Promise<string[]> {
+  log(`Rendering ${payloads.length} embed(s).`);
   const instanceIds = await Promise.all(payloads.map((payload) => renderEmbed(payload)));
   return instanceIds.filter((instanceId): instanceId is string => instanceId !== null);
 }

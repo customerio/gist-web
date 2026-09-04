@@ -2,57 +2,47 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   shouldRenderEmbed,
   recordEmbedShown,
-  recordEmbedHidden,
+  recordEmbedDismissed,
+  snoozeEmbed,
   clearEmbedState,
   releaseEmbedClaim,
   renderEmbed,
-  mountEmbedsFromDom,
+  renderEmbeds,
+  readEmbedPayloads,
   resetRenderedEmbeds,
 } from './embed-manager';
 import { embedMessage } from './message-manager';
-import { resolveMessageProperties } from './gist-properties-manager';
-import {
-  setKeyToLocalStore,
-  getKeyFromLocalStore,
-  setKeyToSessionStore,
-  getKeyFromSessionStore,
-  clearKeyFromLocalStore,
-  clearKeyFromSessionStore,
-} from '../utilities/local-storage';
+import { setKeyToLocalStore, getKeyFromLocalStore } from '../utilities/local-storage';
 import type { EmbedDisplayConfig, EmbedPayload, GistMessage } from '../types';
 
 vi.mock('../utilities/log', () => ({ log: vi.fn() }));
 
 // localStorage is unavailable in this test environment, so the store is mocked
 // with an in-memory stand-in that still round-trips values.
-const localValues = new Map<string, unknown>();
-const sessionValues = new Map<string, string>();
+const stored = new Map<string, unknown>();
 
 vi.mock('../utilities/local-storage', () => ({
   setKeyToLocalStore: vi.fn((key: string, value: unknown) => {
-    localValues.set(key, value);
+    stored.set(key, value);
   }),
-  getKeyFromLocalStore: vi.fn((key: string) => localValues.get(key) ?? null),
-  clearKeyFromLocalStore: vi.fn((key: string) => {
-    localValues.delete(key);
-  }),
-  setKeyToSessionStore: vi.fn((key: string, value: string) => {
-    sessionValues.set(key, value);
-  }),
-  getKeyFromSessionStore: vi.fn((key: string) => sessionValues.get(key) ?? null),
-  clearKeyFromSessionStore: vi.fn((key: string) => {
-    sessionValues.delete(key);
-  }),
+  getKeyFromLocalStore: vi.fn((key: string) => stored.get(key) ?? null),
 }));
 
 vi.mock('./message-manager', () => ({
   embedMessage: vi.fn((message: GistMessage) => ({ ...message, instanceId: 'instance-1' })),
 }));
 
+const STORE = 'gist.web.embeds';
 const embedId = 'emb_1';
-const hiddenKey = `gist.web.embed.${embedId}.hidden`;
-const shownKey = `gist.web.embed.${embedId}.shown`;
-const sessionShownKey = `gist.web.embed.${embedId}.sessionShown`;
+
+function state(): { neverShow: string[]; hideUntil: Record<string, number> } {
+  return (
+    (stored.get(STORE) as { neverShow: string[]; hideUntil: Record<string, number> }) ?? {
+      neverShow: [],
+      hideUntil: {},
+    }
+  );
+}
 
 function makeMessage(embed?: EmbedDisplayConfig, id: string = embedId): GistMessage {
   return {
@@ -66,68 +56,77 @@ function makePayload(overrides: Partial<EmbedPayload> = {}): EmbedPayload {
   return { v: 1, embedId, message: makeMessage(), ...overrides };
 }
 
-function propsFor(embed?: EmbedDisplayConfig) {
-  return resolveMessageProperties(makeMessage(embed));
-}
-
 describe('embed-manager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localValues.clear();
-    sessionValues.clear();
+    stored.clear();
     resetRenderedEmbeds();
     document.body.innerHTML = '';
   });
 
+  describe('stored state', () => {
+    it('keeps every embed in one key rather than a key per embed', () => {
+      recordEmbedShown(makeMessage({ frequency: 'onceEver' }, 'emb_a'));
+      recordEmbedShown(makeMessage({ frequency: 'onceEver' }, 'emb_b'));
+      snoozeEmbed(makeMessage(undefined, 'emb_c'), 30);
+
+      expect([...stored.keys()]).toEqual([STORE]);
+      expect(state().neverShow).toEqual(['emb_a', 'emb_b']);
+      expect(Object.keys(state().hideUntil)).toEqual(['emb_c']);
+    });
+
+    it('drops lapsed hide-until entries when read', () => {
+      stored.set(STORE, { neverShow: [], hideUntil: { [embedId]: Date.now() - 1000 } });
+
+      expect(shouldRenderEmbed(embedId)).toBe(true);
+
+      // The prune is persisted by the next write, not by the read itself.
+      snoozeEmbed(makeMessage(undefined, 'emb_other'), 5);
+      expect(state().hideUntil[embedId]).toBeUndefined();
+    });
+
+    it("does not lose another embed's state when writing", () => {
+      snoozeEmbed(makeMessage(undefined, 'emb_a'), 10);
+      recordEmbedShown(makeMessage({ frequency: 'onceEver' }, 'emb_b'));
+
+      expect(state().neverShow).toEqual(['emb_b']);
+      expect(state().hideUntil['emb_a']).toBeGreaterThan(Date.now());
+    });
+
+    it('survives a store that returns nothing', () => {
+      vi.mocked(getKeyFromLocalStore).mockReturnValueOnce(null);
+      expect(shouldRenderEmbed(embedId)).toBe(true);
+    });
+  });
+
   describe('shouldRenderEmbed', () => {
-    it('always renders and touches no storage', () => {
-      expect(shouldRenderEmbed(embedId, propsFor({ frequency: 'always' }))).toBe(true);
-      expect(getKeyFromLocalStore).not.toHaveBeenCalled();
-      expect(getKeyFromSessionStore).not.toHaveBeenCalled();
+    it('renders when nothing has been recorded', () => {
+      expect(shouldRenderEmbed(embedId)).toBe(true);
+      expect(setKeyToLocalStore).not.toHaveBeenCalled();
     });
 
-    it('defaults to always when no embed config is present', () => {
-      expect(shouldRenderEmbed(embedId, propsFor())).toBe(true);
+    it('suppresses an embed on the never-show list', () => {
+      stored.set(STORE, { neverShow: [embedId], hideUntil: {} });
+      expect(shouldRenderEmbed(embedId)).toBe(false);
     });
 
-    it('suppresses an untilDismissed embed once it has been hidden', () => {
-      const properties = propsFor({ frequency: 'untilDismissed' });
-      expect(shouldRenderEmbed(embedId, properties)).toBe(true);
-      localValues.set(hiddenKey, true);
-      expect(shouldRenderEmbed(embedId, properties)).toBe(false);
-    });
-
-    it('suppresses an onceEver embed once it has been shown', () => {
-      const properties = propsFor({ frequency: 'onceEver' });
-      expect(shouldRenderEmbed(embedId, properties)).toBe(true);
-      localValues.set(shownKey, true);
-      expect(shouldRenderEmbed(embedId, properties)).toBe(false);
-    });
-
-    it('suppresses a oncePerSession embed once it has been shown this session', () => {
-      const properties = propsFor({ frequency: 'oncePerSession' });
-      expect(shouldRenderEmbed(embedId, properties)).toBe(true);
-      sessionValues.set(sessionShownKey, 'true');
-      expect(shouldRenderEmbed(embedId, properties)).toBe(false);
+    it('suppresses an embed hidden until a future moment', () => {
+      stored.set(STORE, { neverShow: [], hideUntil: { [embedId]: Date.now() + 60_000 } });
+      expect(shouldRenderEmbed(embedId)).toBe(false);
     });
   });
 
   describe('recordEmbedShown', () => {
-    it('records onceEver in local storage', () => {
+    it('marks a onceEver embed as never to be shown again', () => {
       recordEmbedShown(makeMessage({ frequency: 'onceEver' }));
-      expect(setKeyToLocalStore).toHaveBeenCalledWith(shownKey, true);
-    });
-
-    it('records oncePerSession in session storage', () => {
-      recordEmbedShown(makeMessage({ frequency: 'oncePerSession' }));
-      expect(setKeyToSessionStore).toHaveBeenCalledWith(sessionShownKey, 'true');
+      expect(state().neverShow).toEqual([embedId]);
+      expect(shouldRenderEmbed(embedId)).toBe(false);
     });
 
     it('records nothing for always or untilDismissed', () => {
       recordEmbedShown(makeMessage({ frequency: 'always' }));
       recordEmbedShown(makeMessage({ frequency: 'untilDismissed' }));
       expect(setKeyToLocalStore).not.toHaveBeenCalled();
-      expect(setKeyToSessionStore).not.toHaveBeenCalled();
     });
 
     it('ignores a message that is not an embed', () => {
@@ -136,38 +135,69 @@ describe('embed-manager', () => {
     });
   });
 
-  describe('recordEmbedHidden', () => {
-    it('persists a dismissal indefinitely for untilDismissed', () => {
-      recordEmbedHidden(makeMessage({ frequency: 'untilDismissed' }));
-      expect(setKeyToLocalStore).toHaveBeenCalledWith(hiddenKey, true, null);
+  describe('recordEmbedDismissed', () => {
+    it('marks an untilDismissed embed as never to be shown again', () => {
+      recordEmbedDismissed(makeMessage({ frequency: 'untilDismissed' }));
+      expect(state().neverShow).toEqual([embedId]);
     });
 
-    it('persists a dismissal for reshowAfterMinutes when set', () => {
-      recordEmbedHidden(makeMessage({ frequency: 'untilDismissed', reshowAfterMinutes: 30 }));
-      const [, , expiry] = vi.mocked(setKeyToLocalStore).mock.calls[0];
-      const expected = Date.now() + 30 * 60 * 1000;
-      expect((expiry as Date).getTime()).toBeGreaterThan(expected - 5000);
-      expect((expiry as Date).getTime()).toBeLessThanOrEqual(expected + 5000);
+    it('hides an untilDismissed embed for reshowAfterMinutes when set', () => {
+      recordEmbedDismissed(makeMessage({ frequency: 'untilDismissed', reshowAfterMinutes: 30 }));
+
+      expect(state().neverShow).toEqual([]);
+      expect(state().hideUntil[embedId]).toBeGreaterThan(Date.now() + 29 * 60 * 1000);
     });
 
-    it('forgets the close for an always embed', () => {
-      recordEmbedHidden(makeMessage({ frequency: 'always' }));
+    it('persists nothing for an always embed but keeps it closed for this page load', () => {
+      const message = makeMessage({ frequency: 'always' });
+      recordEmbedDismissed(message);
+
       expect(setKeyToLocalStore).not.toHaveBeenCalled();
-    });
-
-    it('honours a snooze duration whatever the frequency rule', () => {
-      recordEmbedHidden(makeMessage({ frequency: 'always' }), 15);
-      const [key, , expiry] = vi.mocked(setKeyToLocalStore).mock.calls[0];
-      expect(key).toBe(hiddenKey);
-      expect((expiry as Date).getTime()).toBeGreaterThan(Date.now() + 14 * 60 * 1000);
+      expect(shouldRenderEmbed(embedId)).toBe(false);
     });
   });
 
-  it('clearEmbedState forgets every stored key for the embed', () => {
+  describe('snoozeEmbed', () => {
+    it('hides the embed until the snooze lapses, whatever the frequency rule', () => {
+      snoozeEmbed(makeMessage({ frequency: 'always' }), 60);
+
+      expect(state().hideUntil[embedId]).toBeGreaterThan(Date.now() + 59 * 60 * 1000);
+      expect(shouldRenderEmbed(embedId)).toBe(false);
+    });
+
+    it('still suppresses the embed on a later page load', () => {
+      snoozeEmbed(makeMessage({ frequency: 'always' }), 60);
+
+      // A new page load keeps the store and forgets the in-memory sets.
+      resetRenderedEmbeds();
+
+      expect(shouldRenderEmbed(embedId)).toBe(false);
+    });
+
+    it('is not a dismissal, so it never marks the embed as never-show', () => {
+      snoozeEmbed(makeMessage({ frequency: 'untilDismissed' }), 60);
+      expect(state().neverShow).toEqual([]);
+    });
+
+    it('ignores a missing or non-positive duration', () => {
+      snoozeEmbed(makeMessage(), 0);
+      snoozeEmbed(makeMessage(), -5);
+      expect(setKeyToLocalStore).not.toHaveBeenCalled();
+    });
+  });
+
+  it('clearEmbedState forgets the embed everywhere', () => {
+    stored.set(STORE, {
+      neverShow: [embedId, 'emb_other'],
+      hideUntil: { [embedId]: Date.now() + 60_000 },
+    });
+    recordEmbedDismissed(makeMessage({ frequency: 'always' }));
+
     clearEmbedState(embedId);
-    expect(clearKeyFromLocalStore).toHaveBeenCalledWith(hiddenKey);
-    expect(clearKeyFromLocalStore).toHaveBeenCalledWith(shownKey);
-    expect(clearKeyFromSessionStore).toHaveBeenCalledWith(sessionShownKey);
+
+    expect(state().neverShow).toEqual(['emb_other']);
+    expect(state().hideUntil[embedId]).toBeUndefined();
+    expect(shouldRenderEmbed(embedId)).toBe(true);
   });
 
   describe('renderEmbed', () => {
@@ -212,6 +242,23 @@ describe('embed-manager', () => {
       expect(payload.message.properties?.gist?.embed?.frequency).toBe('untilDismissed');
     });
 
+    it('pins the message inside its container, whatever display the payload asks for', async () => {
+      document.body.innerHTML = `<div data-cio-embed="${embedId}"></div>`;
+
+      const message = makeMessage();
+      message.tooltipPosition = 'top';
+      message.overlay = true;
+      message.properties!.gist!.tooltipPosition = 'top';
+      message.properties!.gist!.position = 'center';
+
+      await renderEmbed(makePayload({ message }));
+
+      expect(message.tooltipPosition).toBeUndefined();
+      expect(message.overlay).toBe(false);
+      expect(message.properties?.gist?.tooltipPosition).toBeUndefined();
+      expect(message.properties?.gist?.position).toBeUndefined();
+    });
+
     it('skips a payload with no message html', async () => {
       document.body.innerHTML = `<div data-cio-embed="${embedId}"></div>`;
 
@@ -229,15 +276,11 @@ describe('embed-manager', () => {
       expect(embedMessage).not.toHaveBeenCalled();
     });
 
-    it('skips an embed suppressed by its frequency rule', async () => {
+    it('skips an embed suppressed by its stored state', async () => {
       document.body.innerHTML = `<div data-cio-embed="${embedId}"></div>`;
-      localValues.set(hiddenKey, true);
+      stored.set(STORE, { neverShow: [embedId], hideUntil: {} });
 
-      const instanceId = await renderEmbed(
-        makePayload({ message: makeMessage({ frequency: 'untilDismissed' }) })
-      );
-
-      expect(instanceId).toBeNull();
+      expect(await renderEmbed(makePayload())).toBeNull();
       expect(embedMessage).not.toHaveBeenCalled();
     });
 
@@ -255,8 +298,7 @@ describe('embed-manager', () => {
 
       expect(await renderEmbed(makePayload({ message }))).toBe('instance-1');
 
-      // What a route change that replaced the container does: the message is
-      // torn down, so a re-mount has to be able to render it again.
+      // What a route change that replaced the container does.
       releaseEmbedClaim(message);
       document.body.innerHTML = `<div data-cio-embed="${embedId}"></div>`;
 
@@ -270,7 +312,7 @@ describe('embed-manager', () => {
 
       expect(await renderEmbed(makePayload({ message }))).toBe('instance-1');
 
-      recordEmbedHidden(message);
+      recordEmbedDismissed(message);
       releaseEmbedClaim(message);
       document.body.innerHTML = `<div data-cio-embed="${embedId}"></div>`;
 
@@ -306,52 +348,51 @@ describe('embed-manager', () => {
     });
   });
 
-  describe('mountEmbedsFromDom', () => {
+  describe('readEmbedPayloads', () => {
     function payloadBlock(id: string, payload: unknown): string {
       return `<div data-cio-embed="${id}"></div>
         <script type="application/json" data-cio-embed-payload="${id}">${JSON.stringify(payload)}</script>`;
     }
 
-    it('renders every payload block declared on the page', async () => {
+    it('reads every payload block without initializing or rendering anything', () => {
       document.body.innerHTML =
         payloadBlock('emb_a', { embedId: 'emb_a', message: makeMessage(undefined, 'emb_a') }) +
         payloadBlock('emb_b', { embedId: 'emb_b', message: makeMessage(undefined, 'emb_b') });
 
-      const instanceIds = await mountEmbedsFromDom();
+      const payloads = readEmbedPayloads();
 
-      expect(instanceIds).toHaveLength(2);
-      expect(embedMessage).toHaveBeenCalledTimes(2);
-    });
-
-    it('returns nothing when the page declares no embeds', async () => {
-      expect(await mountEmbedsFromDom()).toEqual([]);
+      expect(payloads.map((p) => p.embedId)).toEqual(['emb_a', 'emb_b']);
       expect(embedMessage).not.toHaveBeenCalled();
     });
 
-    it('takes the embed id from the attribute when the payload omits it', async () => {
-      document.body.innerHTML = payloadBlock('emb_c', {
-        message: makeMessage(undefined, 'emb_c'),
-      });
-
-      await mountEmbedsFromDom();
-
-      expect(embedMessage).toHaveBeenCalledWith(
-        expect.objectContaining({ embedId: 'emb_c' }),
-        '[data-cio-embed="emb_c"]'
-      );
+    it('returns nothing when the page declares no embeds', () => {
+      expect(readEmbedPayloads()).toEqual([]);
     });
 
-    it('does not let one missing container hold up the others', async () => {
-      // Only emb_f has a container; emb_e's would otherwise block it for the
-      // whole target timeout.
-      document.body.innerHTML =
-        `<script type="application/json" data-cio-embed-payload="emb_e">${JSON.stringify({
-          embedId: 'emb_e',
-          message: makeMessage(undefined, 'emb_e'),
-        })}</script>` +
-        payloadBlock('emb_f', { embedId: 'emb_f', message: makeMessage(undefined, 'emb_f') });
+    it('takes the embed id from the attribute when the payload omits it', () => {
+      document.body.innerHTML = payloadBlock('emb_c', { message: makeMessage(undefined, 'emb_c') });
 
-      const pending = mountEmbedsFromDom();
+      expect(readEmbedPayloads()[0].embedId).toBe('emb_c');
+    });
+
+    it('skips a malformed payload without losing the rest of the page', () => {
+      document.body.innerHTML =
+        `<script type="application/json" data-cio-embed-payload="emb_bad">{ not json </script>` +
+        payloadBlock('emb_d', { embedId: 'emb_d', message: makeMessage(undefined, 'emb_d') });
+
+      expect(readEmbedPayloads().map((p) => p.embedId)).toEqual(['emb_d']);
+    });
+  });
+
+  describe('renderEmbeds', () => {
+    it('does not let one missing container hold up the others', async () => {
+      document.body.innerHTML = `<div data-cio-embed="emb_f"></div>`;
+      const payloads = [
+        { embedId: 'emb_e', message: makeMessage(undefined, 'emb_e') },
+        { embedId: 'emb_f', message: makeMessage(undefined, 'emb_f') },
+      ];
+
+      const pending = renderEmbeds(payloads);
       await vi.waitFor(() => expect(embedMessage).toHaveBeenCalledTimes(1));
 
       expect(embedMessage).toHaveBeenCalledWith(
@@ -359,23 +400,11 @@ describe('embed-manager', () => {
         '[data-cio-embed="emb_f"]'
       );
 
-      // Let the straggler resolve so the mount settles rather than leaving its
-      // wait dangling for the rest of the run.
+      // Let the straggler resolve so the mount settles.
       const late = document.createElement('div');
       late.setAttribute('data-cio-embed', 'emb_e');
       document.body.appendChild(late);
       expect(await pending).toHaveLength(2);
-    });
-
-    it('skips a malformed payload without failing the rest of the page', async () => {
-      document.body.innerHTML =
-        `<script type="application/json" data-cio-embed-payload="emb_bad">{ not json </script>` +
-        payloadBlock('emb_d', { embedId: 'emb_d', message: makeMessage(undefined, 'emb_d') });
-
-      const instanceIds = await mountEmbedsFromDom();
-
-      expect(instanceIds).toEqual(['instance-1']);
-      expect(embedMessage).toHaveBeenCalledTimes(1);
     });
   });
 });

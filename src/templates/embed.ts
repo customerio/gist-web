@@ -45,7 +45,6 @@ export function embedHTMLTemplate(
                 height: 100%;
                 width: 100%;
                 border: none;
-                color-scheme: ${colorSchemeCss};
             }
             #x-gist-top.${elementId},
             #x-gist-bottom.${elementId},
@@ -71,7 +70,7 @@ export function embedHTMLTemplate(
             }
         </style>
         <div class="gist-embed-container">
-            <iframe id="${elementId}" class="gist-frame" src="${url}"></iframe>
+            <iframe id="${elementId}" class="gist-frame" style="color-scheme: ${colorSchemeCss};" src="${url}"></iframe>
         </div>
     </div>`;
   return template;

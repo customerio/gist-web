@@ -51,16 +51,32 @@ injecting markup.
 | `always` (default) | Renders on every page load; closing hides it for that load only. Stores nothing. |
 | `untilDismissed`   | Once closed, stays hidden — permanently, or for `reshowAfterMinutes`.            |
 | `onceEver`         | Renders once per browser.                                                        |
-| `oncePerSession`   | Renders once per tab session.                                                    |
 
-State is stored per embed id in the page's own storage, and any storage failure
-resolves to "render" so a blocked store can never leave a hole in the layout.
-`Gist.resetEmbed(embedId)` forgets it.
+A snooze is not a dismissal: `gist://snooze?showIn=<minutes>` hides the message
+and shows it again once the time is up, whatever the frequency rule says.
+
+Every embed's state lives in one key, `gist.web.embeds`, holding the ids that
+must never render again and the ids hidden until a moment in time — so the whole
+lot clears in one call:
+
+```js
+localStorage.removeItem('gist.web.embeds'); // or Gist.resetEmbed(embedId) for one
+```
+
+Any storage failure resolves to "render", so a blocked store can never leave a
+hole in the customer's layout.
 
 Embed-only mode (`Gist.setup({ embedOnly: true })`) starts none of the delivery
 machinery: no user queue, SSE, guest session, inbox or preview session, and user
 tokens are ignored. Leave it unset on a page that also receives in-app messages —
-embeds and queue-delivered messages work side by side.
+embeds and queue-delivered messages work side by side. `Gist.mountEmbeds()`
+initializes this mode only when the page actually declares an embed, so a snippet
+can call it unconditionally without disabling in-app delivery.
+
+> **Note:** the wrapper the SDK injects around an inline message now uses
+> `.gist-embed` / `.gist-embed-container` classes rather than ids, so more than
+> one embed can share a page. Styles targeting `#gist-embed-container` need
+> updating to the class selector.
 
 ## 🧪 Development
 

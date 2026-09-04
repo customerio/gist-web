@@ -76,9 +76,8 @@ export interface StepDisplayConfig {
  *   Writes nothing to storage.
  * - `untilDismissed` — once closed, stay hidden (see `reshowAfterMinutes`).
  * - `onceEver` — render once per browser, then never again.
- * - `oncePerSession` — render once per tab session.
  */
-export type EmbedFrequency = 'always' | 'untilDismissed' | 'onceEver' | 'oncePerSession';
+export type EmbedFrequency = 'always' | 'untilDismissed' | 'onceEver';
 
 export interface EmbedDisplayConfig {
   frequency?: EmbedFrequency;
@@ -87,6 +86,7 @@ export interface EmbedDisplayConfig {
    * Zero or absent means the dismissal is permanent.
    */
   reshowAfterMinutes?: number;
+
   /**
    * Log the view to the Gist consumer API. Off by default: an embed has no
    * queue entry, and reporting is owned by the analytics layer above the SDK.

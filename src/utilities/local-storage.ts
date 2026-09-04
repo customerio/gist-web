@@ -88,35 +88,6 @@ export function setKeyToLocalStore(key: string, value: unknown, ttl: Date | null
   }
 }
 
-/**
- * Session-scoped storage, independent of the local/session switch getStorage()
- * makes for preview sessions. Used for per-tab embed frequency state, which has
- * to expire with the tab rather than on a clock.
- */
-export function setKeyToSessionStore(key: string, value: string): void {
-  try {
-    sessionStore().setItem(key, value);
-  } catch (e) {
-    log(`Error writing key ${key} to session storage: ${e}`);
-  }
-}
-
-export function getKeyFromSessionStore(key: string): string | null {
-  try {
-    return sessionStore().getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-export function clearKeyFromSessionStore(key: string): void {
-  try {
-    sessionStore().removeItem(key);
-  } catch {
-    /* ignore */
-  }
-}
-
 export function getKeyFromLocalStore(key: string): unknown | null {
   return checkKeyForExpiry(key);
 }

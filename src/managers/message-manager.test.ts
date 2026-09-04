@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { showMessage, embedMessage, hideMessage } from './message-manager';
+import { showMessage, embedMessage, hideMessage, resetMessage } from './message-manager';
 import type { GistMessage } from '../types';
 
 const mockGist = vi.hoisted(() => ({
@@ -99,7 +99,8 @@ vi.mock('./queue-manager', () => ({
 }));
 vi.mock('./embed-manager', () => ({
   recordEmbedShown: vi.fn(),
-  recordEmbedHidden: vi.fn(),
+  recordEmbedDismissed: vi.fn(),
+  snoozeEmbed: vi.fn(),
   releaseEmbedClaim: vi.fn(),
 }));
 vi.mock('./message-broadcast-manager', () => ({
@@ -1564,17 +1565,41 @@ describe('message-manager', () => {
 
     it('records the dismissal when the message is closed', async () => {
       await useEmbedProperties();
-      const { recordEmbedHidden } = await import('./embed-manager');
+      const { recordEmbedDismissed } = await import('./embed-manager');
 
       const message = makeEmbed();
       await mountAndDispatch(message, 'tap', { action: 'gist://close', name: 'close' });
 
-      expect(recordEmbedHidden).toHaveBeenCalledWith(message);
+      expect(recordEmbedDismissed).toHaveBeenCalledWith(message);
     });
 
-    it('turns a snooze into a timed hide against the embed state', async () => {
+    it('records the dismissal when the host calls hideMessage directly', async () => {
       await useEmbedProperties();
-      const { recordEmbedHidden } = await import('./embed-manager');
+      const { recordEmbedDismissed } = await import('./embed-manager');
+
+      const message = makeEmbed();
+      await hideMessage(message);
+
+      expect(recordEmbedDismissed).toHaveBeenCalledWith(message);
+    });
+
+    it('records the dismissal on the system tap path', async () => {
+      await useEmbedProperties();
+      const { recordEmbedDismissed } = await import('./embed-manager');
+
+      const message = makeEmbed();
+      await mountAndDispatch(message, 'tap', {
+        action: 'cio://deeplink',
+        name: 'cta',
+        system: true,
+      });
+
+      expect(recordEmbedDismissed).toHaveBeenCalledWith(message);
+    });
+
+    it('treats a snooze as a timed hide and never as a dismissal', async () => {
+      await useEmbedProperties();
+      const { snoozeEmbed, recordEmbedDismissed } = await import('./embed-manager');
       const { setMessageSnoozed } = await import('./message-user-queue-manager');
 
       const message = makeEmbed();
@@ -1583,8 +1608,19 @@ describe('message-manager', () => {
         name: 'later',
       });
 
-      expect(recordEmbedHidden).toHaveBeenCalledWith(message, 15);
+      expect(snoozeEmbed).toHaveBeenCalledWith(message, 15);
+      expect(recordEmbedDismissed).not.toHaveBeenCalled();
       expect(setMessageSnoozed).not.toHaveBeenCalled();
+    });
+
+    it('releases the container claim on every teardown path', async () => {
+      await useEmbedProperties();
+      const { releaseEmbedClaim } = await import('./embed-manager');
+
+      const message = makeEmbed();
+      await resetMessage(message);
+
+      expect(releaseEmbedClaim).toHaveBeenCalledWith(message);
     });
 
     it('never re-renders itself out of its container on a step change', async () => {

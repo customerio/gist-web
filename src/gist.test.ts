@@ -64,7 +64,8 @@ vi.mock('./managers/inbox-config-manager', () => ({
 }));
 vi.mock('./managers/embed-manager', () => ({
   renderEmbed: vi.fn(() => Promise.resolve('instance-1')),
-  mountEmbedsFromDom: vi.fn(() => Promise.resolve(['instance-1'])),
+  renderEmbeds: vi.fn(() => Promise.resolve(['instance-1'])),
+  readEmbedPayloads: vi.fn(() => []),
   clearEmbedState: vi.fn(),
 }));
 
@@ -104,7 +105,12 @@ import {
   removeInboxMessage,
 } from './managers/inbox-message-manager';
 import { isInboxEnabled, initializeInboxFromCache } from './managers/inbox-config-manager';
-import { renderEmbed, mountEmbedsFromDom, clearEmbedState } from './managers/embed-manager';
+import {
+  renderEmbed,
+  renderEmbeds,
+  readEmbedPayloads,
+  clearEmbedState,
+} from './managers/embed-manager';
 
 function resetGist() {
   Gist.initialized = false;
@@ -713,11 +719,48 @@ describe('Gist', () => {
       expect(renderEmbed).toHaveBeenCalled();
     });
 
-    it('mountEmbeds renders every payload declared on the page', async () => {
+    it('mountEmbeds renders the payloads the page declares', async () => {
+      const payloads = [{ embedId: 'emb_1', message: { messageId: 'm-1' } }];
+      vi.mocked(readEmbedPayloads).mockReturnValue(payloads);
+
       const instanceIds = await Gist.mountEmbeds();
 
-      expect(mountEmbedsFromDom).toHaveBeenCalled();
+      expect(renderEmbeds).toHaveBeenCalledWith(payloads);
       expect(instanceIds).toEqual(['instance-1']);
+    });
+
+    it('mountEmbeds does not initialize the SDK on a page with no embeds', async () => {
+      vi.mocked(readEmbedPayloads).mockReturnValue([]);
+
+      expect(await Gist.mountEmbeds()).toEqual([]);
+      expect(Gist.initialized).toBe(false);
+      expect(renderEmbeds).not.toHaveBeenCalled();
+    });
+
+    it('mountEmbeds takes the site id from the first payload that carries one', async () => {
+      vi.mocked(readEmbedPayloads).mockReturnValue([
+        { embedId: 'emb_1', message: { messageId: 'm-1' } },
+        { embedId: 'emb_2', siteId: 'payload-site', message: { messageId: 'm-2' } },
+      ]);
+
+      await Gist.mountEmbeds();
+
+      expect(Gist.config.siteId).toBe('payload-site');
+      expect(Gist.config.embedOnly).toBe(true);
+    });
+
+    it('warns when a real setup arrives after an embed-only auto-init', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.mocked(readEmbedPayloads).mockReturnValue([
+        { embedId: 'emb_1', message: { messageId: 'm-1' } },
+      ]);
+
+      await Gist.mountEmbeds();
+      await Gist.setup(baseConfig());
+
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('embed-only mode'));
+      expect(startQueueListener).not.toHaveBeenCalled();
+      warn.mockRestore();
     });
 
     it('resetEmbed clears the stored frequency state', () => {

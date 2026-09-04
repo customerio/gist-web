@@ -26,7 +26,12 @@ import { findElement } from '../utilities/dom';
 import { positions, addPageElement } from './page-component-manager';
 import { getAllCustomAttributes } from './custom-attribute-manager';
 import { checkMessageQueue } from './queue-manager';
-import { recordEmbedShown, recordEmbedHidden, releaseEmbedClaim } from './embed-manager';
+import {
+  recordEmbedShown,
+  recordEmbedDismissed,
+  snoozeEmbed,
+  releaseEmbedClaim,
+} from './embed-manager';
 import {
   isMessageBroadcast,
   markBroadcastAsSeen,
@@ -207,9 +212,28 @@ export function embedMessage(message: GistMessage, elementId: string): GistMessa
   return loadMessageComponent(message, elementId, savedStep);
 }
 
-export async function hideMessage(message: GistMessage): Promise<void> {
+/**
+ * Why a message is being taken off the page. Only a dismissal is the visitor
+ * closing it: a snooze is a request to see it again later, and a displacement
+ * makes room for another message. The distinction decides whether an embed's
+ * closed state is recorded.
+ */
+export type HideReason = 'dismissed' | 'snoozed' | 'displaced';
+
+export async function hideMessage(
+  message: GistMessage,
+  reason: HideReason = 'dismissed'
+): Promise<void> {
   if (message) {
     Gist.messageDismissed(message);
+    // Recorded here rather than at each call site: every dismissal route funnels
+    // through this function, and the two gaps found in review were both a call
+    // site that forgot. Plain teardown goes through resetMessage instead and
+    // must not record, or a route change replacing the container would hide an
+    // untilDismissed embed for good.
+    if (reason === 'dismissed') {
+      recordEmbedDismissed(message);
+    }
     await resetMessage(message);
   } else {
     log(`Message not found`);
@@ -217,6 +241,9 @@ export async function hideMessage(message: GistMessage): Promise<void> {
 }
 
 export async function resetMessage(message: GistMessage): Promise<void> {
+  // Released for every teardown path, not just the inline one: an embed whose
+  // container is gone has to be mountable again.
+  releaseEmbedClaim(message);
   const displayType = getCurrentDisplayType(message);
   if (displayType === 'tooltip') {
     resetTooltipState(message);
@@ -242,7 +269,6 @@ export async function removePersistentMessage(message: GistMessage): Promise<voi
 }
 
 function resetEmbedState(message: GistMessage): void {
-  releaseEmbedClaim(message);
   if (message.instanceId) {
     removeMessageByInstanceId(message.instanceId);
   }
@@ -563,7 +589,6 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
               case 'close':
                 await removePersistentMessage(currentMessage);
                 await logBroadcastDismissedLocally(currentMessage);
-                recordEmbedHidden(currentMessage);
                 await hideMessage(currentMessage);
                 await checkMessageQueue();
                 break;
@@ -579,7 +604,7 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
                 if (messageProperties.isEmbed) {
                   // An embed has no queue entry to snooze, so the same request
                   // becomes a timed hide against the embed's own state.
-                  recordEmbedHidden(currentMessage, showInMinutes);
+                  snoozeEmbed(currentMessage, showInMinutes);
                 } else if (messageProperties.persistent && currentMessage.queueId) {
                   // No removePersistentMessage here: skipping the view log
                   // keeps the server re-delivering the message (with its saved
@@ -592,7 +617,7 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
                   await removePersistentMessage(currentMessage);
                   await logBroadcastDismissedLocally(currentMessage);
                 }
-                await hideMessage(currentMessage);
+                await hideMessage(currentMessage, 'snoozed');
                 await checkMessageQueue();
                 break;
               }
@@ -771,7 +796,7 @@ async function reloadMessageWithNewDisplay(
     const existingMessage = fetchMessageByElementId(elementId);
     if (existingMessage && existingMessage.instanceId !== message.instanceId) {
       log(`Dismissing existing message at ${elementId} to make room for multi-step message`);
-      await hideMessage(existingMessage);
+      await hideMessage(existingMessage, 'displaced');
     }
   }
 
