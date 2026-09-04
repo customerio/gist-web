@@ -1,4 +1,22 @@
-import type { GistMessage, ResolvedMessageProperties, StepDisplayConfig } from '../types';
+import { log } from '../utilities/log';
+import type {
+  EmbedFrequency,
+  GistMessage,
+  ResolvedMessageProperties,
+  StepDisplayConfig,
+} from '../types';
+
+const EMBED_FREQUENCIES: readonly EmbedFrequency[] = ['always', 'untilDismissed', 'onceEver'];
+
+// An embed payload is untyped JSON from the host page, so a frequency TypeScript
+// never saw has to be caught here rather than falling through to the default in
+// silence.
+function resolveEmbedFrequency(value: unknown, fallback: EmbedFrequency): EmbedFrequency {
+  if (value === undefined) return fallback;
+  if (EMBED_FREQUENCIES.includes(value as EmbedFrequency)) return value as EmbedFrequency;
+  log(`Unknown embed frequency "${String(value)}", falling back to "${fallback}".`);
+  return fallback;
+}
 
 export const MESSAGE_PROPERTY_DEFAULTS: ResolvedMessageProperties = {
   isEmbedded: false,
@@ -89,7 +107,7 @@ export function resolveMessageProperties(message: GistMessage): ResolvedMessageP
     persistent: !!gist.persistent,
     exitClick: !!gist.exitClick,
     isEmbed,
-    embedFrequency: embed?.frequency ?? defaults.embedFrequency,
+    embedFrequency: resolveEmbedFrequency(embed?.frequency, defaults.embedFrequency),
     embedReshowAfterMinutes: resolveReshowAfterMinutes(embed?.reshowAfterMinutes),
     embedLogView: !!embed?.logView,
   };

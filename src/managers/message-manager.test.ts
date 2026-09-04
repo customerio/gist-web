@@ -1623,6 +1623,18 @@ describe('message-manager', () => {
       expect(releaseEmbedClaim).toHaveBeenCalledWith(message);
     });
 
+    it('releases the container claim when the renderer errors', async () => {
+      await useEmbedProperties();
+      const { releaseEmbedClaim } = await import('./embed-manager');
+
+      // The error path tears the message down directly, without going through
+      // resetMessage, so the claim has to be released by the teardown itself.
+      const message = makeEmbed();
+      await mountAndDispatch(message, 'routeError', {});
+
+      expect(releaseEmbedClaim).toHaveBeenCalledWith(message);
+    });
+
     it('never re-renders itself out of its container on a step change', async () => {
       await useEmbedProperties();
       const { hasDisplayChanged, applyDisplaySettings } =

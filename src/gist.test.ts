@@ -749,6 +749,20 @@ describe('Gist', () => {
       expect(Gist.config.embedOnly).toBe(true);
     });
 
+    it('warns when payloads disagree about the site they belong to', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.mocked(readEmbedPayloads).mockReturnValue([
+        { embedId: 'emb_1', siteId: 'site-a', message: { messageId: 'm-1' } },
+        { embedId: 'emb_2', siteId: 'site-b', message: { messageId: 'm-2' } },
+      ]);
+
+      await Gist.mountEmbeds();
+
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('different site ids'));
+      expect(Gist.config.siteId).toBe('site-a');
+      warn.mockRestore();
+    });
+
     it('warns when a real setup arrives after an embed-only auto-init', async () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       vi.mocked(readEmbedPayloads).mockReturnValue([

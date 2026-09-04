@@ -72,8 +72,8 @@ export interface StepDisplayConfig {
  * How often an embedded message renders. One dimension rather than several
  * booleans, so no combination can contradict itself.
  *
- * - `always` — render on every page load; closing hides it for that load only.
- *   Writes nothing to storage.
+ * - `always` — render on every page load; closing hides it for that load only,
+ *   and is not persisted.
  * - `untilDismissed` — once closed, stay hidden (see `reshowAfterMinutes`).
  * - `onceEver` — render once per browser, then never again.
  */

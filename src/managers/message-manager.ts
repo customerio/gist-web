@@ -241,9 +241,6 @@ export async function hideMessage(
 }
 
 export async function resetMessage(message: GistMessage): Promise<void> {
-  // Released for every teardown path, not just the inline one: an embed whose
-  // container is gone has to be mountable again.
-  releaseEmbedClaim(message);
   const displayType = getCurrentDisplayType(message);
   if (displayType === 'tooltip') {
     resetTooltipState(message);
@@ -269,6 +266,7 @@ export async function removePersistentMessage(message: GistMessage): Promise<voi
 }
 
 function resetEmbedState(message: GistMessage): void {
+  releaseEmbedClaim(message);
   if (message.instanceId) {
     removeMessageByInstanceId(message.instanceId);
   }
@@ -282,6 +280,7 @@ function resetEmbedState(message: GistMessage): void {
 }
 
 function resetTooltipState(message: GistMessage): void {
+  releaseEmbedClaim(message);
   hideTooltipComponent(message);
   if (message.instanceId) {
     removeMessageByInstanceId(message.instanceId);
@@ -297,6 +296,7 @@ function resetTooltipState(message: GistMessage): void {
 }
 
 async function resetOverlayState(hideFirst: boolean, message: GistMessage): Promise<void> {
+  releaseEmbedClaim(message);
   if (hideFirst) {
     await hideOverlayComponent();
   } else {

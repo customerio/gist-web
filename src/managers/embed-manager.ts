@@ -44,8 +44,10 @@ function emptyState(): EmbedState {
   return { neverShow: [], hideUntil: {} };
 }
 
-// Lapsed hideUntil entries are dropped on the way out, so the record cannot grow
-// without bound and callers never have to reason about stale timestamps.
+// Lapsed hideUntil entries are dropped from the value returned here, so callers
+// never have to reason about stale timestamps; the store itself sheds them on
+// the next write. neverShow is not pruned — it grows with the number of distinct
+// embeds a visitor has finished with, which is bounded by how many the site has.
 function readEmbedState(): EmbedState {
   const stored = getKeyFromLocalStore(embedStateStoreName) as Partial<EmbedState> | null;
   if (!stored) return emptyState();

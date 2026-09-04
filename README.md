@@ -69,9 +69,13 @@ hole in the customer's layout.
 Embed-only mode (`Gist.setup({ embedOnly: true })`) starts none of the delivery
 machinery: no user queue, SSE, guest session, inbox or preview session, and user
 tokens are ignored. Leave it unset on a page that also receives in-app messages —
-embeds and queue-delivered messages work side by side. `Gist.mountEmbeds()`
-initializes this mode only when the page actually declares an embed, so a snippet
-can call it unconditionally without disabling in-app delivery.
+embeds and queue-delivered messages work side by side.
+
+`Gist.mountEmbeds()` initializes embed-only mode only when the page actually
+declares an embed, so a snippet can call it on pages that have none without
+consequence. On a page that has both embeds and in-app messaging, still call
+`setup()` first — otherwise the auto-init wins and delivery never starts (the SDK
+warns when that happens).
 
 > **Note:** the wrapper the SDK injects around an inline message now uses
 > `.gist-embed` / `.gist-embed-container` classes rather than ids, so more than

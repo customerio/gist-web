@@ -48,6 +48,19 @@ import type { InboxMessage } from './managers/inbox-message-manager';
 
 const ROUTE_INIT_GRACE_PERIOD_MS = 2000;
 
+// One SDK instance serves every embed on the page, so the payloads have to agree
+// on which site they belong to. A disagreement is a snippet mix-up worth saying
+// out loud rather than resolving by document order.
+function resolvePayloadSiteId(payloads: EmbedPayload[]): string {
+  const siteIds = [...new Set(payloads.map((payload) => payload.siteId).filter(Boolean))];
+  if (siteIds.length > 1) {
+    console.warn(
+      `Gist: embed payloads on this page declare different site ids (${siteIds.join(', ')}); using "${siteIds[0]}".`
+    );
+  }
+  return siteIds[0] ?? '';
+}
+
 export default class Gist {
   static events: EventEmitter;
   static config: GistConfig;
@@ -248,10 +261,7 @@ export default class Gist {
       return [];
     }
     if (!this.initialized) {
-      await this.setup({
-        siteId: payloads.find((payload) => payload.siteId)?.siteId ?? '',
-        embedOnly: true,
-      });
+      await this.setup({ siteId: resolvePayloadSiteId(payloads), embedOnly: true });
     }
     return renderEmbeds(payloads);
   }
