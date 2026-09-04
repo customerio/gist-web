@@ -15,6 +15,83 @@
 npm install customerio-gist-web
 ```
 
+## 📌 Embedded messages
+
+An embedded message is one the host page supplies directly, rather than one
+delivered through a campaign or broadcast. The message travels in the page's own
+markup, so it renders on a landing page that has no other Customer.io setup.
+
+Declare a container and a payload block:
+
+```html
+<div data-cio-embed="emb_7Fq2xk"></div>
+<script type="application/json" data-cio-embed-payload="emb_7Fq2xk">
+  {
+    "v": 1,
+    "embedId": "emb_7Fq2xk",
+    "display": { "frequency": "untilDismissed" },
+    "message": {
+      "messageId": "gist-html-9f2c8b",
+      "properties": { "gist": { "encodedMessageHtml": "H4sIAAAA…" } }
+    }
+  }
+</script>
+```
+
+`Gist.mountEmbeds()` renders every block on the page; `Gist.embed(payload)`
+renders one programmatically. Both initialize the SDK in embed-only mode when
+nothing else has set it up, and both are safe to call more than once — an embed
+already rendered on the page is skipped, so a host can call them again after
+injecting markup.
+
+`frequency` decides how often the message comes back:
+
+| Value              | Behaviour                                                                        |
+| ------------------ | -------------------------------------------------------------------------------- |
+| `always` (default) | Renders on every page load; closing hides it for that load only. Stores nothing. |
+| `untilDismissed`   | Once closed, stays hidden — permanently, or for `reshowAfterMinutes`.            |
+| `onceEver`         | Renders once per browser.                                                        |
+
+A payload also carries the reporting identity for the message — `contentId` and
+`templateId`, both integers, in `properties.gist`, exactly as a broadcast
+carries its own. The content pipeline requires both and drops events without
+them, so an embed published without them renders but reports nothing (the
+analytics layer logs when that happens).
+
+A snooze is not a dismissal: `gist://snooze?showIn=<minutes>` hides the message
+and shows it again once the time is up, whatever the frequency rule says.
+
+Every embed's state lives in one key, `gist.web.embeds`: the ids that may not
+render, mapped to `true` for never again or to the moment they become eligible
+(a snooze, or `reshowAfterMinutes`). Presence is the whole answer, so the lot
+clears in one call:
+
+```js
+localStorage.removeItem('gist.web.embeds'); // or Gist.resetEmbed(embedId) for one
+```
+
+The record carries a rolling 365-day expiry, refreshed once on any page load
+that reads it — so `onceEver` and a permanent dismissal hold for as long as the
+visitor keeps coming back, while a record nobody has visited for a year is
+collected. Any storage failure resolves to "render", so a blocked store can
+never leave a hole in the customer's layout.
+
+Embed-only mode (`Gist.setup({ embedOnly: true })`) starts none of the delivery
+machinery: no user queue, SSE, guest session, inbox or preview session, and user
+tokens are ignored. Leave it unset on a page that also receives in-app messages —
+embeds and queue-delivered messages work side by side.
+
+`Gist.mountEmbeds()` initializes embed-only mode only when the page actually
+declares an embed, so a snippet can call it on pages that have none without
+consequence. On a page that has both embeds and in-app messaging, still call
+`setup()` first — otherwise the auto-init wins and delivery never starts (the SDK
+warns when that happens).
+
+> **Note:** the wrapper the SDK injects around an inline message now uses
+> `.gist-embed` / `.gist-embed-container` classes rather than ids, so more than
+> one embed can share a page. Styles targeting `#gist-embed-container` need
+> updating to the class selector.
+
 ## 🧪 Development
 
 ### Local Testing

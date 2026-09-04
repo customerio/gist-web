@@ -45,6 +45,10 @@ vi.mock('./gist-properties-manager', () => ({
     persistent: false,
     exitClick: false,
     hasCustomWidth: false,
+    isEmbed: false,
+    embedFrequency: 'always' as const,
+    embedReshowAfterMinutes: 0,
+    embedLogView: false,
   })),
 }));
 vi.mock('../utilities/local-storage', () => ({
@@ -226,6 +230,10 @@ describe('queue-manager', () => {
         persistent: false,
         exitClick: false,
         hasCustomWidth: false,
+        isEmbed: false,
+        embedFrequency: 'always' as const,
+        embedReshowAfterMinutes: 0,
+        embedLogView: false,
       });
       vi.mocked(findElement).mockReturnValue(null);
       (Gist as unknown as Record<string, unknown>).config = { isPreviewSession: true };
@@ -260,6 +268,10 @@ describe('queue-manager', () => {
         persistent: false,
         exitClick: false,
         hasCustomWidth: false,
+        isEmbed: false,
+        embedFrequency: 'always' as const,
+        embedReshowAfterMinutes: 0,
+        embedLogView: false,
       });
       vi.mocked(findElement).mockReturnValue(document.createElement('div'));
       (Gist as unknown as Record<string, unknown>).config = { isPreviewSession: true };
@@ -294,6 +306,10 @@ describe('queue-manager', () => {
         persistent: false,
         exitClick: false,
         hasCustomWidth: false,
+        isEmbed: false,
+        embedFrequency: 'always' as const,
+        embedReshowAfterMinutes: 0,
+        embedLogView: false,
       });
       vi.mocked(findElement).mockReturnValue(null);
       (Gist as unknown as Record<string, unknown>).config = { isPreviewSession: false };
@@ -329,6 +345,10 @@ describe('queue-manager', () => {
       persistent: false,
       exitClick: false,
       hasCustomWidth: false,
+      isEmbed: false,
+      embedFrequency: 'always' as const,
+      embedReshowAfterMinutes: 0,
+      embedLogView: false,
     };
 
     const message: GistMessage = {
@@ -872,6 +892,10 @@ describe('queue-manager', () => {
       persistent: true,
       exitClick: false,
       hasCustomWidth: false,
+      isEmbed: false,
+      embedFrequency: 'always' as const,
+      embedReshowAfterMinutes: 0,
+      embedLogView: false,
     };
 
     function navigateTo(path: string) {

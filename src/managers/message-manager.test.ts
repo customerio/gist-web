@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { showMessage, embedMessage, hideMessage } from './message-manager';
+import { showMessage, embedMessage, hideMessage, resetMessage } from './message-manager';
 import type { GistMessage } from '../types';
 
 const mockGist = vi.hoisted(() => ({
@@ -81,6 +81,10 @@ vi.mock('./gist-properties-manager', () => ({
     persistent: false,
     exitClick: false,
     hasCustomWidth: false,
+    isEmbed: false,
+    embedFrequency: 'always' as const,
+    embedReshowAfterMinutes: 0,
+    embedLogView: false,
   })),
 }));
 vi.mock('./page-component-manager', () => ({
@@ -92,6 +96,12 @@ vi.mock('./custom-attribute-manager', () => ({
 }));
 vi.mock('./queue-manager', () => ({
   checkMessageQueue: vi.fn(),
+}));
+vi.mock('./embed-manager', () => ({
+  recordEmbedShown: vi.fn(),
+  recordEmbedDismissed: vi.fn(),
+  snoozeEmbed: vi.fn(),
+  releaseEmbedClaim: vi.fn(),
 }));
 vi.mock('./message-broadcast-manager', () => ({
   isMessageBroadcast: vi.fn(() => false),
@@ -450,6 +460,10 @@ describe('message-manager', () => {
         persistent,
         exitClick: false,
         hasCustomWidth: false,
+        isEmbed: false,
+        embedFrequency: 'always' as const,
+        embedReshowAfterMinutes: 0,
+        embedLogView: false,
       });
 
       const message: GistMessage = {
@@ -765,6 +779,10 @@ describe('message-manager', () => {
         persistent,
         exitClick: false,
         hasCustomWidth: false,
+        isEmbed: false,
+        embedFrequency: 'always' as const,
+        embedReshowAfterMinutes: 0,
+        embedLogView: false,
       });
 
       const message: GistMessage = {
@@ -917,6 +935,10 @@ describe('message-manager', () => {
         persistent: false,
         exitClick: false,
         hasCustomWidth: false,
+        isEmbed: false,
+        embedFrequency: 'always' as const,
+        embedReshowAfterMinutes: 0,
+        embedLogView: false,
       };
     }
 
@@ -1420,6 +1442,211 @@ describe('message-manager', () => {
         expect(mocks.showTooltipComponent).not.toHaveBeenCalled();
         expect(message.firstLoad).toBe(false);
       });
+    });
+  });
+  describe('embedded messages', () => {
+    const embedProperties = {
+      isEmbedded: true,
+      elementId: '',
+      hasRouteRule: false,
+      routeRule: '',
+      position: '',
+      hasPosition: false,
+      tooltipPosition: '',
+      hasTooltipPosition: false,
+      tooltipArrowColor: '#fff',
+      shouldScale: false,
+      campaignId: null,
+      messageWidth: 414,
+      overlayColor: '#00000033',
+      persistent: false,
+      exitClick: false,
+      hasCustomWidth: false,
+      isEmbed: true,
+      embedFrequency: 'untilDismissed' as const,
+      embedReshowAfterMinutes: 0,
+      embedLogView: false,
+    };
+
+    // Return values set by earlier tests survive vi.clearAllMocks(), so the
+    // message-lookup mocks are put back to their defaults here.
+    beforeEach(async () => {
+      const { fetchMessageByElementId, isQueueIdAlreadyShowing, getCurrentDisplayType } =
+        await import('../utilities/message-utils');
+      vi.mocked(fetchMessageByElementId).mockReturnValue(null);
+      vi.mocked(isQueueIdAlreadyShowing).mockReturnValue(false);
+      vi.mocked(getCurrentDisplayType).mockReturnValue('inline');
+    });
+
+    async function useEmbedProperties(overrides: Partial<typeof embedProperties> = {}) {
+      const { resolveMessageProperties } = await import('./gist-properties-manager');
+      vi.mocked(resolveMessageProperties).mockReturnValue({ ...embedProperties, ...overrides });
+    }
+
+    function makeEmbed(): GistMessage {
+      return {
+        messageId: 'gist-html-1',
+        embedId: 'emb_1',
+        properties: { gist: { encodedMessageHtml: 'H4sIAAAA' } },
+      };
+    }
+
+    async function mountAndDispatch(
+      message: GistMessage,
+      method: string,
+      parameters: Record<string, unknown>
+    ) {
+      const { fetchMessageByInstanceId } = await import('../utilities/message-utils');
+      embedMessage(message, '#target');
+      vi.mocked(fetchMessageByInstanceId).mockReturnValue(message);
+
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: { gist: { method, instanceId: message.instanceId, parameters } },
+          origin: 'https://renderer.test',
+        })
+      );
+      await vi.dynamicImportSettled();
+    }
+
+    it('renders an embed while the document is hidden', async () => {
+      await useEmbedProperties();
+      mockGist.isDocumentVisible = false;
+
+      const result = embedMessage(makeEmbed(), '#target');
+
+      expect(result).not.toBeNull();
+    });
+
+    it('still defers a queue-delivered message while the document is hidden', () => {
+      mockGist.isDocumentVisible = false;
+
+      const result = embedMessage({ messageId: 'msg-1', queueId: 'q-1' }, '#target');
+
+      expect(result).toBeNull();
+    });
+
+    it('passes the embed flag to the renderer so capabilities can be withheld', async () => {
+      await useEmbedProperties();
+      const { loadEmbedComponent } = await import('./message-component-manager');
+
+      embedMessage(makeEmbed(), '#target');
+
+      expect(vi.mocked(loadEmbedComponent)).toHaveBeenCalledWith(
+        '#target',
+        expect.any(String),
+        expect.anything(),
+        expect.objectContaining({ isEmbed: true }),
+        null
+      );
+    });
+
+    it('records the view locally instead of logging it to the queue API', async () => {
+      await useEmbedProperties();
+      const { logMessageView } = await import('../services/log-service');
+      const { recordEmbedShown } = await import('./embed-manager');
+
+      const message = makeEmbed();
+      await mountAndDispatch(message, 'routeLoaded', { route: '/' });
+
+      expect(recordEmbedShown).toHaveBeenCalledWith(message);
+      expect(logMessageView).not.toHaveBeenCalled();
+      expect(mockGist.messageShown).toHaveBeenCalledWith(message);
+    });
+
+    it('logs the view when the embed asks for it', async () => {
+      await useEmbedProperties({ embedLogView: true });
+      const { logMessageView } = await import('../services/log-service');
+
+      await mountAndDispatch(makeEmbed(), 'routeLoaded', { route: '/' });
+
+      expect(logMessageView).toHaveBeenCalledWith('gist-html-1');
+    });
+
+    it('records the dismissal when the message is closed', async () => {
+      await useEmbedProperties();
+      const { recordEmbedDismissed } = await import('./embed-manager');
+
+      const message = makeEmbed();
+      await mountAndDispatch(message, 'tap', { action: 'gist://close', name: 'close' });
+
+      expect(recordEmbedDismissed).toHaveBeenCalledWith(message);
+    });
+
+    it('records the dismissal when the host calls hideMessage directly', async () => {
+      await useEmbedProperties();
+      const { recordEmbedDismissed } = await import('./embed-manager');
+
+      const message = makeEmbed();
+      await hideMessage(message);
+
+      expect(recordEmbedDismissed).toHaveBeenCalledWith(message);
+    });
+
+    it('records the dismissal on the system tap path', async () => {
+      await useEmbedProperties();
+      const { recordEmbedDismissed } = await import('./embed-manager');
+
+      const message = makeEmbed();
+      await mountAndDispatch(message, 'tap', {
+        action: 'cio://deeplink',
+        name: 'cta',
+        system: true,
+      });
+
+      expect(recordEmbedDismissed).toHaveBeenCalledWith(message);
+    });
+
+    it('treats a snooze as a timed hide and never as a dismissal', async () => {
+      await useEmbedProperties();
+      const { snoozeEmbed, recordEmbedDismissed } = await import('./embed-manager');
+      const { setMessageSnoozed } = await import('./message-user-queue-manager');
+
+      const message = makeEmbed();
+      await mountAndDispatch(message, 'tap', {
+        action: 'gist://snooze?showIn=15',
+        name: 'later',
+      });
+
+      expect(snoozeEmbed).toHaveBeenCalledWith(message, 15);
+      expect(recordEmbedDismissed).not.toHaveBeenCalled();
+      expect(setMessageSnoozed).not.toHaveBeenCalled();
+    });
+
+    it('releases the container claim on every teardown path', async () => {
+      await useEmbedProperties();
+      const { releaseEmbedClaim } = await import('./embed-manager');
+
+      const message = makeEmbed();
+      await resetMessage(message);
+
+      expect(releaseEmbedClaim).toHaveBeenCalledWith(message);
+    });
+
+    it('releases the container claim when the renderer errors', async () => {
+      await useEmbedProperties();
+      const { releaseEmbedClaim } = await import('./embed-manager');
+
+      // The error path tears the message down directly, without going through
+      // resetMessage, so the claim has to be released by the teardown itself.
+      const message = makeEmbed();
+      await mountAndDispatch(message, 'routeError', {});
+
+      expect(releaseEmbedClaim).toHaveBeenCalledWith(message);
+    });
+
+    it('never re-renders itself out of its container on a step change', async () => {
+      await useEmbedProperties();
+      const { hasDisplayChanged, applyDisplaySettings } =
+        await import('../utilities/message-utils');
+      vi.mocked(hasDisplayChanged).mockReturnValue(true);
+
+      await mountAndDispatch(makeEmbed(), 'changeMessageStep', {
+        messageStepName: 'step-2',
+        displaySettings: { displayType: 'modal' },
+      });
+
+      expect(applyDisplaySettings).not.toHaveBeenCalled();
     });
   });
 });

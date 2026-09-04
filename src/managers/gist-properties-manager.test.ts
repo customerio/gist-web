@@ -1,6 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { resolveMessageProperties } from './gist-properties-manager';
 import type { GistMessage } from '../types';
+
+vi.mock('../utilities/log', () => ({ log: vi.fn() }));
 
 const defaults = {
   isEmbedded: false,
@@ -19,6 +21,10 @@ const defaults = {
   persistent: false,
   exitClick: false,
   hasCustomWidth: false,
+  isEmbed: false,
+  embedFrequency: 'always' as const,
+  embedReshowAfterMinutes: 0,
+  embedLogView: false,
 };
 
 describe('resolveMessageProperties', () => {
@@ -138,5 +144,33 @@ describe('resolveMessageProperties', () => {
     const result = resolveMessageProperties(message);
     expect(result.persistent).toBe(true);
     expect(result.exitClick).toBe(true);
+  });
+  describe('embed frequency', () => {
+    it('resolves a known frequency', () => {
+      const message: GistMessage = {
+        messageId: 'm-1',
+        embedId: 'emb_1',
+        properties: { gist: { embed: { frequency: 'onceEver' } } },
+      };
+      expect(resolveMessageProperties(message).embedFrequency).toBe('onceEver');
+    });
+
+    it('falls back to always for a frequency the payload made up', () => {
+      const message: GistMessage = {
+        messageId: 'm-1',
+        embedId: 'emb_1',
+        properties: { gist: { embed: { frequency: 'oncePerSession' as never } } },
+      };
+      expect(resolveMessageProperties(message).embedFrequency).toBe('always');
+    });
+
+    it('defaults to always when the payload declares no frequency', () => {
+      const message: GistMessage = {
+        messageId: 'm-1',
+        embedId: 'emb_1',
+        properties: { gist: { embed: {} } },
+      };
+      expect(resolveMessageProperties(message).embedFrequency).toBe('always');
+    });
   });
 });

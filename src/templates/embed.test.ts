@@ -25,6 +25,10 @@ function makeProps(overrides: Partial<ResolvedMessageProperties> = {}): Resolved
     persistent: false,
     exitClick: false,
     hasCustomWidth: false,
+    isEmbed: false,
+    embedFrequency: 'always' as const,
+    embedReshowAfterMinutes: 0,
+    embedLogView: false,
     ...overrides,
   };
 }
@@ -90,8 +94,8 @@ describe('embedHTMLTemplate', () => {
     const html = embedHTMLTemplate('el', makeProps(), 'https://example.com');
     const doc = parseHTML(html);
 
-    const container = doc.querySelector('#gist-embed-container');
-    const embed = doc.querySelector('#gist-embed');
+    const container = doc.querySelector('.gist-embed-container');
+    const embed = doc.querySelector('.gist-embed');
     expect(container).not.toBeNull();
     expect(embed).not.toBeNull();
   });
