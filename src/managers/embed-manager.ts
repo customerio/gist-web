@@ -22,11 +22,14 @@ const EMBED_PAYLOAD_SELECTOR = `script[type="application/json"][${EMBED_PAYLOAD_
 // a grace period before we give up on it.
 const TARGET_WAIT_MS = 10000;
 
+/**
+ * The embeds that may not render, and for how long. Presence is the answer —
+ * `true` means never again, a number means hidden until that epoch millisecond.
+ * One collection rather than two, because "never" and "until Tuesday" are the
+ * same question asked over different spans.
+ */
 interface EmbedState {
-  /** Embeds that must never render again on this browser. */
-  neverShow: string[];
-  /** Embeds hidden until a moment in time, as epoch milliseconds. */
-  hideUntil: Record<string, number>;
+  hidden: Record<string, number | true>;
 }
 
 // Embeds currently occupying their container. Guards a loader that runs twice, a
@@ -49,29 +52,25 @@ const dismissedEmbeds = new Set<string>();
 let stateRefreshedThisLoad = false;
 
 function emptyState(): EmbedState {
-  return { neverShow: [], hideUntil: {} };
+  return { hidden: {} };
 }
 
-// The stored record with lapsed hideUntil entries dropped, or null when the
-// visitor has no state at all. neverShow is not pruned: it grows with the number
-// of distinct embeds a visitor has finished with, bounded by how many the site
-// has.
+// The stored record with lapsed entries dropped, or null when the visitor has no
+// state at all. Permanent entries are never pruned: they grow with the number of
+// distinct embeds a visitor has finished with, bounded by how many the site has.
 function prunedState(): EmbedState | null {
   const stored = getKeyFromLocalStore(embedStateStoreName) as Partial<EmbedState> | null;
   if (!stored) return null;
 
   const now = Date.now();
-  const hideUntil: Record<string, number> = {};
-  for (const [embedId, until] of Object.entries(stored.hideUntil ?? {})) {
-    if (typeof until === 'number' && until > now) {
-      hideUntil[embedId] = until;
+  const hidden: Record<string, number | true> = {};
+  for (const [embedId, until] of Object.entries(stored.hidden ?? {})) {
+    if (until === true || (typeof until === 'number' && until > now)) {
+      hidden[embedId] = until;
     }
   }
 
-  return {
-    neverShow: Array.isArray(stored.neverShow) ? stored.neverShow.filter((id) => !!id) : [],
-    hideUntil,
-  };
+  return { hidden };
 }
 
 function persistEmbedState(state: EmbedState): void {
@@ -114,12 +113,8 @@ export function shouldRenderEmbed(embedId: string): boolean {
     return false;
   }
 
-  const state = readEmbedState();
-  if (state.neverShow.includes(embedId)) {
-    return false;
-  }
   // Lapsed entries were pruned on read, so any survivor is still in force.
-  return state.hideUntil[embedId] === undefined;
+  return readEmbedState().hidden[embedId] === undefined;
 }
 
 /** Records a render. Only `onceEver` has anything to remember. */
@@ -130,9 +125,7 @@ export function recordEmbedShown(message: GistMessage): void {
   if (resolveMessageProperties(message).embedFrequency !== 'onceEver') return;
 
   updateEmbedState((state) => {
-    if (!state.neverShow.includes(embedId)) {
-      state.neverShow.push(embedId);
-    }
+    state.hidden[embedId] = true;
   });
   log(`Embed ${embedId} shown once and will not render again.`);
 }
@@ -152,20 +145,15 @@ export function recordEmbedDismissed(message: GistMessage): void {
   if (properties.embedFrequency !== 'untilDismissed') return;
 
   const minutes = properties.embedReshowAfterMinutes;
-  if (minutes > 0) {
-    const until = Date.now() + minutes * 60 * 1000;
-    updateEmbedState((state) => {
-      state.hideUntil[embedId] = until;
-    });
-    log(`Embed ${embedId} dismissed, hidden for ${minutes} minute(s).`);
-  } else {
-    updateEmbedState((state) => {
-      if (!state.neverShow.includes(embedId)) {
-        state.neverShow.push(embedId);
-      }
-    });
-    log(`Embed ${embedId} dismissed and will not render again.`);
-  }
+  const until = minutes > 0 ? Date.now() + minutes * 60 * 1000 : true;
+  updateEmbedState((state) => {
+    state.hidden[embedId] = until;
+  });
+  log(
+    minutes > 0
+      ? `Embed ${embedId} dismissed, hidden for ${minutes} minute(s).`
+      : `Embed ${embedId} dismissed and will not render again.`
+  );
 }
 
 /**
@@ -179,7 +167,7 @@ export function snoozeEmbed(message: GistMessage, minutes: number): void {
 
   const until = Date.now() + minutes * 60 * 1000;
   updateEmbedState((state) => {
-    state.hideUntil[embedId] = until;
+    state.hidden[embedId] = until;
   });
   log(`Embed ${embedId} snoozed for ${minutes} minute(s).`);
 }
@@ -187,8 +175,7 @@ export function snoozeEmbed(message: GistMessage, minutes: number): void {
 /** Forgets an embed's stored state. For QA and host "show me again" affordances. */
 export function clearEmbedState(embedId: string): void {
   updateEmbedState((state) => {
-    state.neverShow = state.neverShow.filter((id) => id !== embedId);
-    delete state.hideUntil[embedId];
+    delete state.hidden[embedId];
   });
   renderedEmbeds.delete(embedId);
   dismissedEmbeds.delete(embedId);

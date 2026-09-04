@@ -35,13 +35,8 @@ vi.mock('./message-manager', () => ({
 const STORE = 'gist.web.embeds';
 const embedId = 'emb_1';
 
-function state(): { neverShow: string[]; hideUntil: Record<string, number> } {
-  return (
-    (stored.get(STORE) as { neverShow: string[]; hideUntil: Record<string, number> }) ?? {
-      neverShow: [],
-      hideUntil: {},
-    }
-  );
+function state(): { hidden: Record<string, number | true> } {
+  return (stored.get(STORE) as { hidden: Record<string, number | true> }) ?? { hidden: {} };
 }
 
 function makeMessage(embed?: EmbedDisplayConfig, id: string = embedId): GistMessage {
@@ -71,23 +66,26 @@ describe('embed-manager', () => {
       snoozeEmbed(makeMessage(undefined, 'emb_c'), 30);
 
       expect([...stored.keys()]).toEqual([STORE]);
-      expect(state().neverShow).toEqual(['emb_a', 'emb_b']);
-      expect(Object.keys(state().hideUntil)).toEqual(['emb_c']);
+      expect(state().hidden).toEqual({
+        emb_a: true,
+        emb_b: true,
+        emb_c: expect.any(Number),
+      });
     });
 
     it('drops lapsed hide-until entries when read', () => {
-      stored.set(STORE, { neverShow: [], hideUntil: { [embedId]: Date.now() - 1000 } });
+      stored.set(STORE, { hidden: { [embedId]: Date.now() - 1000 } });
 
       expect(shouldRenderEmbed(embedId)).toBe(true);
-      expect(state().hideUntil[embedId]).toBeUndefined();
+      expect(state().hidden[embedId]).toBeUndefined();
     });
 
     it("does not lose another embed's state when writing", () => {
       snoozeEmbed(makeMessage(undefined, 'emb_a'), 10);
       recordEmbedShown(makeMessage({ frequency: 'onceEver' }, 'emb_b'));
 
-      expect(state().neverShow).toEqual(['emb_b']);
-      expect(state().hideUntil['emb_a']).toBeGreaterThan(Date.now());
+      expect(state().hidden['emb_b']).toBe(true);
+      expect(state().hidden['emb_a']).toBeGreaterThan(Date.now());
     });
 
     it('survives a store that returns nothing', () => {
@@ -96,7 +94,7 @@ describe('embed-manager', () => {
     });
 
     it('slides the expiry once per page load so never-again outlives it', () => {
-      stored.set(STORE, { neverShow: [embedId], hideUntil: {} });
+      stored.set(STORE, { hidden: { [embedId]: true } });
 
       shouldRenderEmbed(embedId);
       shouldRenderEmbed('emb_other');
@@ -106,8 +104,7 @@ describe('embed-manager', () => {
       // load, not once per embed.
       expect(setKeyToLocalStore).toHaveBeenCalledTimes(1);
       expect(setKeyToLocalStore).toHaveBeenCalledWith(STORE, {
-        neverShow: [embedId],
-        hideUntil: {},
+        hidden: { [embedId]: true },
       });
     });
 
@@ -120,13 +117,16 @@ describe('embed-manager', () => {
 
     it('sheds lapsed entries when the record is refreshed', () => {
       stored.set(STORE, {
-        neverShow: [],
-        hideUntil: { [embedId]: Date.now() - 1000, emb_live: Date.now() + 60_000 },
+        hidden: {
+          [embedId]: Date.now() - 1000,
+          emb_live: Date.now() + 60_000,
+          emb_forever: true,
+        },
       });
 
       shouldRenderEmbed('emb_anything');
 
-      expect(state().hideUntil).toEqual({ emb_live: expect.any(Number) });
+      expect(state().hidden).toEqual({ emb_live: expect.any(Number), emb_forever: true });
     });
   });
 
@@ -136,13 +136,13 @@ describe('embed-manager', () => {
       expect(setKeyToLocalStore).not.toHaveBeenCalled();
     });
 
-    it('suppresses an embed on the never-show list', () => {
-      stored.set(STORE, { neverShow: [embedId], hideUntil: {} });
+    it('suppresses an embed hidden permanently', () => {
+      stored.set(STORE, { hidden: { [embedId]: true } });
       expect(shouldRenderEmbed(embedId)).toBe(false);
     });
 
     it('suppresses an embed hidden until a future moment', () => {
-      stored.set(STORE, { neverShow: [], hideUntil: { [embedId]: Date.now() + 60_000 } });
+      stored.set(STORE, { hidden: { [embedId]: Date.now() + 60_000 } });
       expect(shouldRenderEmbed(embedId)).toBe(false);
     });
   });
@@ -150,7 +150,7 @@ describe('embed-manager', () => {
   describe('recordEmbedShown', () => {
     it('marks a onceEver embed as never to be shown again', () => {
       recordEmbedShown(makeMessage({ frequency: 'onceEver' }));
-      expect(state().neverShow).toEqual([embedId]);
+      expect(state().hidden[embedId]).toBe(true);
       expect(shouldRenderEmbed(embedId)).toBe(false);
     });
 
@@ -169,14 +169,13 @@ describe('embed-manager', () => {
   describe('recordEmbedDismissed', () => {
     it('marks an untilDismissed embed as never to be shown again', () => {
       recordEmbedDismissed(makeMessage({ frequency: 'untilDismissed' }));
-      expect(state().neverShow).toEqual([embedId]);
+      expect(state().hidden[embedId]).toBe(true);
     });
 
     it('hides an untilDismissed embed for reshowAfterMinutes when set', () => {
       recordEmbedDismissed(makeMessage({ frequency: 'untilDismissed', reshowAfterMinutes: 30 }));
 
-      expect(state().neverShow).toEqual([]);
-      expect(state().hideUntil[embedId]).toBeGreaterThan(Date.now() + 29 * 60 * 1000);
+      expect(state().hidden[embedId]).toBeGreaterThan(Date.now() + 29 * 60 * 1000);
     });
 
     it('persists nothing for an always embed but keeps it closed for this page load', () => {
@@ -192,7 +191,7 @@ describe('embed-manager', () => {
     it('hides the embed until the snooze lapses, whatever the frequency rule', () => {
       snoozeEmbed(makeMessage({ frequency: 'always' }), 60);
 
-      expect(state().hideUntil[embedId]).toBeGreaterThan(Date.now() + 59 * 60 * 1000);
+      expect(state().hidden[embedId]).toBeGreaterThan(Date.now() + 59 * 60 * 1000);
       expect(shouldRenderEmbed(embedId)).toBe(false);
     });
 
@@ -207,7 +206,8 @@ describe('embed-manager', () => {
 
     it('is not a dismissal, so it never marks the embed as never-show', () => {
       snoozeEmbed(makeMessage({ frequency: 'untilDismissed' }), 60);
-      expect(state().neverShow).toEqual([]);
+      // A timestamp, not a permanent hide: the visitor asked to see it again.
+      expect(state().hidden[embedId]).toBeGreaterThan(Date.now());
     });
 
     it('ignores a missing or non-positive duration', () => {
@@ -218,16 +218,12 @@ describe('embed-manager', () => {
   });
 
   it('clearEmbedState forgets the embed everywhere', () => {
-    stored.set(STORE, {
-      neverShow: [embedId, 'emb_other'],
-      hideUntil: { [embedId]: Date.now() + 60_000 },
-    });
+    stored.set(STORE, { hidden: { [embedId]: true, emb_other: true } });
     recordEmbedDismissed(makeMessage({ frequency: 'always' }));
 
     clearEmbedState(embedId);
 
-    expect(state().neverShow).toEqual(['emb_other']);
-    expect(state().hideUntil[embedId]).toBeUndefined();
+    expect(state().hidden).toEqual({ emb_other: true });
     expect(shouldRenderEmbed(embedId)).toBe(true);
   });
 
@@ -309,7 +305,7 @@ describe('embed-manager', () => {
 
     it('skips an embed suppressed by its stored state', async () => {
       document.body.innerHTML = `<div data-cio-embed="${embedId}"></div>`;
-      stored.set(STORE, { neverShow: [embedId], hideUntil: {} });
+      stored.set(STORE, { hidden: { [embedId]: true } });
 
       expect(await renderEmbed(makePayload())).toBeNull();
       expect(embedMessage).not.toHaveBeenCalled();
