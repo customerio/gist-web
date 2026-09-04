@@ -63,8 +63,11 @@ lot clears in one call:
 localStorage.removeItem('gist.web.embeds'); // or Gist.resetEmbed(embedId) for one
 ```
 
-Any storage failure resolves to "render", so a blocked store can never leave a
-hole in the customer's layout.
+The record carries a rolling 365-day expiry, refreshed once on any page load
+that reads it — so `onceEver` and a permanent dismissal hold for as long as the
+visitor keeps coming back, while a record nobody has visited for a year is
+collected. Any storage failure resolves to "render", so a blocked store can
+never leave a hole in the customer's layout.
 
 Embed-only mode (`Gist.setup({ embedOnly: true })`) starts none of the delivery
 machinery: no user queue, SSE, guest session, inbox or preview session, and user

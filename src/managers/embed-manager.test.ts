@@ -79,9 +79,6 @@ describe('embed-manager', () => {
       stored.set(STORE, { neverShow: [], hideUntil: { [embedId]: Date.now() - 1000 } });
 
       expect(shouldRenderEmbed(embedId)).toBe(true);
-
-      // The prune is persisted by the next write, not by the read itself.
-      snoozeEmbed(makeMessage(undefined, 'emb_other'), 5);
       expect(state().hideUntil[embedId]).toBeUndefined();
     });
 
@@ -96,6 +93,40 @@ describe('embed-manager', () => {
     it('survives a store that returns nothing', () => {
       vi.mocked(getKeyFromLocalStore).mockReturnValueOnce(null);
       expect(shouldRenderEmbed(embedId)).toBe(true);
+    });
+
+    it('slides the expiry once per page load so never-again outlives it', () => {
+      stored.set(STORE, { neverShow: [embedId], hideUntil: {} });
+
+      shouldRenderEmbed(embedId);
+      shouldRenderEmbed('emb_other');
+
+      // The store stamps a fixed expiry on write, so the record has to be
+      // rewritten by visits rather than only by state changes — but once per
+      // load, not once per embed.
+      expect(setKeyToLocalStore).toHaveBeenCalledTimes(1);
+      expect(setKeyToLocalStore).toHaveBeenCalledWith(STORE, {
+        neverShow: [embedId],
+        hideUntil: {},
+      });
+    });
+
+    it('writes nothing on a page whose visitor has no stored state', () => {
+      shouldRenderEmbed(embedId);
+      shouldRenderEmbed('emb_other');
+
+      expect(setKeyToLocalStore).not.toHaveBeenCalled();
+    });
+
+    it('sheds lapsed entries when the record is refreshed', () => {
+      stored.set(STORE, {
+        neverShow: [],
+        hideUntil: { [embedId]: Date.now() - 1000, emb_live: Date.now() + 60_000 },
+      });
+
+      shouldRenderEmbed('emb_anything');
+
+      expect(state().hideUntil).toEqual({ emb_live: expect.any(Number) });
     });
   });
 

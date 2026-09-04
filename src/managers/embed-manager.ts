@@ -40,17 +40,25 @@ const renderedEmbeds = new Set<string>();
 // persisting anything about the visitor; a genuine page load clears it.
 const dismissedEmbeds = new Set<string>();
 
+// Whether this page load has already rewritten the record. The store stamps a
+// fixed expiry on write, so a record that is only written when state changes
+// would expire a year after the visitor's last dismissal — and "never render
+// again" has to outlive that. Rewriting once per page load turns the expiry
+// into a sliding window: the state survives as long as the visitor keeps
+// coming back, and a record nobody has visited for a year is still collected.
+let stateRefreshedThisLoad = false;
+
 function emptyState(): EmbedState {
   return { neverShow: [], hideUntil: {} };
 }
 
-// Lapsed hideUntil entries are dropped from the value returned here, so callers
-// never have to reason about stale timestamps; the store itself sheds them on
-// the next write. neverShow is not pruned — it grows with the number of distinct
-// embeds a visitor has finished with, which is bounded by how many the site has.
-function readEmbedState(): EmbedState {
+// The stored record with lapsed hideUntil entries dropped, or null when the
+// visitor has no state at all. neverShow is not pruned: it grows with the number
+// of distinct embeds a visitor has finished with, bounded by how many the site
+// has.
+function prunedState(): EmbedState | null {
   const stored = getKeyFromLocalStore(embedStateStoreName) as Partial<EmbedState> | null;
-  if (!stored) return emptyState();
+  if (!stored) return null;
 
   const now = Date.now();
   const hideUntil: Record<string, number> = {};
@@ -66,13 +74,33 @@ function readEmbedState(): EmbedState {
   };
 }
 
+function persistEmbedState(state: EmbedState): void {
+  setKeyToLocalStore(embedStateStoreName, state);
+  stateRefreshedThisLoad = true;
+}
+
+function readEmbedState(): EmbedState {
+  const state = prunedState();
+  if (!state) {
+    // Nothing stored, so nothing to refresh: a page carrying only `always`
+    // embeds never writes here.
+    return emptyState();
+  }
+  if (!stateRefreshedThisLoad) {
+    // Slides the expiry, and persists the prune above so lapsed entries are
+    // actually shed rather than just hidden from this caller.
+    persistEmbedState(state);
+  }
+  return state;
+}
+
 // Read immediately before every write: the record is shared by every embed on
 // the page, so a stale copy held across an await would drop another embed's
 // state.
 function updateEmbedState(mutate: (state: EmbedState) => void): void {
-  const state = readEmbedState();
+  const state = prunedState() ?? emptyState();
   mutate(state);
-  setKeyToLocalStore(embedStateStoreName, state);
+  persistEmbedState(state);
 }
 
 /**
@@ -303,8 +331,9 @@ export async function renderEmbeds(payloads: EmbedPayload[]): Promise<string[]> 
   return instanceIds.filter((instanceId): instanceId is string => instanceId !== null);
 }
 
-/** Test seam: forget what this page load has rendered and dismissed. */
+/** Test seam: forget what this page load has rendered, dismissed and refreshed. */
 export function resetRenderedEmbeds(): void {
   renderedEmbeds.clear();
   dismissedEmbeds.clear();
+  stateRefreshedThisLoad = false;
 }
