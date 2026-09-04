@@ -52,6 +52,12 @@ injecting markup.
 | `untilDismissed`   | Once closed, stays hidden — permanently, or for `reshowAfterMinutes`.            |
 | `onceEver`         | Renders once per browser.                                                        |
 
+A payload also carries the reporting identity for the message — `contentId` and
+`templateId`, both integers, in `properties.gist`, exactly as a broadcast
+carries its own. The content pipeline requires both and drops events without
+them, so an embed published without them renders but reports nothing (the
+analytics layer logs when that happens).
+
 A snooze is not a dismissal: `gist://snooze?showIn=<minutes>` hides the message
 and shows it again once the time is up, whatever the frequency rule says.
 

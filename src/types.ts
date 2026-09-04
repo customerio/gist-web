@@ -127,6 +127,15 @@ export interface GistProperties {
   campaignId?: string | null;
   persistent?: boolean;
   embed?: EmbedDisplayConfig;
+  /**
+   * Reporting identity for content that belongs to no campaign, carried by an
+   * embed payload exactly as a broadcast carries its own. Both are integers:
+   * the content pipeline requires them, and drops the event without them. The
+   * SDK never reads these — they are passed through for the analytics layer,
+   * the same way campaignId is.
+   */
+  contentId?: number;
+  templateId?: number;
   [key: string]: unknown;
 }
 
