@@ -65,7 +65,7 @@ vi.mock('./message-component-manager', () => ({
 }));
 vi.mock('./gist-properties-manager', () => ({
   resolveMessageProperties: vi.fn(() => ({
-    isEmbedded: false,
+    isInlineElement: false,
     elementId: '',
     hasRouteRule: false,
     routeRule: '',
@@ -444,7 +444,7 @@ describe('message-manager', () => {
       const { resolveMessageProperties } = await import('./gist-properties-manager');
 
       vi.mocked(resolveMessageProperties).mockReturnValue({
-        isEmbedded: false,
+        isInlineElement: false,
         elementId: '',
         hasRouteRule: false,
         routeRule: '',
@@ -763,7 +763,7 @@ describe('message-manager', () => {
       const { resolveMessageProperties } = await import('./gist-properties-manager');
 
       vi.mocked(resolveMessageProperties).mockReturnValue({
-        isEmbedded: false,
+        isInlineElement: false,
         elementId: '',
         hasRouteRule: false,
         routeRule: '',
@@ -919,7 +919,7 @@ describe('message-manager', () => {
 
     function tooltipProperties(elementId: string, tooltipPosition = 'bottom') {
       return {
-        isEmbedded: false,
+        isInlineElement: false,
         elementId,
         hasRouteRule: false,
         routeRule: '',
@@ -1446,7 +1446,7 @@ describe('message-manager', () => {
   });
   describe('embedded messages', () => {
     const embedProperties = {
-      isEmbedded: true,
+      isInlineElement: true,
       elementId: '',
       hasRouteRule: false,
       routeRule: '',

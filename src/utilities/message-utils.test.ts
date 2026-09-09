@@ -33,7 +33,7 @@ vi.mock('../managers/page-component-manager', () => ({
 
 vi.mock('../managers/gist-properties-manager', () => ({
   MESSAGE_PROPERTY_DEFAULTS: {
-    isEmbedded: false,
+    isInlineElement: false,
     elementId: '',
     hasRouteRule: false,
     routeRule: '',
@@ -56,7 +56,7 @@ vi.mock('../managers/gist-properties-manager', () => ({
   resolveMessageProperties: vi.fn((message: GistMessage) => {
     const gist = message?.properties?.gist;
     return {
-      isEmbedded: !!gist?.elementId,
+      isInlineElement: !!gist?.elementId,
       elementId: gist?.elementId || '',
       hasRouteRule: false,
       routeRule: '',

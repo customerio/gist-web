@@ -61,7 +61,7 @@ function continuationAnchorSelector(
   let selector: string | null | undefined = null;
   if (messageProperties.hasTooltipPosition || message.tooltipPosition) {
     selector = messageProperties.elementId || message.elementId;
-  } else if (messageProperties.isEmbedded) {
+  } else if (messageProperties.isInlineElement) {
     selector = messageProperties.elementId;
   }
   if (!selector || positions.includes(selector)) {
@@ -268,7 +268,7 @@ export async function handleMessage(message: GistMessage): Promise<boolean> {
     return false;
   } else {
     let result: GistMessage | null = null;
-    if (messageProperties.isEmbedded) {
+    if (messageProperties.isInlineElement) {
       const isLivePreview = Gist.config.isPreviewSession && message.properties?.gist?.livePreview;
       if (
         isLivePreview &&

@@ -9,7 +9,7 @@ function parseHTML(html: string): Document {
 
 function makeProps(overrides: Partial<ResolvedMessageProperties> = {}): ResolvedMessageProperties {
   return {
-    isEmbedded: false,
+    isInlineElement: false,
     elementId: '',
     hasRouteRule: false,
     routeRule: '',

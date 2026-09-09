@@ -29,7 +29,7 @@ vi.mock('../gist', () => ({
 }));
 vi.mock('./gist-properties-manager', () => ({
   resolveMessageProperties: vi.fn(() => ({
-    isEmbedded: false,
+    isInlineElement: false,
     elementId: '',
     hasRouteRule: false,
     routeRule: '',
@@ -149,7 +149,7 @@ describe('message-component-manager', () => {
 
   describe('showOverlayComponent dismiss listeners', () => {
     const resolvedProperties = {
-      isEmbedded: false,
+      isInlineElement: false,
       elementId: '',
       hasRouteRule: false,
       routeRule: '',
@@ -303,7 +303,7 @@ describe('message-component-manager', () => {
       vi.mocked(positionTooltip).mockReturnValue({ cleanup: mockCleanup, reposition: vi.fn() });
 
       vi.mocked(resolveMessageProperties).mockReturnValue({
-        isEmbedded: false,
+        isInlineElement: false,
         elementId: '',
         hasRouteRule: false,
         routeRule: '',
@@ -378,7 +378,7 @@ describe('message-component-manager', () => {
     it('calls positionTooltip with the wrapper, selector, and position', async () => {
       setupTooltipWrapper('inst-1');
       vi.mocked(resolveMessageProperties).mockReturnValue({
-        isEmbedded: false,
+        isInlineElement: false,
         elementId: '',
         hasRouteRule: false,
         routeRule: '',
@@ -420,7 +420,7 @@ describe('message-component-manager', () => {
     it('defaults tooltip position to bottom when not specified', async () => {
       setupTooltipWrapper('inst-1');
       vi.mocked(resolveMessageProperties).mockReturnValue({
-        isEmbedded: false,
+        isInlineElement: false,
         elementId: '',
         hasRouteRule: false,
         routeRule: '',
@@ -644,7 +644,7 @@ describe('message-component-manager', () => {
       vi.mocked(positionTooltip).mockReturnValue({ cleanup: mockCleanup, reposition: vi.fn() });
 
       vi.mocked(resolveMessageProperties).mockReturnValue({
-        isEmbedded: false,
+        isInlineElement: false,
         elementId: '',
         hasRouteRule: false,
         routeRule: '',

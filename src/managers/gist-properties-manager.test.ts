@@ -5,7 +5,7 @@ import type { GistMessage } from '../types';
 vi.mock('../utilities/log', () => ({ log: vi.fn() }));
 
 const defaults = {
-  isEmbedded: false,
+  isInlineElement: false,
   elementId: '',
   hasRouteRule: false,
   routeRule: '',
@@ -38,12 +38,12 @@ describe('resolveMessageProperties', () => {
     expect(resolveMessageProperties(message)).toEqual(defaults);
   });
 
-  it('isEmbedded is true when gist.elementId is set', () => {
+  it('isInlineElement is true when gist.elementId is set', () => {
     const message: GistMessage = {
       messageId: 'test',
       properties: { gist: { elementId: 'my-element' } },
     };
-    expect(resolveMessageProperties(message).isEmbedded).toBe(true);
+    expect(resolveMessageProperties(message).isInlineElement).toBe(true);
     expect(resolveMessageProperties(message).elementId).toBe('my-element');
   });
 

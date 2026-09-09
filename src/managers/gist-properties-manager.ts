@@ -19,7 +19,7 @@ function resolveEmbedFrequency(value: unknown, fallback: EmbedFrequency): EmbedF
 }
 
 export const MESSAGE_PROPERTY_DEFAULTS: ResolvedMessageProperties = {
-  isEmbedded: false,
+  isInlineElement: false,
   elementId: '',
   hasRouteRule: false,
   routeRule: '',
@@ -87,7 +87,7 @@ export function resolveMessageProperties(message: GistMessage): ResolvedMessageP
   const embed = gist.embed;
 
   return {
-    isEmbedded: !!gist.elementId && !gist.tooltipPosition,
+    isInlineElement: !!gist.elementId && !gist.tooltipPosition,
     elementId: gist.elementId || '',
     hasRouteRule: !!gist.routeRuleWeb,
     routeRule: gist.routeRuleWeb || '',

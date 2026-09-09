@@ -195,7 +195,13 @@ export interface Branding {
 }
 
 export interface ResolvedMessageProperties {
-  isEmbedded: boolean;
+  /**
+   * Authored to render inline into a page element — the `inline` display type,
+   * as opposed to a modal, an overlay position or a tooltip. This is a question
+   * about how the message looks, and is distinct from `isEmbed` below, which is
+   * a question about where it came from. The two can disagree.
+   */
+  isInlineElement: boolean;
   elementId: string;
   hasRouteRule: boolean;
   routeRule: string;
@@ -211,6 +217,12 @@ export interface ResolvedMessageProperties {
   persistent: boolean;
   exitClick: boolean;
   hasCustomWidth: boolean;
+  /**
+   * Delivered by a payload block the page declares, rather than by the message
+   * queue — see `EmbedPayload`. A question about where the message came from,
+   * and distinct from `isInlineElement` above: an embed always renders inline,
+   * but a queue-delivered inline message is not an embed.
+   */
   isEmbed: boolean;
   embedFrequency: EmbedFrequency;
   embedReshowAfterMinutes: number;
