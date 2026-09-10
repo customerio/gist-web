@@ -37,14 +37,8 @@ export const MESSAGE_PROPERTY_DEFAULTS: ResolvedMessageProperties = {
   hasCustomWidth: false,
   isEmbed: false,
   embedFrequency: 'always',
-  embedReshowAfterMinutes: 0,
   embedLogView: false,
 };
-
-function resolveReshowAfterMinutes(value: unknown): number {
-  const minutes = Math.floor(Number(value));
-  return Number.isFinite(minutes) && minutes > 0 ? minutes : 0;
-}
 
 function resolveMessageTooltipColor(message: GistMessage): string {
   let tooltipColor = MESSAGE_PROPERTY_DEFAULTS.tooltipArrowColor;
@@ -108,7 +102,6 @@ export function resolveMessageProperties(message: GistMessage): ResolvedMessageP
     exitClick: !!gist.exitClick,
     isEmbed,
     embedFrequency: resolveEmbedFrequency(embed?.frequency, defaults.embedFrequency),
-    embedReshowAfterMinutes: resolveReshowAfterMinutes(embed?.reshowAfterMinutes),
     embedLogView: !!embed?.logView,
   };
 }

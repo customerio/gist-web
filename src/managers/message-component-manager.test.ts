@@ -47,7 +47,6 @@ vi.mock('./gist-properties-manager', () => ({
     hasCustomWidth: false,
     isEmbed: false,
     embedFrequency: 'always' as const,
-    embedReshowAfterMinutes: 0,
     embedLogView: false,
   })),
 }));
@@ -167,7 +166,6 @@ describe('message-component-manager', () => {
       hasCustomWidth: false,
       isEmbed: false,
       embedFrequency: 'always' as const,
-      embedReshowAfterMinutes: 0,
       embedLogView: false,
     };
 
@@ -321,7 +319,6 @@ describe('message-component-manager', () => {
         hasCustomWidth: false,
         isEmbed: false,
         embedFrequency: 'always' as const,
-        embedReshowAfterMinutes: 0,
         embedLogView: false,
       });
 
@@ -396,7 +393,6 @@ describe('message-component-manager', () => {
         hasCustomWidth: false,
         isEmbed: false,
         embedFrequency: 'always' as const,
-        embedReshowAfterMinutes: 0,
         embedLogView: false,
       });
 
@@ -438,7 +434,6 @@ describe('message-component-manager', () => {
         hasCustomWidth: false,
         isEmbed: false,
         embedFrequency: 'always' as const,
-        embedReshowAfterMinutes: 0,
         embedLogView: false,
       });
 
@@ -662,7 +657,6 @@ describe('message-component-manager', () => {
         hasCustomWidth: false,
         isEmbed: false,
         embedFrequency: 'always' as const,
-        embedReshowAfterMinutes: 0,
         embedLogView: false,
       });
 

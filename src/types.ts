@@ -74,18 +74,13 @@ export interface StepDisplayConfig {
  *
  * - `always` — render on every page load; closing hides it for that load only,
  *   and is not persisted.
- * - `untilDismissed` — once closed, stay hidden (see `reshowAfterMinutes`).
+ * - `untilDismissed` — once closed, stay hidden.
  * - `onceEver` — render once per browser, then never again.
  */
 export type EmbedFrequency = 'always' | 'untilDismissed' | 'onceEver';
 
 export interface EmbedDisplayConfig {
   frequency?: EmbedFrequency;
-  /**
-   * With `untilDismissed`, re-show this long after a close instead of never.
-   * Zero or absent means the dismissal is permanent.
-   */
-  reshowAfterMinutes?: number;
 
   /**
    * Log the view to the Gist consumer API. Off by default: an embed has no
@@ -225,7 +220,6 @@ export interface ResolvedMessageProperties {
    */
   isEmbed: boolean;
   embedFrequency: EmbedFrequency;
-  embedReshowAfterMinutes: number;
   embedLogView: boolean;
 }
 

@@ -47,7 +47,6 @@ vi.mock('./gist-properties-manager', () => ({
     hasCustomWidth: false,
     isEmbed: false,
     embedFrequency: 'always' as const,
-    embedReshowAfterMinutes: 0,
     embedLogView: false,
   })),
 }));
@@ -232,7 +231,6 @@ describe('queue-manager', () => {
         hasCustomWidth: false,
         isEmbed: false,
         embedFrequency: 'always' as const,
-        embedReshowAfterMinutes: 0,
         embedLogView: false,
       });
       vi.mocked(findElement).mockReturnValue(null);
@@ -270,7 +268,6 @@ describe('queue-manager', () => {
         hasCustomWidth: false,
         isEmbed: false,
         embedFrequency: 'always' as const,
-        embedReshowAfterMinutes: 0,
         embedLogView: false,
       });
       vi.mocked(findElement).mockReturnValue(document.createElement('div'));
@@ -308,7 +305,6 @@ describe('queue-manager', () => {
         hasCustomWidth: false,
         isEmbed: false,
         embedFrequency: 'always' as const,
-        embedReshowAfterMinutes: 0,
         embedLogView: false,
       });
       vi.mocked(findElement).mockReturnValue(null);
@@ -347,7 +343,6 @@ describe('queue-manager', () => {
       hasCustomWidth: false,
       isEmbed: false,
       embedFrequency: 'always' as const,
-      embedReshowAfterMinutes: 0,
       embedLogView: false,
     };
 
@@ -894,7 +889,6 @@ describe('queue-manager', () => {
       hasCustomWidth: false,
       isEmbed: false,
       embedFrequency: 'always' as const,
-      embedReshowAfterMinutes: 0,
       embedLogView: false,
     };
 

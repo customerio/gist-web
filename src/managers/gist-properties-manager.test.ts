@@ -23,7 +23,6 @@ const defaults = {
   hasCustomWidth: false,
   isEmbed: false,
   embedFrequency: 'always' as const,
-  embedReshowAfterMinutes: 0,
   embedLogView: false,
 };
 

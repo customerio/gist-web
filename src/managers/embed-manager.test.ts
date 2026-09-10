@@ -172,12 +172,6 @@ describe('embed-manager', () => {
       expect(state().hidden[embedId]).toBe(true);
     });
 
-    it('hides an untilDismissed embed for reshowAfterMinutes when set', () => {
-      recordEmbedDismissed(makeMessage({ frequency: 'untilDismissed', reshowAfterMinutes: 30 }));
-
-      expect(state().hidden[embedId]).toBeGreaterThan(Date.now() + 29 * 60 * 1000);
-    });
-
     it('persists nothing for an always embed but keeps it closed for this page load', () => {
       const message = makeMessage({ frequency: 'always' });
       recordEmbedDismissed(message);

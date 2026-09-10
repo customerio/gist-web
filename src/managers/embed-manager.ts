@@ -151,19 +151,12 @@ export function recordEmbedDismissed(message: GistMessage): void {
 
   dismissedEmbeds.add(embedId);
 
-  const properties = resolveMessageProperties(message);
-  if (properties.embedFrequency !== 'untilDismissed') return;
+  if (resolveMessageProperties(message).embedFrequency !== 'untilDismissed') return;
 
-  const minutes = properties.embedReshowAfterMinutes;
-  const until = minutes > 0 ? Date.now() + minutes * 60 * 1000 : true;
   updateEmbedState((state) => {
-    state.hidden[embedId] = until;
+    state.hidden[embedId] = true;
   });
-  log(
-    minutes > 0
-      ? `Embed ${embedId} dismissed, hidden for ${minutes} minute(s).`
-      : `Embed ${embedId} dismissed and will not render again.`
-  );
+  log(`Embed ${embedId} dismissed and will not render again.`);
 }
 
 /**

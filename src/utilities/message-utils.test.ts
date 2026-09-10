@@ -50,7 +50,6 @@ vi.mock('../managers/gist-properties-manager', () => ({
     hasCustomWidth: false,
     isEmbed: false,
     embedFrequency: 'always' as const,
-    embedReshowAfterMinutes: 0,
     embedLogView: false,
   },
   resolveMessageProperties: vi.fn((message: GistMessage) => {

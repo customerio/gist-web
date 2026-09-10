@@ -49,7 +49,7 @@ injecting markup.
 | Value              | Behaviour                                                                        |
 | ------------------ | -------------------------------------------------------------------------------- |
 | `always` (default) | Renders on every page load; closing hides it for that load only. Stores nothing. |
-| `untilDismissed`   | Once closed, stays hidden — permanently, or for `reshowAfterMinutes`.            |
+| `untilDismissed`   | Once closed, stays hidden. A snooze is not a close — see below.                  |
 | `onceEver`         | Renders once per browser.                                                        |
 
 A payload also carries the reporting identity for the message — `contentId` and
@@ -62,9 +62,8 @@ A snooze is not a dismissal: `gist://snooze?showIn=<minutes>` hides the message
 and shows it again once the time is up, whatever the frequency rule says.
 
 Every embed's state lives in one key, `gist.web.embeds`: the ids that may not
-render, mapped to `true` for never again or to the moment they become eligible
-(a snooze, or `reshowAfterMinutes`). Presence is the whole answer, so the lot
-clears in one call:
+render, mapped to `true` for never again or to the moment a snooze makes them
+eligible again. Presence is the whole answer, so the lot clears in one call:
 
 ```js
 localStorage.removeItem('gist.web.embeds'); // or Gist.resetEmbed(embedId) for one
