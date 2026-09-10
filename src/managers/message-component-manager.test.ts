@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
+  sendOptionsToIframe,
   showEmbedComponent,
   hideEmbedComponent,
   elementHasHeight,
@@ -28,7 +29,7 @@ vi.mock('../gist', () => ({
 }));
 vi.mock('./gist-properties-manager', () => ({
   resolveMessageProperties: vi.fn(() => ({
-    isEmbedded: false,
+    isInlineElement: false,
     elementId: '',
     hasRouteRule: false,
     routeRule: '',
@@ -44,6 +45,9 @@ vi.mock('./gist-properties-manager', () => ({
     persistent: false,
     exitClick: false,
     hasCustomWidth: false,
+    isEmbed: false,
+    embedFrequency: 'always' as const,
+    embedLogView: false,
   })),
 }));
 vi.mock('../templates/embed', () => ({
@@ -144,7 +148,7 @@ describe('message-component-manager', () => {
 
   describe('showOverlayComponent dismiss listeners', () => {
     const resolvedProperties = {
-      isEmbedded: false,
+      isInlineElement: false,
       elementId: '',
       hasRouteRule: false,
       routeRule: '',
@@ -160,6 +164,9 @@ describe('message-component-manager', () => {
       persistent: false,
       exitClick: false,
       hasCustomWidth: false,
+      isEmbed: false,
+      embedFrequency: 'always' as const,
+      embedLogView: false,
     };
 
     function setupOverlay(exitClick: boolean): GistMessage {
@@ -294,7 +301,7 @@ describe('message-component-manager', () => {
       vi.mocked(positionTooltip).mockReturnValue({ cleanup: mockCleanup, reposition: vi.fn() });
 
       vi.mocked(resolveMessageProperties).mockReturnValue({
-        isEmbedded: false,
+        isInlineElement: false,
         elementId: '',
         hasRouteRule: false,
         routeRule: '',
@@ -310,6 +317,9 @@ describe('message-component-manager', () => {
         persistent: false,
         exitClick: false,
         hasCustomWidth: false,
+        isEmbed: false,
+        embedFrequency: 'always' as const,
+        embedLogView: false,
       });
 
       const message: GistMessage = {
@@ -365,7 +375,7 @@ describe('message-component-manager', () => {
     it('calls positionTooltip with the wrapper, selector, and position', async () => {
       setupTooltipWrapper('inst-1');
       vi.mocked(resolveMessageProperties).mockReturnValue({
-        isEmbedded: false,
+        isInlineElement: false,
         elementId: '',
         hasRouteRule: false,
         routeRule: '',
@@ -381,6 +391,9 @@ describe('message-component-manager', () => {
         persistent: false,
         exitClick: false,
         hasCustomWidth: false,
+        isEmbed: false,
+        embedFrequency: 'always' as const,
+        embedLogView: false,
       });
 
       const message: GistMessage = {
@@ -403,7 +416,7 @@ describe('message-component-manager', () => {
     it('defaults tooltip position to bottom when not specified', async () => {
       setupTooltipWrapper('inst-1');
       vi.mocked(resolveMessageProperties).mockReturnValue({
-        isEmbedded: false,
+        isInlineElement: false,
         elementId: '',
         hasRouteRule: false,
         routeRule: '',
@@ -419,6 +432,9 @@ describe('message-component-manager', () => {
         persistent: false,
         exitClick: false,
         hasCustomWidth: false,
+        isEmbed: false,
+        embedFrequency: 'always' as const,
+        embedLogView: false,
       });
 
       const message: GistMessage = {
@@ -623,7 +639,7 @@ describe('message-component-manager', () => {
       vi.mocked(positionTooltip).mockReturnValue({ cleanup: mockCleanup, reposition: vi.fn() });
 
       vi.mocked(resolveMessageProperties).mockReturnValue({
-        isEmbedded: false,
+        isInlineElement: false,
         elementId: '',
         hasRouteRule: false,
         routeRule: '',
@@ -639,6 +655,9 @@ describe('message-component-manager', () => {
         persistent: false,
         exitClick: false,
         hasCustomWidth: false,
+        isEmbed: false,
+        embedFrequency: 'always' as const,
+        embedLogView: false,
       });
 
       const message: GistMessage = {
@@ -817,6 +836,51 @@ describe('message-component-manager', () => {
       hideTooltipComponent({ messageId: 'msg-1', instanceId: 'inst-1' });
 
       expect(mockCleanup).toHaveBeenCalledTimes(1);
+    });
+  });
+  describe('sendOptionsToIframe capabilities', () => {
+    function iframeWithSpy(id: string): ReturnType<typeof vi.fn> {
+      const postMessage = vi.fn();
+      const iframe = document.createElement('iframe');
+      iframe.id = id;
+      document.body.appendChild(iframe);
+      Object.defineProperty(iframe, 'contentWindow', {
+        value: { postMessage },
+        configurable: true,
+      });
+      return postMessage;
+    }
+
+    const baseOptions = {
+      endpoint: 'https://api.test',
+      siteId: 'site',
+      messageId: 'msg-1',
+      instanceId: 'instance-1',
+      livePreview: false,
+    };
+
+    it('advertises every capability for a queue-delivered message', () => {
+      const postMessage = iframeWithSpy('gist-frame-1');
+
+      sendOptionsToIframe('gist-frame-1', { ...baseOptions });
+
+      expect(postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          capabilities: ['MultiStepDisplayTypes', 'CrossPageStepNavigation', 'Snooze'],
+        }),
+        '*'
+      );
+    });
+
+    it('withholds display-type and cross-page capabilities from an embed', () => {
+      const postMessage = iframeWithSpy('gist-frame-2');
+
+      sendOptionsToIframe('gist-frame-2', { ...baseOptions, isEmbed: true });
+
+      expect(postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ capabilities: ['Snooze'] }),
+        '*'
+      );
     });
   });
 });
