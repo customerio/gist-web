@@ -240,6 +240,22 @@ describe('embed-manager', () => {
       );
     });
 
+    it('renders even when the frequency state cannot be persisted', async () => {
+      // A stored record makes shouldRenderEmbed refresh it on the way through,
+      // so the write really happens here — and it lands before the render, so a
+      // store that refuses it must not cost the customer the message.
+      stored.set(STORE, { hidden: { emb_other: true } });
+      vi.mocked(setKeyToLocalStore).mockImplementationOnce(() => {
+        throw new DOMException('quota exceeded', 'QuotaExceededError');
+      });
+      document.body.innerHTML = `<div data-cio-embed="${embedId}"></div>`;
+
+      const instanceId = await renderEmbed(makePayload());
+
+      expect(instanceId).toBe('instance-1');
+      expect(setKeyToLocalStore).toHaveBeenCalled();
+    });
+
     it('renders into an explicit target when the payload names one', async () => {
       document.body.innerHTML = '<div id="somewhere-else"></div>';
 

@@ -73,8 +73,18 @@ function prunedState(): EmbedState | null {
   return { hidden };
 }
 
+// Storage can refuse a write — an exhausted quota, a private window, a page
+// that blocks site data. This runs before the embed renders, because
+// shouldRenderEmbed refreshes the record on its way through, so an unguarded
+// write would leave a hole in the customer's layout over frequency
+// bookkeeping. Losing the write costs only the frequency cap, and the flag is
+// still set so the failure is not retried on every read this page load.
 function persistEmbedState(state: EmbedState): void {
-  setKeyToLocalStore(embedStateStoreName, state);
+  try {
+    setKeyToLocalStore(embedStateStoreName, state);
+  } catch (error) {
+    log(`Embed ${embedStateStoreName} state could not be persisted: ${error}`);
+  }
   stateRefreshedThisLoad = true;
 }
 
