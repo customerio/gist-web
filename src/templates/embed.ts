@@ -12,7 +12,7 @@ export function embedHTMLTemplate(
   }
 
   const template = `
-    <div class="gist-embed">
+    <div id="gist-embed">
         <style>
             #x-gist-floating-top, #x-gist-floating-top-left, #x-gist-floating-top-right {
                 position: fixed;
@@ -31,20 +31,21 @@ export function embedHTMLTemplate(
             #x-gist-floating-top-right, #x-gist-floating-bottom-right {
                 right: 0px;
             }
-            .gist-embed {
+            #gist-embed {
                 position: relative;
                 height: 100%;
                 width: 100%;
             }
-            .gist-embed-container {
+            #gist-embed-container {
                 position: relative;
                 height: 100%;
                 width: 100%;
             }
-            .gist-embed-container .gist-frame {
+            #gist-embed-container .gist-frame {
                 height: 100%;
                 width: 100%;
                 border: none;
+                color-scheme: ${colorSchemeCss};
             }
             #x-gist-top.${elementId},
             #x-gist-bottom.${elementId},
@@ -69,8 +70,8 @@ export function embedHTMLTemplate(
                 }
             }
         </style>
-        <div class="gist-embed-container">
-            <iframe id="${elementId}" class="gist-frame" style="color-scheme: ${colorSchemeCss};" src="${url}"></iframe>
+        <div id="gist-embed-container">
+            <iframe id="${elementId}" class="gist-frame" src="${url}"></iframe>
         </div>
     </div>`;
   return template;

@@ -94,8 +94,8 @@ describe('embedHTMLTemplate', () => {
     const html = embedHTMLTemplate('el', makeProps(), 'https://example.com');
     const doc = parseHTML(html);
 
-    const container = doc.querySelector('.gist-embed-container');
-    const embed = doc.querySelector('.gist-embed');
+    const container = doc.querySelector('#gist-embed-container');
+    const embed = doc.querySelector('#gist-embed');
     expect(container).not.toBeNull();
     expect(embed).not.toBeNull();
   });

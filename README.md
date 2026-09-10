@@ -87,11 +87,6 @@ consequence. On a page that has both embeds and in-app messaging, still call
 `setup()` first — otherwise the auto-init wins and delivery never starts (the SDK
 warns when that happens).
 
-> **Note:** the wrapper the SDK injects around an inline message now uses
-> `.gist-embed` / `.gist-embed-container` classes rather than ids, so more than
-> one embed can share a page. Styles targeting `#gist-embed-container` need
-> updating to the class selector.
-
 ## 🧪 Development
 
 ### Local Testing
