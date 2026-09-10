@@ -41,39 +41,24 @@ const storageProbeKey = '__gist.web.storageProbe';
 /**
  * Resolves a real store, or the in-memory one when this page has none.
  *
- * Only a denied *access* falls back. A store that reads fine but refuses a
- * write — an exhausted quota, typically — is kept: everything the visitor
- * already has stored stays readable, which matters far more than the write
- * that failed, and every write here degrades on its own. Falling back would
- * instead hide that state for the whole page load and re-show messages the
- * visitor had already dismissed or snoozed.
+ * Probed with a read rather than a write, because readability is the only
+ * thing the fallback can improve on. A store that cannot be read is no store
+ * at all; a store that reads but refuses writes still carries everything the
+ * visitor has accumulated - dismissals, snoozes, broadcast seen-state - and
+ * abandoning it would hide all of that for the page load and re-show messages
+ * they had already closed. Writes degrade on their own instead (see
+ * writeQuietly and setKeyToLocalStore), which is also exactly how the SDK
+ * behaved before any of this existed.
  */
 function probe(resolve: () => Storage): Storage {
-  let storage: Storage;
   try {
-    storage = resolve();
+    const storage = resolve();
+    storage.getItem(storageProbeKey);
+    return storage;
   } catch {
-    log('Storage is unavailable on this page, falling back to in-memory storage.');
+    log('Storage cannot be read on this page, falling back to in-memory storage.');
     return memoryStorage;
   }
-
-  try {
-    storage.setItem(storageProbeKey, '1');
-    // Read the probe back rather than trusting setItem to have happened: some
-    // browsers hand back a store whose writes silently do nothing, and no
-    // exception reveals it. Such a store has nothing stored to preserve, so
-    // memory is a straight upgrade there.
-    const persisted = storage.getItem(storageProbeKey) === '1';
-    storage.removeItem(storageProbeKey);
-    if (!persisted) {
-      log('Storage accepts no writes on this page, falling back to in-memory storage.');
-      return memoryStorage;
-    }
-  } catch (e) {
-    log(`Storage is not writable on this page (${e}); existing state is still readable.`);
-  }
-
-  return storage;
 }
 
 // Writing can fail on a store that is readable but not writable (see probe),

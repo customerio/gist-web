@@ -43,8 +43,8 @@ function readOnlyStore(seed: Record<string, string> = {}): Storage {
 }
 
 /** Accepts writes and silently drops them, throwing nothing. */
-function noopStore(): Storage {
-  const store = mapStore();
+function noopStore(seed: Record<string, string> = {}): Storage {
+  const store = mapStore(seed);
   return {
     ...store,
     get length(): number {
@@ -53,6 +53,22 @@ function noopStore(): Storage {
     getItem: (key: string) => store.getItem(key),
     key: (index: number) => store.key(index),
     removeItem: (key: string) => store.removeItem(key),
+    setItem: (): void => {},
+  } as Storage;
+}
+
+/** Hands back an object that throws the moment it is read. */
+function unreadableStore(): Storage {
+  return {
+    get length(): number {
+      throw new DOMException('denied', 'SecurityError');
+    },
+    clear: (): void => {},
+    getItem: (): string | null => {
+      throw new DOMException('denied', 'SecurityError');
+    },
+    key: (): string | null => null,
+    removeItem: (): void => {},
     setItem: (): void => {},
   } as Storage;
 }
@@ -119,17 +135,31 @@ describe('local-storage store resolution', () => {
     expect(store.getKeyFromLocalStore('gist.web.other')).toBeNull();
   });
 
-  it('falls back to memory when writes are silently dropped', async () => {
+  it('keeps a store whose writes are silently dropped, for the same reason', async () => {
+    const session = mapStore();
+    const local = noopStore({ 'gist.web.probe-test': storedItem({ a: 1 }) });
+    install('sessionStorage', () => session);
+    install('localStorage', () => local);
+
+    const store = await freshModule();
+    store.shouldPersistSession(true);
+
+    // A write that vanishes without an exception is the same situation as one
+    // that throws, so it gets the same answer: the store stays.
+    expect(store.getKeyFromLocalStore('gist.web.probe-test')).toEqual({ a: 1 });
+    expect(() => store.setKeyToLocalStore('gist.web.other', { b: 2 })).not.toThrow();
+    expect(store.getKeyFromLocalStore('gist.web.other')).toBeNull();
+  });
+
+  it('falls back to memory when the store cannot be read', async () => {
     const session = mapStore();
     install('sessionStorage', () => session);
-    install('localStorage', () => noopStore());
+    install('localStorage', () => unreadableStore());
 
     const store = await freshModule();
     store.shouldPersistSession(true);
     store.setKeyToLocalStore('gist.web.probe-test', { a: 1 });
 
-    // Nothing would round-trip through the real store, so the probe has to
-    // notice without an exception to go on.
     expect(store.getKeyFromLocalStore('gist.web.probe-test')).toEqual({ a: 1 });
   });
 
