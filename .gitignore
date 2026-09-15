@@ -5,3 +5,6 @@ web
 .docs
 .husky/_
 scripts/
+
+# macOS
+.DS_Store

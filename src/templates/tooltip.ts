@@ -5,7 +5,14 @@ export const ARROW_SIZE = 10;
 // Soft shadow so the arrow stays visible when it matches the page background
 // (e.g. white on white). Offset points outward (toward the tip) per position
 // so no shadow is cast over the seam where the arrow base meets the frame.
+// When the message reports its own box-shadow (messageBackgroundChanged), the
+// --gist-tooltip-arrow-shadow variable overrides this default so the arrow
+// matches the body. Reported shadows can carry blur in any direction, so each
+// position also clips the shadow at the seam edge (clip-path applies after
+// filter); the message's own shadow already covers that region.
 const ARROW_SHADOW_COLOR = 'rgba(0, 0, 0, 0.08)';
+// Room left around the other three edges for large shadow blurs.
+const ARROW_SHADOW_CLIP = '-100px';
 
 function getArrowClass(tooltipPosition: string): string {
   switch (tooltipPosition) {
@@ -76,7 +83,8 @@ export function tooltipHTMLTemplate(
                 border-left: ${ARROW_SIZE}px solid transparent;
                 border-right: ${ARROW_SIZE}px solid transparent;
                 border-top: ${ARROW_SIZE}px solid var(--gist-tooltip-arrow-color, ${arrowColor});
-                filter: drop-shadow(0 1px 0 ${ARROW_SHADOW_COLOR});
+                filter: var(--gist-tooltip-arrow-shadow, drop-shadow(0 1px 0 ${ARROW_SHADOW_COLOR}));
+                clip-path: inset(0 ${ARROW_SHADOW_CLIP} ${ARROW_SHADOW_CLIP} ${ARROW_SHADOW_CLIP});
             }
             ${scope}.gist-tooltip-arrow.gist-arrow-top {
                 top: 0;
@@ -85,7 +93,8 @@ export function tooltipHTMLTemplate(
                 border-left: ${ARROW_SIZE}px solid transparent;
                 border-right: ${ARROW_SIZE}px solid transparent;
                 border-bottom: ${ARROW_SIZE}px solid var(--gist-tooltip-arrow-color, ${arrowColor});
-                filter: drop-shadow(0 -1px 0 ${ARROW_SHADOW_COLOR});
+                filter: var(--gist-tooltip-arrow-shadow, drop-shadow(0 -1px 0 ${ARROW_SHADOW_COLOR}));
+                clip-path: inset(${ARROW_SHADOW_CLIP} ${ARROW_SHADOW_CLIP} 0 ${ARROW_SHADOW_CLIP});
             }
             ${scope}.gist-tooltip-arrow.gist-arrow-right {
                 right: 0;
@@ -94,7 +103,8 @@ export function tooltipHTMLTemplate(
                 border-top: ${ARROW_SIZE}px solid transparent;
                 border-bottom: ${ARROW_SIZE}px solid transparent;
                 border-left: ${ARROW_SIZE}px solid var(--gist-tooltip-arrow-color, ${arrowColor});
-                filter: drop-shadow(1px 0 0 ${ARROW_SHADOW_COLOR});
+                filter: var(--gist-tooltip-arrow-shadow, drop-shadow(1px 0 0 ${ARROW_SHADOW_COLOR}));
+                clip-path: inset(${ARROW_SHADOW_CLIP} ${ARROW_SHADOW_CLIP} ${ARROW_SHADOW_CLIP} 0);
             }
             ${scope}.gist-tooltip-arrow.gist-arrow-left {
                 left: 0;
@@ -103,7 +113,8 @@ export function tooltipHTMLTemplate(
                 border-top: ${ARROW_SIZE}px solid transparent;
                 border-bottom: ${ARROW_SIZE}px solid transparent;
                 border-right: ${ARROW_SIZE}px solid var(--gist-tooltip-arrow-color, ${arrowColor});
-                filter: drop-shadow(-1px 0 0 ${ARROW_SHADOW_COLOR});
+                filter: var(--gist-tooltip-arrow-shadow, drop-shadow(-1px 0 0 ${ARROW_SHADOW_COLOR}));
+                clip-path: inset(${ARROW_SHADOW_CLIP} 0 ${ARROW_SHADOW_CLIP} ${ARROW_SHADOW_CLIP});
             }
             @media (max-width: ${maxWidthBreakpoint}px) {
                 ${scope}.gist-tooltip-frame {

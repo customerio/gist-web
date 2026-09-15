@@ -192,11 +192,11 @@ describe('tooltipHTMLTemplate', () => {
   it('applies a drop-shadow filter to all four arrow position rules', () => {
     const html = tooltipHTMLTemplate('el', makeProps(), 'https://example.com');
 
-    const shadows = html.match(/filter: drop-shadow\(/g) ?? [];
+    const shadows = html.match(/filter: var\(--gist-tooltip-arrow-shadow, drop-shadow\(/g) ?? [];
     expect(shadows).toHaveLength(4);
   });
 
-  it('points each drop-shadow offset away from the tooltip body', () => {
+  it('points each default drop-shadow offset away from the tooltip body', () => {
     const html = tooltipHTMLTemplate('el', makeProps(), 'https://example.com');
 
     // Arrow class names describe where the arrow sits, so the shadow offset
@@ -205,6 +205,18 @@ describe('tooltipHTMLTemplate', () => {
     expect(html).toMatch(/gist-arrow-top \{[^}]*drop-shadow\(0 -1px/);
     expect(html).toMatch(/gist-arrow-right \{[^}]*drop-shadow\(1px 0/);
     expect(html).toMatch(/gist-arrow-left \{[^}]*drop-shadow\(-1px 0/);
+  });
+
+  it('clips each arrow shadow at the seam edge only', () => {
+    const html = tooltipHTMLTemplate('el', makeProps(), 'https://example.com');
+
+    // The seam side (where the arrow base meets the tooltip body) gets a 0
+    // inset so a reported message shadow can never paint over the joint; the
+    // other three sides get negative insets to leave room for blur.
+    expect(html).toMatch(/gist-arrow-bottom \{[^}]*clip-path: inset\(0 -100px -100px -100px\)/);
+    expect(html).toMatch(/gist-arrow-top \{[^}]*clip-path: inset\(-100px -100px 0 -100px\)/);
+    expect(html).toMatch(/gist-arrow-right \{[^}]*clip-path: inset\(-100px -100px -100px 0\)/);
+    expect(html).toMatch(/gist-arrow-left \{[^}]*clip-path: inset\(-100px 0 -100px -100px\)/);
   });
 
   it('uses position: absolute on the wrapper', () => {

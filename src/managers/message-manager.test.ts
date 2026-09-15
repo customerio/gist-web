@@ -424,7 +424,8 @@ describe('message-manager', () => {
 
     async function dispatchBackgroundChanged(
       instanceId: string | undefined,
-      backgroundColor: string | null
+      backgroundColor: string | null,
+      boxShadow: string | null = null
     ) {
       window.dispatchEvent(
         new MessageEvent('message', {
@@ -432,7 +433,7 @@ describe('message-manager', () => {
             gist: {
               method: 'messageBackgroundChanged',
               instanceId,
-              parameters: { backgroundColor },
+              parameters: { backgroundColor, boxShadow },
             },
           },
           origin: 'https://renderer.test',
@@ -470,6 +471,29 @@ describe('message-manager', () => {
       await dispatchBackgroundChanged(message.instanceId, 'rgb(26, 26, 46)');
 
       expect(wrapper.style.getPropertyValue('--gist-tooltip-arrow-color')).toBe('');
+    });
+
+    it('sets the arrow shadow variable from the reported box-shadow', async () => {
+      const message = await setupMessage('tooltip');
+
+      await dispatchBackgroundChanged(
+        message.instanceId,
+        'rgb(26, 26, 46)',
+        'rgba(0, 0, 0, 0.1) 0px 2px 4px 0px'
+      );
+
+      expect(wrapper.style.getPropertyValue('--gist-tooltip-arrow-shadow')).toBe(
+        'drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.1))'
+      );
+    });
+
+    it('removes the arrow shadow variable when no shadow is reported', async () => {
+      const message = await setupMessage('tooltip');
+      wrapper.style.setProperty('--gist-tooltip-arrow-shadow', 'drop-shadow(0 1px 0 red)');
+
+      await dispatchBackgroundChanged(message.instanceId, 'rgb(26, 26, 46)', null);
+
+      expect(wrapper.style.getPropertyValue('--gist-tooltip-arrow-shadow')).toBe('');
     });
   });
 

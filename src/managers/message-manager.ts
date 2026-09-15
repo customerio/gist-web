@@ -61,6 +61,7 @@ import {
   PREVIEW_SETTINGS_PARAM,
   withPreviewSession,
 } from '../utilities/preview-mode';
+import { boxShadowToDropShadowFilter, isSupportedArrowShadow } from '../utilities/shadow-utils';
 import type { GistMessage, DisplaySettings, MessageProperties } from '../types';
 
 interface GistEventData {
@@ -710,6 +711,19 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
           wrapper.style.setProperty('--gist-tooltip-arrow-color', backgroundColor);
         } else {
           wrapper.style.removeProperty('--gist-tooltip-arrow-color');
+        }
+        // The arrow follows the message shadow the same way it follows the
+        // background: converted to a drop-shadow() filter because box-shadow
+        // cannot render on a border triangle. Absent or unrepresentable
+        // shadows leave the property unset so the template's default arrow
+        // shadow applies — writing an invalid value would instead compute
+        // filter to none, because a set-but-invalid var() never falls back.
+        const boxShadow = data.gist.parameters.boxShadow as string | null | undefined;
+        const arrowShadowFilter = boxShadowToDropShadowFilter(boxShadow);
+        if (arrowShadowFilter && isSupportedArrowShadow(arrowShadowFilter)) {
+          wrapper.style.setProperty('--gist-tooltip-arrow-shadow', arrowShadowFilter);
+        } else {
+          wrapper.style.removeProperty('--gist-tooltip-arrow-shadow');
         }
         break;
       }
