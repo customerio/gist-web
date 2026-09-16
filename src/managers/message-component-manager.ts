@@ -538,10 +538,12 @@ export function resizeTooltipComponent(
   const instanceId = message.instanceId ?? '';
   const iframeId = getMessageElementId(instanceId);
   const iframe = document.getElementById(iframeId) as HTMLIFrameElement | null;
-  if (iframe && size.height > 0) {
-    iframe.style.height = `${size.height}px`;
-    applyTooltipInsets(instanceId, size.insets);
+  if (!iframe) return;
 
+  applyTooltipInsets(instanceId, size.insets);
+
+  if (size.height > 0) {
+    iframe.style.height = `${size.height}px`;
     const handle = tooltipHandleMap.get(instanceId);
     if (handle) {
       handle.reposition();
