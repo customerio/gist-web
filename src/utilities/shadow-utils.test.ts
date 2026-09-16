@@ -1,26 +1,24 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { boxShadowToDropShadowFilter, isSupportedArrowShadow } from './shadow-utils';
+import { describe, expect, it } from 'vitest';
+import { boxShadowToDropShadowFilter } from './shadow-utils';
 
+// Inputs here are real computed serializations (verified against a browser),
+// because that is the only shape this ever receives — the renderer reads
+// getComputedStyle().boxShadow. The last few cases are malformed on purpose:
+// the value crosses a postMessage boundary, so it is treated as untrusted.
 describe('boxShadowToDropShadowFilter', () => {
-  it('converts a computed single shadow (color first) and drops spread', () => {
+  it('converts a computed single shadow and drops spread', () => {
     expect(boxShadowToDropShadowFilter('rgba(0, 0, 0, 0.1) 0px 2px 4px 0px')).toBe(
       'drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.1))'
     );
   });
 
-  it('tolerates authored order with the color last', () => {
-    expect(boxShadowToDropShadowFilter('0px 2px 4px rgba(0, 0, 0, 0.1)')).toBe(
+  it('tolerates a serialization that puts the colour last', () => {
+    expect(boxShadowToDropShadowFilter('0px 2px 4px 0px rgba(0, 0, 0, 0.1)')).toBe(
       'drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.1))'
     );
   });
 
-  it('defaults blur to 0 when only offsets are given', () => {
-    expect(boxShadowToDropShadowFilter('rgb(255, 0, 0) 1px 2px')).toBe(
-      'drop-shadow(1px 2px 0 rgb(255, 0, 0))'
-    );
-  });
-
-  it('emits only the most prominent shadow of a multi-shadow list', () => {
+  it('emits only the most prominent layer of a multi-shadow list', () => {
     // Chained drop-shadow() filters compose sequentially — the second would
     // shadow the already-shadowed result and compound.
     expect(
@@ -30,7 +28,7 @@ describe('boxShadowToDropShadowFilter', () => {
     ).toBe('drop-shadow(0px 8px 16px rgba(0, 0, 0, 0.2))');
   });
 
-  it('picks the most prominent shadow regardless of list order', () => {
+  it('picks the most prominent layer regardless of list order', () => {
     expect(
       boxShadowToDropShadowFilter(
         'rgba(0, 0, 0, 0.2) 0px 8px 16px 2px, rgba(0, 0, 0, 0.1) 0px 2px 4px 0px'
@@ -38,7 +36,7 @@ describe('boxShadowToDropShadowFilter', () => {
     ).toBe('drop-shadow(0px 8px 16px rgba(0, 0, 0, 0.2))');
   });
 
-  it('skips inset shadows', () => {
+  it('skips inset layers', () => {
     expect(
       boxShadowToDropShadowFilter(
         'rgba(0, 0, 0, 0.3) 0px 1px 2px 0px inset, rgba(0, 0, 0, 0.1) 0px 2px 4px 0px'
@@ -47,12 +45,12 @@ describe('boxShadowToDropShadowFilter', () => {
   });
 
   it('returns null for inset-only shadow lists', () => {
-    expect(boxShadowToDropShadowFilter('inset rgba(0, 0, 0, 0.3) 0px 1px 2px')).toBeNull();
+    expect(boxShadowToDropShadowFilter('rgba(0, 0, 0, 0.3) 0px 1px 2px 0px inset')).toBeNull();
   });
 
   it('returns null for a spread-only ring, which would paint nothing', () => {
-    // Zero offset and zero blur render entirely behind the opaque triangle.
-    // Returning null keeps the template's default arrow shadow in play.
+    // Zero offset and zero blur render entirely behind the opaque tooltip.
+    // Returning null keeps the template's default shadow in play.
     expect(boxShadowToDropShadowFilter('rgba(0, 0, 0, 0.1) 0px 0px 0px 1px')).toBeNull();
   });
 
@@ -71,12 +69,12 @@ describe('boxShadowToDropShadowFilter', () => {
     expect(boxShadowToDropShadowFilter(undefined)).toBeNull();
   });
 
-  it('returns null when no offsets can be parsed', () => {
+  it('returns null when no lengths can be parsed', () => {
     expect(boxShadowToDropShadowFilter('rgba(0, 0, 0, 0.1)')).toBeNull();
   });
 
   it('returns null for a negative blur, which is invalid in a filter', () => {
-    expect(boxShadowToDropShadowFilter('rgb(0, 0, 0) 0px 0px -4px')).toBeNull();
+    expect(boxShadowToDropShadowFilter('rgb(0, 0, 0) 0px 0px -4px 0px')).toBeNull();
   });
 
   it('handles negative offsets and decimal lengths', () => {
@@ -85,11 +83,15 @@ describe('boxShadowToDropShadowFilter', () => {
     );
   });
 
-  it('accepts modern computed color functions', () => {
-    expect(boxShadowToDropShadowFilter('color(display-p3 0 0 0 / 0.1) 0px 2px 4px')).toBe(
-      'drop-shadow(0px 2px 4px color(display-p3 0 0 0 / 0.1))'
+  it('accepts modern computed colour functions', () => {
+    // color-mix() and relative colours resolve to one of these before they
+    // reach us, so there are never nested parentheses to parse.
+    expect(boxShadowToDropShadowFilter('color(srgb 0.5 0 0.5) 0px 2px 4px 0px')).toBe(
+      'drop-shadow(0px 2px 4px color(srgb 0.5 0 0.5))'
     );
-    expect(boxShadowToDropShadowFilter('#0003 0px 2px 4px')).toBe('drop-shadow(0px 2px 4px #0003)');
+    expect(boxShadowToDropShadowFilter('oklch(0.7 0.1 200) 0px 2px 4px 0px')).toBe(
+      'drop-shadow(0px 2px 4px oklch(0.7 0.1 200))'
+    );
   });
 
   it('rejects a token with an unbalanced parenthesis instead of re-emitting it', () => {
@@ -101,44 +103,12 @@ describe('boxShadowToDropShadowFilter', () => {
   });
 
   it('rejects a stray closing paren without losing comma splitting', () => {
-    expect(boxShadowToDropShadowFilter(') 0 0 1px, rgb(0, 0, 0) 0px 2px 4px')).toBe(
+    expect(boxShadowToDropShadowFilter(') 0 0 1px, rgb(0, 0, 0) 0px 2px 4px 0px')).toBe(
       'drop-shadow(0px 2px 4px rgb(0, 0, 0))'
     );
   });
 
-  it('rejects a shadow carrying more than one color token', () => {
-    expect(boxShadowToDropShadowFilter('rgb(0, 0, 0) red 0px 2px 4px')).toBeNull();
-  });
-});
-
-describe('isSupportedArrowShadow', () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('defers to CSS.supports when it is available', () => {
-    const supports = vi.fn().mockReturnValue(false);
-    vi.stubGlobal('CSS', { supports });
-
-    expect(isSupportedArrowShadow('drop-shadow(0 0 -4px red)')).toBe(false);
-    expect(supports).toHaveBeenCalledWith('filter', 'drop-shadow(0 0 -4px red)');
-  });
-
-  it('passes a value CSS.supports accepts', () => {
-    vi.stubGlobal('CSS', { supports: () => true });
-
-    expect(isSupportedArrowShadow('drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.1))')).toBe(true);
-  });
-
-  it('allows the value where CSS.supports is unavailable or throws', () => {
-    // jsdom has no CSS object at all; older browsers may lack supports().
-    expect(isSupportedArrowShadow('drop-shadow(0px 2px 4px rgb(0, 0, 0))')).toBe(true);
-
-    vi.stubGlobal('CSS', {
-      supports: () => {
-        throw new Error('nope');
-      },
-    });
-    expect(isSupportedArrowShadow('drop-shadow(0px 2px 4px rgb(0, 0, 0))')).toBe(true);
+  it('rejects a layer carrying more than one colour token', () => {
+    expect(boxShadowToDropShadowFilter('rgb(0, 0, 0) red 0px 2px 4px 0px')).toBeNull();
   });
 });

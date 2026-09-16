@@ -61,8 +61,8 @@ import {
   PREVIEW_SETTINGS_PARAM,
   withPreviewSession,
 } from '../utilities/preview-mode';
-import { boxShadowToDropShadowFilter, isSupportedArrowShadow } from '../utilities/shadow-utils';
-import type { GistMessage, DisplaySettings, MessageProperties } from '../types';
+import { boxShadowToDropShadowFilter } from '../utilities/shadow-utils';
+import type { GistMessage, DisplaySettings, MessageProperties, MessageInsets } from '../types';
 
 interface GistEventData {
   gist?: {
@@ -680,7 +680,7 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
         if (sizeDisplayType === 'tooltip') {
           resizeTooltipComponent(
             currentMessage,
-            data.gist.parameters as { width: number; height: number }
+            data.gist.parameters as { width: number; height: number; insets?: MessageInsets }
           );
         } else if (!currentMessage.elementId || currentMessage.shouldResizeHeight) {
           resizeComponent(
@@ -712,18 +712,16 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
         } else {
           wrapper.style.removeProperty('--gist-tooltip-arrow-color');
         }
-        // The arrow follows the message shadow the same way it follows the
-        // background: converted to a drop-shadow() filter because box-shadow
-        // cannot render on a border triangle. Absent or unrepresentable
-        // shadows leave the property unset so the template's default arrow
-        // shadow applies — writing an invalid value would instead compute
-        // filter to none, because a set-but-invalid var() never falls back.
+        // The renderer hands its shadow over and stops painting it, so the
+        // host draws one around the message and arrow together. Unset rather
+        // than set-but-invalid on failure: an invalid custom property computes
+        // filter to none instead of using the var() fallback.
         const boxShadow = data.gist.parameters.boxShadow as string | null | undefined;
-        const arrowShadowFilter = boxShadowToDropShadowFilter(boxShadow);
-        if (arrowShadowFilter && isSupportedArrowShadow(arrowShadowFilter)) {
-          wrapper.style.setProperty('--gist-tooltip-arrow-shadow', arrowShadowFilter);
+        const shadowFilter = boxShadowToDropShadowFilter(boxShadow);
+        if (shadowFilter) {
+          wrapper.style.setProperty('--gist-tooltip-shadow', shadowFilter);
         } else {
-          wrapper.style.removeProperty('--gist-tooltip-arrow-shadow');
+          wrapper.style.removeProperty('--gist-tooltip-shadow');
         }
         break;
       }

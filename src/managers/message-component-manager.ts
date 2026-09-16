@@ -13,7 +13,7 @@ import {
   type TooltipPosition,
   type TooltipHandle,
 } from './tooltip-position-manager';
-import type { GistMessage, ResolvedMessageProperties, ColorScheme } from '../types';
+import type { GistMessage, ResolvedMessageProperties, ColorScheme, MessageInsets } from '../types';
 
 function readParentColorScheme(): string | undefined {
   const htmlScheme = getComputedStyle(document.documentElement).colorScheme;
@@ -502,15 +502,34 @@ export function clearAllTooltipHandles(): void {
   });
 }
 
+// Anchors the arrow to the painted message box rather than the iframe's edge,
+// which a message margin pushes apart. See src/templates/tooltip.ts.
+function applyTooltipInsets(instanceId: string, insets?: MessageInsets): void {
+  const wrapper = findElement(`gist-tooltip-${instanceId}`);
+  if (!wrapper) {
+    return;
+  }
+
+  for (const edge of ['top', 'right', 'bottom', 'left'] as const) {
+    const value = insets?.[edge];
+    if (typeof value === 'number' && value > 0) {
+      wrapper.style.setProperty(`--gist-tooltip-inset-${edge}`, `${value}px`);
+    } else {
+      wrapper.style.removeProperty(`--gist-tooltip-inset-${edge}`);
+    }
+  }
+}
+
 export function resizeTooltipComponent(
   message: GistMessage,
-  size: { width: number; height: number }
+  size: { width: number; height: number; insets?: MessageInsets }
 ): void {
   const instanceId = message.instanceId ?? '';
   const iframeId = getMessageElementId(instanceId);
   const iframe = document.getElementById(iframeId) as HTMLIFrameElement | null;
   if (iframe && size.height > 0) {
     iframe.style.height = `${size.height}px`;
+    applyTooltipInsets(instanceId, size.insets);
 
     const handle = tooltipHandleMap.get(instanceId);
     if (handle) {

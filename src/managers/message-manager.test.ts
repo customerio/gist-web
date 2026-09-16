@@ -473,7 +473,7 @@ describe('message-manager', () => {
       expect(wrapper.style.getPropertyValue('--gist-tooltip-arrow-color')).toBe('');
     });
 
-    it('sets the arrow shadow variable from the reported box-shadow', async () => {
+    it('sets the tooltip shadow variable from the reported box-shadow', async () => {
       const message = await setupMessage('tooltip');
 
       await dispatchBackgroundChanged(
@@ -482,18 +482,18 @@ describe('message-manager', () => {
         'rgba(0, 0, 0, 0.1) 0px 2px 4px 0px'
       );
 
-      expect(wrapper.style.getPropertyValue('--gist-tooltip-arrow-shadow')).toBe(
+      expect(wrapper.style.getPropertyValue('--gist-tooltip-shadow')).toBe(
         'drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.1))'
       );
     });
 
-    it('removes the arrow shadow variable when no shadow is reported', async () => {
+    it('removes the tooltip shadow variable when no shadow is reported', async () => {
       const message = await setupMessage('tooltip');
-      wrapper.style.setProperty('--gist-tooltip-arrow-shadow', 'drop-shadow(0 1px 0 red)');
+      wrapper.style.setProperty('--gist-tooltip-shadow', 'drop-shadow(0 1px 0 red)');
 
       await dispatchBackgroundChanged(message.instanceId, 'rgb(26, 26, 46)', null);
 
-      expect(wrapper.style.getPropertyValue('--gist-tooltip-arrow-shadow')).toBe('');
+      expect(wrapper.style.getPropertyValue('--gist-tooltip-shadow')).toBe('');
     });
   });
 
