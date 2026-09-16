@@ -24,7 +24,8 @@ const COMPUTED_LAYER = /^(.*?)(-?[\d.]+)px\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+(-?[\
 // parentheses. A colour that doesn't match means the layer was misread, and
 // echoing it could close drop-shadow() early and turn the rest into a second
 // filter function.
-const COMPUTED_COLOR = /^(?:[a-z][a-z0-9-]*\([^()]*\)|#[0-9a-f]{3,8}|[a-z]+)$/i;
+const COMPUTED_COLOR =
+  /^(?:(?:rgba?|hsla?|hwb|lab|lch|oklch|oklab|color|color-mix|light-dark)\([^()]*\)|#[0-9a-f]{3,8}|[a-z]+)$/i;
 
 const INSET_LAYER = /(^|\s)inset(\s|$)/;
 
