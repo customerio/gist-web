@@ -203,7 +203,8 @@ const MAIN_AXIS_INSET_MAP: Record<TooltipPosition, string> = {
 };
 
 function getMainAxisInset(element: HTMLElement, position: TooltipPosition): number {
-  const value = element.style.getPropertyValue(MAIN_AXIS_INSET_MAP[position]);
+  const wrapper = element.parentElement;
+  const value = wrapper?.style.getPropertyValue(MAIN_AXIS_INSET_MAP[position]);
   return value ? parseFloat(value) || 0 : 0;
 }
 

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
+  sendOptionsToIframe,
   showEmbedComponent,
   hideEmbedComponent,
   elementHasHeight,
@@ -12,7 +13,6 @@ import {
   hideTooltipComponent,
   clearAllTooltipHandles,
   resizeTooltipComponent,
-  sendOptionsToIframe,
 } from './message-component-manager';
 import { log } from '../utilities/log';
 import { resolveMessageProperties } from './gist-properties-manager';
@@ -30,7 +30,7 @@ vi.mock('../gist', () => ({
 }));
 vi.mock('./gist-properties-manager', () => ({
   resolveMessageProperties: vi.fn(() => ({
-    isEmbedded: false,
+    isInlineElement: false,
     elementId: '',
     hasRouteRule: false,
     routeRule: '',
@@ -46,6 +46,9 @@ vi.mock('./gist-properties-manager', () => ({
     persistent: false,
     exitClick: false,
     hasCustomWidth: false,
+    isEmbed: false,
+    embedFrequency: 'always' as const,
+    embedLogView: false,
   })),
 }));
 vi.mock('../templates/embed', () => ({
@@ -146,7 +149,7 @@ describe('message-component-manager', () => {
 
   describe('showOverlayComponent dismiss listeners', () => {
     const resolvedProperties = {
-      isEmbedded: false,
+      isInlineElement: false,
       elementId: '',
       hasRouteRule: false,
       routeRule: '',
@@ -162,6 +165,9 @@ describe('message-component-manager', () => {
       persistent: false,
       exitClick: false,
       hasCustomWidth: false,
+      isEmbed: false,
+      embedFrequency: 'always' as const,
+      embedLogView: false,
     };
 
     function setupOverlay(exitClick: boolean): GistMessage {
@@ -296,7 +302,7 @@ describe('message-component-manager', () => {
       vi.mocked(positionTooltip).mockReturnValue({ cleanup: mockCleanup, reposition: vi.fn() });
 
       vi.mocked(resolveMessageProperties).mockReturnValue({
-        isEmbedded: false,
+        isInlineElement: false,
         elementId: '',
         hasRouteRule: false,
         routeRule: '',
@@ -312,6 +318,9 @@ describe('message-component-manager', () => {
         persistent: false,
         exitClick: false,
         hasCustomWidth: false,
+        isEmbed: false,
+        embedFrequency: 'always' as const,
+        embedLogView: false,
       });
 
       const message: GistMessage = {
@@ -367,7 +376,7 @@ describe('message-component-manager', () => {
     it('calls positionTooltip with the wrapper, selector, and position', async () => {
       setupTooltipWrapper('inst-1');
       vi.mocked(resolveMessageProperties).mockReturnValue({
-        isEmbedded: false,
+        isInlineElement: false,
         elementId: '',
         hasRouteRule: false,
         routeRule: '',
@@ -383,6 +392,9 @@ describe('message-component-manager', () => {
         persistent: false,
         exitClick: false,
         hasCustomWidth: false,
+        isEmbed: false,
+        embedFrequency: 'always' as const,
+        embedLogView: false,
       });
 
       const message: GistMessage = {
@@ -405,7 +417,7 @@ describe('message-component-manager', () => {
     it('defaults tooltip position to bottom when not specified', async () => {
       setupTooltipWrapper('inst-1');
       vi.mocked(resolveMessageProperties).mockReturnValue({
-        isEmbedded: false,
+        isInlineElement: false,
         elementId: '',
         hasRouteRule: false,
         routeRule: '',
@@ -421,6 +433,9 @@ describe('message-component-manager', () => {
         persistent: false,
         exitClick: false,
         hasCustomWidth: false,
+        isEmbed: false,
+        embedFrequency: 'always' as const,
+        embedLogView: false,
       });
 
       const message: GistMessage = {
@@ -625,7 +640,7 @@ describe('message-component-manager', () => {
       vi.mocked(positionTooltip).mockReturnValue({ cleanup: mockCleanup, reposition: vi.fn() });
 
       vi.mocked(resolveMessageProperties).mockReturnValue({
-        isEmbedded: false,
+        isInlineElement: false,
         elementId: '',
         hasRouteRule: false,
         routeRule: '',
@@ -641,6 +656,9 @@ describe('message-component-manager', () => {
         persistent: false,
         exitClick: false,
         hasCustomWidth: false,
+        isEmbed: false,
+        embedFrequency: 'always' as const,
+        embedLogView: false,
       });
 
       const message: GistMessage = {

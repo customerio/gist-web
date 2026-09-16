@@ -62,6 +62,12 @@ vi.mock('./managers/inbox-config-manager', () => ({
   isInboxEnabled: vi.fn(() => false),
   initializeInboxFromCache: vi.fn(),
 }));
+vi.mock('./managers/embed-manager', () => ({
+  renderEmbed: vi.fn(() => Promise.resolve('instance-1')),
+  renderEmbeds: vi.fn(() => Promise.resolve(['instance-1'])),
+  readEmbedPayloads: vi.fn(() => []),
+  clearEmbedState: vi.fn(),
+}));
 
 import Gist from './gist';
 import { clearExpiredFromLocalStore } from './utilities/local-storage';
@@ -98,7 +104,13 @@ import {
   updateInboxMessageOpenState,
   removeInboxMessage,
 } from './managers/inbox-message-manager';
-import { isInboxEnabled } from './managers/inbox-config-manager';
+import { isInboxEnabled, initializeInboxFromCache } from './managers/inbox-config-manager';
+import {
+  renderEmbed,
+  renderEmbeds,
+  readEmbedPayloads,
+  clearEmbedState,
+} from './managers/embed-manager';
 
 function resetGist() {
   Gist.initialized = false;
@@ -638,6 +650,136 @@ describe('Gist', () => {
       vi.mocked(isInboxEnabled).mockReturnValue(true);
       expect(Gist.isInboxEnabled()).toBe(true);
       expect(isInboxEnabled).toHaveBeenCalled();
+    });
+  });
+
+  describe('embed-only setup', () => {
+    it('starts none of the delivery machinery', async () => {
+      await Gist.setup(baseConfig({ embedOnly: true, useAnonymousSession: true }));
+
+      expect(Gist.config.embedOnly).toBe(true);
+      expect(startQueueListener).not.toHaveBeenCalled();
+      expect(useGuestSession).not.toHaveBeenCalled();
+      expect(initializeInboxFromCache).not.toHaveBeenCalled();
+      expect(setupPreview).not.toHaveBeenCalled();
+      expect(Gist.config.isPreviewSession).toBe(false);
+    });
+
+    it('still prepares the message state the embed path needs', async () => {
+      await Gist.setup(baseConfig({ embedOnly: true }));
+
+      expect(Gist.events).toBeDefined();
+      expect(Gist.currentMessages).toEqual([]);
+      expect(Gist.isDocumentVisible).toBe(true);
+      expect(clearExpiredFromLocalStore).toHaveBeenCalled();
+    });
+
+    it('ignores user token changes so identifying never starts the queue', async () => {
+      await Gist.setup(baseConfig({ embedOnly: true }));
+
+      await Gist.setUserToken('user-1');
+      await Gist.clearUserToken();
+
+      expect(setUserToken).not.toHaveBeenCalled();
+      expect(clearUserToken).not.toHaveBeenCalled();
+      expect(startQueueListener).not.toHaveBeenCalled();
+      expect(stopSSEListener).not.toHaveBeenCalled();
+    });
+
+    it('defaults to the full delivery path when embedOnly is not set', async () => {
+      await Gist.setup(baseConfig());
+
+      expect(Gist.config.embedOnly).toBe(false);
+      expect(startQueueListener).toHaveBeenCalled();
+      expect(initializeInboxFromCache).toHaveBeenCalled();
+    });
+  });
+
+  describe('embed', () => {
+    it('auto-initializes in embed-only mode using the payload site id', async () => {
+      const payload = { embedId: 'emb_1', siteId: 'payload-site', message: { messageId: 'm-1' } };
+
+      const instanceId = await Gist.embed(payload);
+
+      expect(Gist.initialized).toBe(true);
+      expect(Gist.config.embedOnly).toBe(true);
+      expect(Gist.config.siteId).toBe('payload-site');
+      expect(renderEmbed).toHaveBeenCalledWith(payload);
+      expect(instanceId).toBe('instance-1');
+    });
+
+    it('leaves an already-initialized SDK alone', async () => {
+      await Gist.setup(baseConfig());
+      vi.mocked(startQueueListener).mockClear();
+
+      await Gist.embed({ embedId: 'emb_1', message: { messageId: 'm-1' } });
+
+      expect(Gist.config.embedOnly).toBe(false);
+      expect(startQueueListener).not.toHaveBeenCalled();
+      expect(renderEmbed).toHaveBeenCalled();
+    });
+
+    it('mountEmbeds renders the payloads the page declares', async () => {
+      const payloads = [{ embedId: 'emb_1', message: { messageId: 'm-1' } }];
+      vi.mocked(readEmbedPayloads).mockReturnValue(payloads);
+
+      const instanceIds = await Gist.mountEmbeds();
+
+      expect(renderEmbeds).toHaveBeenCalledWith(payloads);
+      expect(instanceIds).toEqual(['instance-1']);
+    });
+
+    it('mountEmbeds does not initialize the SDK on a page with no embeds', async () => {
+      vi.mocked(readEmbedPayloads).mockReturnValue([]);
+
+      expect(await Gist.mountEmbeds()).toEqual([]);
+      expect(Gist.initialized).toBe(false);
+      expect(renderEmbeds).not.toHaveBeenCalled();
+    });
+
+    it('mountEmbeds takes the site id from the first payload that carries one', async () => {
+      vi.mocked(readEmbedPayloads).mockReturnValue([
+        { embedId: 'emb_1', message: { messageId: 'm-1' } },
+        { embedId: 'emb_2', siteId: 'payload-site', message: { messageId: 'm-2' } },
+      ]);
+
+      await Gist.mountEmbeds();
+
+      expect(Gist.config.siteId).toBe('payload-site');
+      expect(Gist.config.embedOnly).toBe(true);
+    });
+
+    it('warns when payloads disagree about the site they belong to', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.mocked(readEmbedPayloads).mockReturnValue([
+        { embedId: 'emb_1', siteId: 'site-a', message: { messageId: 'm-1' } },
+        { embedId: 'emb_2', siteId: 'site-b', message: { messageId: 'm-2' } },
+      ]);
+
+      await Gist.mountEmbeds();
+
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('different site ids'));
+      expect(Gist.config.siteId).toBe('site-a');
+      warn.mockRestore();
+    });
+
+    it('warns when a real setup arrives after an embed-only auto-init', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.mocked(readEmbedPayloads).mockReturnValue([
+        { embedId: 'emb_1', message: { messageId: 'm-1' } },
+      ]);
+
+      await Gist.mountEmbeds();
+      await Gist.setup(baseConfig());
+
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('embed-only mode'));
+      expect(startQueueListener).not.toHaveBeenCalled();
+      warn.mockRestore();
+    });
+
+    it('resetEmbed clears the stored frequency state', () => {
+      Gist.resetEmbed('emb_1');
+      expect(clearEmbedState).toHaveBeenCalledWith('emb_1');
     });
   });
 });

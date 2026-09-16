@@ -121,6 +121,7 @@ interface MessageOptions {
   messageId: string;
   instanceId: string;
   livePreview: boolean;
+  isEmbed?: boolean;
   properties?: unknown;
   customAttributes?: Record<string, unknown>;
   stepId?: string;
@@ -238,6 +239,11 @@ function attachIframeLoadEvent(
 }
 
 const SDK_CAPABILITIES = ['MultiStepDisplayTypes', 'CrossPageStepNavigation', 'Snooze'] as const;
+
+// An embed lives inside an element the host page owns: it must never ask the
+// SDK to re-render a step as a modal or tooltip, and it must never navigate the
+// host page away for a cross-page step. Withholding both capabilities makes the
+// renderer keep every step change a local toggle inside its own iframe.
 const EMBED_SDK_CAPABILITIES = ['Snooze'] as const;
 
 function capabilitiesFor(options: MessageOptions): readonly string[] {

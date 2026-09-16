@@ -32,7 +32,7 @@ vi.mock('./message-manager', () => ({
 }));
 vi.mock('./gist-properties-manager', () => ({
   resolveMessageProperties: vi.fn(() => ({
-    isEmbedded: false,
+    isInlineElement: false,
     elementId: '',
     hasRouteRule: false,
     routeRule: '',
@@ -45,6 +45,9 @@ vi.mock('./gist-properties-manager', () => ({
     persistent: false,
     exitClick: false,
     hasCustomWidth: false,
+    isEmbed: false,
+    embedFrequency: 'always' as const,
+    embedLogView: false,
   })),
 }));
 vi.mock('../utilities/local-storage', () => ({
@@ -210,7 +213,7 @@ describe('queue-manager', () => {
   describe('handleMessage – live preview with invalid elementId', () => {
     it('falls back to showMessage when embedded element is not found in live preview', async () => {
       vi.mocked(resolveMessageProperties).mockReturnValue({
-        isEmbedded: true,
+        isInlineElement: true,
         elementId: 'nonexistent-element',
         hasRouteRule: false,
         routeRule: '',
@@ -226,6 +229,9 @@ describe('queue-manager', () => {
         persistent: false,
         exitClick: false,
         hasCustomWidth: false,
+        isEmbed: false,
+        embedFrequency: 'always' as const,
+        embedLogView: false,
       });
       vi.mocked(findElement).mockReturnValue(null);
       (Gist as unknown as Record<string, unknown>).config = { isPreviewSession: true };
@@ -244,7 +250,7 @@ describe('queue-manager', () => {
 
     it('uses embedMessage when embedded element exists in live preview', async () => {
       vi.mocked(resolveMessageProperties).mockReturnValue({
-        isEmbedded: true,
+        isInlineElement: true,
         elementId: 'real-element',
         hasRouteRule: false,
         routeRule: '',
@@ -260,6 +266,9 @@ describe('queue-manager', () => {
         persistent: false,
         exitClick: false,
         hasCustomWidth: false,
+        isEmbed: false,
+        embedFrequency: 'always' as const,
+        embedLogView: false,
       });
       vi.mocked(findElement).mockReturnValue(document.createElement('div'));
       (Gist as unknown as Record<string, unknown>).config = { isPreviewSession: true };
@@ -278,7 +287,7 @@ describe('queue-manager', () => {
 
     it('uses embedMessage when not in preview session even if element is missing', async () => {
       vi.mocked(resolveMessageProperties).mockReturnValue({
-        isEmbedded: true,
+        isInlineElement: true,
         elementId: 'missing-element',
         hasRouteRule: false,
         routeRule: '',
@@ -294,6 +303,9 @@ describe('queue-manager', () => {
         persistent: false,
         exitClick: false,
         hasCustomWidth: false,
+        isEmbed: false,
+        embedFrequency: 'always' as const,
+        embedLogView: false,
       });
       vi.mocked(findElement).mockReturnValue(null);
       (Gist as unknown as Record<string, unknown>).config = { isPreviewSession: false };
@@ -313,7 +325,7 @@ describe('queue-manager', () => {
 
   describe('handleMessage – route rules', () => {
     const defaultProperties = {
-      isEmbedded: false,
+      isInlineElement: false,
       elementId: '',
       hasRouteRule: false,
       routeRule: '',
@@ -329,6 +341,9 @@ describe('queue-manager', () => {
       persistent: false,
       exitClick: false,
       hasCustomWidth: false,
+      isEmbed: false,
+      embedFrequency: 'always' as const,
+      embedLogView: false,
     };
 
     const message: GistMessage = {
@@ -856,7 +871,7 @@ describe('queue-manager', () => {
 
   describe('handleMessage – cross-page tour continuation (INAPP-14575)', () => {
     const persistentProperties = {
-      isEmbedded: false,
+      isInlineElement: false,
       elementId: '',
       hasRouteRule: false,
       routeRule: '',
@@ -872,6 +887,9 @@ describe('queue-manager', () => {
       persistent: true,
       exitClick: false,
       hasCustomWidth: false,
+      isEmbed: false,
+      embedFrequency: 'always' as const,
+      embedLogView: false,
     };
 
     function navigateTo(path: string) {

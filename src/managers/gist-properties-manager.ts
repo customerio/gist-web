@@ -1,7 +1,25 @@
-import type { GistMessage, ResolvedMessageProperties, StepDisplayConfig } from '../types';
+import { log } from '../utilities/log';
+import type {
+  EmbedFrequency,
+  GistMessage,
+  ResolvedMessageProperties,
+  StepDisplayConfig,
+} from '../types';
+
+const EMBED_FREQUENCIES: readonly EmbedFrequency[] = ['always', 'untilDismissed', 'onceEver'];
+
+// An embed payload is untyped JSON from the host page, so a frequency TypeScript
+// never saw has to be caught here rather than falling through to the default in
+// silence.
+function resolveEmbedFrequency(value: unknown, fallback: EmbedFrequency): EmbedFrequency {
+  if (value === undefined) return fallback;
+  if (EMBED_FREQUENCIES.includes(value as EmbedFrequency)) return value as EmbedFrequency;
+  log(`Unknown embed frequency "${String(value)}", falling back to "${fallback}".`);
+  return fallback;
+}
 
 export const MESSAGE_PROPERTY_DEFAULTS: ResolvedMessageProperties = {
-  isEmbedded: false,
+  isInlineElement: false,
   elementId: '',
   hasRouteRule: false,
   routeRule: '',
@@ -17,6 +35,9 @@ export const MESSAGE_PROPERTY_DEFAULTS: ResolvedMessageProperties = {
   persistent: false,
   exitClick: false,
   hasCustomWidth: false,
+  isEmbed: false,
+  embedFrequency: 'always',
+  embedLogView: false,
 };
 
 function resolveMessageTooltipColor(message: GistMessage): string {
@@ -52,10 +73,15 @@ export function resolveMessageProperties(message: GistMessage): ResolvedMessageP
   const defaults = MESSAGE_PROPERTY_DEFAULTS;
 
   const gist = message?.properties?.gist;
-  if (!gist) return defaults;
+  // isEmbed is driven by the message, not by properties.gist.embed: an embed
+  // that takes every display default still has to resolve as one.
+  const isEmbed = !!message?.embedId;
+  if (!gist) return { ...defaults, isEmbed };
+
+  const embed = gist.embed;
 
   return {
-    isEmbedded: !!gist.elementId && !gist.tooltipPosition,
+    isInlineElement: !!gist.elementId && !gist.tooltipPosition,
     elementId: gist.elementId || '',
     hasRouteRule: !!gist.routeRuleWeb,
     routeRule: gist.routeRuleWeb || '',
@@ -74,5 +100,8 @@ export function resolveMessageProperties(message: GistMessage): ResolvedMessageP
     overlayColor: gist.overlayColor || defaults.overlayColor,
     persistent: !!gist.persistent,
     exitClick: !!gist.exitClick,
+    isEmbed,
+    embedFrequency: resolveEmbedFrequency(embed?.frequency, defaults.embedFrequency),
+    embedLogView: !!embed?.logView,
   };
 }
