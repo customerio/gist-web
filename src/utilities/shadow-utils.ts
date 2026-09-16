@@ -71,7 +71,7 @@ export function boxShadowToDropShadowFilter(boxShadow: string | null | undefined
     // Zero extent paints entirely behind the opaque tooltip, so the template
     // default is better than emitting it.
     const visibleExtent = Math.abs(parseFloat(offsetX)) + Math.abs(parseFloat(offsetY)) + blurPx;
-    if (visibleExtent === 0) continue;
+    if (!Number.isFinite(visibleExtent) || visibleExtent === 0) continue;
 
     if (!strongest || visibleExtent > strongest.visibleExtent) {
       strongest = {
