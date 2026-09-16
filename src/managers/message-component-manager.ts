@@ -238,6 +238,11 @@ function attachIframeLoadEvent(
 }
 
 const SDK_CAPABILITIES = ['MultiStepDisplayTypes', 'CrossPageStepNavigation', 'Snooze'] as const;
+const EMBED_SDK_CAPABILITIES = ['Snooze'] as const;
+
+function capabilitiesFor(options: MessageOptions): readonly string[] {
+  return options.isEmbed ? EMBED_SDK_CAPABILITIES : SDK_CAPABILITIES;
+}
 
 export function sendOptionsToIframe(
   iframeId: string,
@@ -255,7 +260,7 @@ export function sendOptionsToIframe(
     }
     const message = {
       options,
-      capabilities: SDK_CAPABILITIES,
+      capabilities: capabilitiesFor(options),
     };
     iframe.contentWindow.postMessage(message, '*');
   }

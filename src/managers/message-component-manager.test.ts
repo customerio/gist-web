@@ -12,6 +12,7 @@ import {
   hideTooltipComponent,
   clearAllTooltipHandles,
   resizeTooltipComponent,
+  sendOptionsToIframe,
 } from './message-component-manager';
 import { log } from '../utilities/log';
 import { resolveMessageProperties } from './gist-properties-manager';
@@ -878,6 +879,52 @@ describe('message-component-manager', () => {
       resizeTooltipComponent(message, { width: 200, height: 120 });
 
       expect(wrapper.style.getPropertyValue('--gist-tooltip-inset-bottom')).toBe('');
+    });
+  });
+
+  describe('sendOptionsToIframe capabilities', () => {
+    function iframeWithSpy(id: string): ReturnType<typeof vi.fn> {
+      const postMessage = vi.fn();
+      const iframe = document.createElement('iframe');
+      iframe.id = id;
+      document.body.appendChild(iframe);
+      Object.defineProperty(iframe, 'contentWindow', {
+        value: { postMessage },
+        configurable: true,
+      });
+      return postMessage;
+    }
+
+    const baseOptions = {
+      endpoint: 'https://api.test',
+      siteId: 'site',
+      messageId: 'msg-1',
+      instanceId: 'instance-1',
+      livePreview: false,
+    };
+
+    it('advertises every capability for a queue-delivered message', () => {
+      const postMessage = iframeWithSpy('gist-frame-1');
+
+      sendOptionsToIframe('gist-frame-1', { ...baseOptions });
+
+      expect(postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          capabilities: ['MultiStepDisplayTypes', 'CrossPageStepNavigation', 'Snooze'],
+        }),
+        '*'
+      );
+    });
+
+    it('withholds display-type and cross-page capabilities from an embed', () => {
+      const postMessage = iframeWithSpy('gist-frame-2');
+
+      sendOptionsToIframe('gist-frame-2', { ...baseOptions, isEmbed: true });
+
+      expect(postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ capabilities: ['Snooze'] }),
+        '*'
+      );
     });
   });
 });
