@@ -165,24 +165,83 @@ describe('tooltipHTMLTemplate', () => {
     expect(arrow).not.toBeNull();
   });
 
-  it('uses tooltipArrowColor from message properties in arrow styles', () => {
+  it('uses tooltipArrowColor as the arrow color variable fallback', () => {
     const html = tooltipHTMLTemplate(
       'el',
       makeProps({ tooltipPosition: 'top', tooltipArrowColor: '#003780' }),
       'https://example.com'
     );
 
-    expect(html).toContain('border-top: 10px solid #003780');
+    expect(html).toContain('border-top: 10px solid var(--gist-tooltip-arrow-color, #003780)');
   });
 
-  it('defaults arrow color to #fff when tooltipArrowColor is not customized', () => {
+  it('defaults arrow color fallback to #fff when tooltipArrowColor is not customized', () => {
     const html = tooltipHTMLTemplate(
       'el',
       makeProps({ tooltipPosition: 'top' }),
       'https://example.com'
     );
 
-    expect(html).toContain('border-top: 10px solid #fff');
+    expect(html).toContain('border-top: 10px solid var(--gist-tooltip-arrow-color, #fff)');
+  });
+
+  it('reads the arrow color variable in all four position rules', () => {
+    const html = tooltipHTMLTemplate('el', makeProps(), 'https://example.com');
+
+    const varUsages = html.match(/var\(--gist-tooltip-arrow-color, #fff\)/g) ?? [];
+    expect(varUsages).toHaveLength(4);
+  });
+
+  it('draws one shadow on the container, not per arrow position', () => {
+    const html = tooltipHTMLTemplate('el', makeProps(), 'https://example.com');
+
+    // drop-shadow() on the container follows the rendered alpha, so the
+    // message and its arrow cast a single continuous shadow. Shadowing the
+    // arrow separately would leave a seam at the arrow base.
+    expect(html).toMatch(
+      /\.gist-tooltip-container \{[^}]*filter: var\(--gist-tooltip-shadow, drop-shadow\(0 1px 2px rgba\(0, 0, 0, 0\.08\)\)\)/
+    );
+
+    const filters = html.match(/filter:/g) ?? [];
+    expect(filters).toHaveLength(1);
+  });
+
+  it('anchors each arrow to the painted box rather than the frame edge', () => {
+    const html = tooltipHTMLTemplate('el', makeProps(), 'https://example.com');
+
+    // A message margin makes the iframe larger than the painted box, so
+    // anchoring at 0 would leave the arrow floating that margin away from the
+    // message. The renderer reports the inset on sizeChanged.
+    expect(html).toMatch(
+      /gist-arrow-bottom \{[^}]*bottom: var\(--gist-tooltip-inset-bottom, 0px\)/
+    );
+    expect(html).toMatch(/gist-arrow-top \{[^}]*top: var\(--gist-tooltip-inset-top, 0px\)/);
+    expect(html).toMatch(/gist-arrow-right \{[^}]*right: var\(--gist-tooltip-inset-right, 0px\)/);
+    expect(html).toMatch(/gist-arrow-left \{[^}]*left: var\(--gist-tooltip-inset-left, 0px\)/);
+  });
+
+  it('corrects cross-axis centring for asymmetric margins', () => {
+    const html = tooltipHTMLTemplate('el', makeProps(), 'https://example.com');
+
+    // Unequal margins shift the painted box's centre away from the frame's,
+    // so the arrow moves by half the difference. With no insets set both
+    // resolve to plain 50%.
+    const centreX =
+      'calc(50% + (var(--gist-tooltip-inset-left, 0px) - var(--gist-tooltip-inset-right, 0px)) / 2)';
+    const centreY =
+      'calc(50% + (var(--gist-tooltip-inset-top, 0px) - var(--gist-tooltip-inset-bottom, 0px)) / 2)';
+
+    expect(html).toContain(`left: ${centreX}`);
+    expect(html).toContain(`top: ${centreY}`);
+  });
+
+  it('leaves the arrow rules free of shadow and clipping', () => {
+    const html = tooltipHTMLTemplate('el', makeProps(), 'https://example.com');
+
+    expect(html).not.toContain('clip-path');
+    for (const position of ['bottom', 'top', 'right', 'left']) {
+      expect(html).not.toMatch(new RegExp(`gist-arrow-${position} \\{[^}]*filter:`));
+    }
   });
 
   it('uses position: absolute on the wrapper', () => {
