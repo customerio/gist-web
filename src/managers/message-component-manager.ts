@@ -544,10 +544,11 @@ export function resizeTooltipComponent(
 
   if (size.height > 0) {
     iframe.style.height = `${size.height}px`;
-    const handle = tooltipHandleMap.get(instanceId);
-    if (handle) {
-      handle.reposition();
-    }
+  }
+
+  const handle = tooltipHandleMap.get(instanceId);
+  if (handle) {
+    handle.reposition();
   }
 }
 
