@@ -12,6 +12,7 @@ import {
   showTooltipComponent,
   hideTooltipComponent,
   clearAllTooltipHandles,
+  resizeTooltipComponent,
 } from './message-component-manager';
 import { log } from '../utilities/log';
 import { resolveMessageProperties } from './gist-properties-manager';
@@ -838,6 +839,67 @@ describe('message-component-manager', () => {
       expect(mockCleanup).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('resizeTooltipComponent insets', () => {
+    function setup() {
+      const message: GistMessage = { messageId: 'm', instanceId: 'inst-1' };
+
+      const iframe = document.createElement('iframe');
+      iframe.id = 'gist-inst-1';
+      document.body.appendChild(iframe);
+
+      const wrapper = document.createElement('div');
+      wrapper.id = 'gist-tooltip-inst-1';
+      document.body.appendChild(wrapper);
+
+      return { message, wrapper };
+    }
+
+    afterEach(() => {
+      document.getElementById('gist-inst-1')?.remove();
+      document.getElementById('gist-tooltip-inst-1')?.remove();
+    });
+
+    it('sets an inset variable per edge so the arrow sits against the painted box', () => {
+      const { message, wrapper } = setup();
+
+      resizeTooltipComponent(message, {
+        width: 200,
+        height: 120,
+        insets: { top: 8, right: 8, bottom: 8, left: 8 },
+      });
+
+      expect(wrapper.style.getPropertyValue('--gist-tooltip-inset-top')).toBe('8px');
+      expect(wrapper.style.getPropertyValue('--gist-tooltip-inset-right')).toBe('8px');
+      expect(wrapper.style.getPropertyValue('--gist-tooltip-inset-bottom')).toBe('8px');
+      expect(wrapper.style.getPropertyValue('--gist-tooltip-inset-left')).toBe('8px');
+    });
+
+    it('leaves zero edges unset so the template default applies', () => {
+      const { message, wrapper } = setup();
+
+      resizeTooltipComponent(message, {
+        width: 200,
+        height: 120,
+        insets: { top: 0, right: 12, bottom: 0, left: 12 },
+      });
+
+      expect(wrapper.style.getPropertyValue('--gist-tooltip-inset-top')).toBe('');
+      expect(wrapper.style.getPropertyValue('--gist-tooltip-inset-bottom')).toBe('');
+      expect(wrapper.style.getPropertyValue('--gist-tooltip-inset-right')).toBe('12px');
+      expect(wrapper.style.getPropertyValue('--gist-tooltip-inset-left')).toBe('12px');
+    });
+
+    it('clears stale insets when a resize reports none', () => {
+      const { message, wrapper } = setup();
+      wrapper.style.setProperty('--gist-tooltip-inset-bottom', '24px');
+
+      resizeTooltipComponent(message, { width: 200, height: 120 });
+
+      expect(wrapper.style.getPropertyValue('--gist-tooltip-inset-bottom')).toBe('');
+    });
+  });
+
   describe('sendOptionsToIframe capabilities', () => {
     function iframeWithSpy(id: string): ReturnType<typeof vi.fn> {
       const postMessage = vi.fn();

@@ -232,3 +232,14 @@ export interface InboxActionConfig {
   dismiss?: boolean;
   newTab?: boolean;
 }
+
+// Distance from each edge of the renderer document to the painted message
+// box, in CSS pixels. Reported on sizeChanged for web tooltips when the
+// message carries a margin, so the arrow can sit flush against the painted
+// box rather than the iframe's edge.
+export interface MessageInsets {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}

@@ -67,7 +67,8 @@ import {
   PREVIEW_SETTINGS_PARAM,
   withPreviewSession,
 } from '../utilities/preview-mode';
-import type { GistMessage, DisplaySettings, MessageProperties } from '../types';
+import { boxShadowToDropShadowFilter } from '../utilities/shadow-utils';
+import type { GistMessage, DisplaySettings, MessageProperties, MessageInsets } from '../types';
 
 interface GistEventData {
   gist?: {
@@ -733,7 +734,7 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
         if (sizeDisplayType === 'tooltip') {
           resizeTooltipComponent(
             currentMessage,
-            data.gist.parameters as { width: number; height: number }
+            data.gist.parameters as { width: number; height: number; insets?: MessageInsets }
           );
         } else if (!currentMessage.elementId || currentMessage.shouldResizeHeight) {
           resizeComponent(
@@ -746,6 +747,36 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
       case 'titleChanged': {
         log(`Overlay title changed to: ${data.gist.parameters.title}`);
         changeOverlayTitle(currentInstanceId, data.gist.parameters.title as string);
+        break;
+      }
+      case 'messageBackgroundChanged': {
+        // The renderer reports the effective (color-scheme-resolved) message
+        // background, which this page can't read cross-origin; the tooltip
+        // arrow follows it so a dark-mode message gets a matching arrow.
+        if (getCurrentDisplayType(currentMessage) !== 'tooltip') {
+          break;
+        }
+        const wrapper = findElement(`gist-tooltip-${currentInstanceId}`);
+        if (!wrapper) {
+          break;
+        }
+        const backgroundColor = data.gist.parameters.backgroundColor as string | null | undefined;
+        if (backgroundColor) {
+          wrapper.style.setProperty('--gist-tooltip-arrow-color', backgroundColor);
+        } else {
+          wrapper.style.removeProperty('--gist-tooltip-arrow-color');
+        }
+        // The renderer hands its shadow over and stops painting it, so the
+        // host draws one around the message and arrow together. Unset rather
+        // than set-but-invalid on failure: an invalid custom property computes
+        // filter to none instead of using the var() fallback.
+        const boxShadow = data.gist.parameters.boxShadow as string | null | undefined;
+        const shadowFilter = boxShadowToDropShadowFilter(boxShadow);
+        if (shadowFilter) {
+          wrapper.style.setProperty('--gist-tooltip-shadow', shadowFilter);
+        } else {
+          wrapper.style.removeProperty('--gist-tooltip-shadow');
+        }
         break;
       }
       case 'eventDispatched': {

@@ -190,6 +190,32 @@ function applyPosition(tooltipElement: HTMLElement, coords: { top: number; left:
   tooltipElement.style.left = `${coords.left + window.scrollX}px`;
 }
 
+// The arrow's main-axis anchor uses the inset CSS variable (e.g.
+// bottom: var(--gist-tooltip-inset-bottom)), which pulls the arrow inward
+// when the message has a margin. The container position doesn't account for
+// that, so the effective gap between arrow tip and target grows by the inset.
+// This reads the relevant inset and returns the px to compensate.
+const MAIN_AXIS_INSET_MAP: Record<TooltipPosition, string> = {
+  top: '--gist-tooltip-inset-bottom',
+  bottom: '--gist-tooltip-inset-top',
+  left: '--gist-tooltip-inset-right',
+  right: '--gist-tooltip-inset-left',
+};
+
+function getMainAxisInset(element: HTMLElement, position: TooltipPosition): number {
+  const wrapper = element.parentElement;
+  const value = wrapper?.style.getPropertyValue(MAIN_AXIS_INSET_MAP[position]);
+  return value ? parseFloat(value) || 0 : 0;
+}
+
+// The template anchors the arrow to the painted message box via inset CSS
+// variables (see src/templates/tooltip.ts). This function writes inline
+// styles for the arrow offset, which wins over the template's stylesheet
+// rules, so it must fold the inset delta into its values — otherwise the
+// asymmetric-margin correction from PAINTED_CENTRE_X/Y never applies.
+const INSET_DELTA_X = 'var(--gist-tooltip-inset-left, 0px) - var(--gist-tooltip-inset-right, 0px)';
+const INSET_DELTA_Y = 'var(--gist-tooltip-inset-top, 0px) - var(--gist-tooltip-inset-bottom, 0px)';
+
 function updateArrow(tooltipElement: HTMLElement, result: PositionResult): void {
   const arrowEl = tooltipElement.querySelector('.gist-tooltip-arrow') as HTMLElement | null;
   if (!arrowEl) return;
@@ -202,22 +228,16 @@ function updateArrow(tooltipElement: HTMLElement, result: PositionResult): void 
   );
   arrowEl.classList.add(ARROW_CLASS_FOR_POSITION[result.position]);
 
-  if (result.arrowOffset !== null) {
-    if (result.position === 'top' || result.position === 'bottom') {
-      arrowEl.style.left = `calc(50% + ${result.arrowOffset}px)`;
-      arrowEl.style.removeProperty('top');
-    } else {
-      arrowEl.style.top = `calc(50% + ${result.arrowOffset}px)`;
-      arrowEl.style.removeProperty('left');
-    }
+  if (result.position === 'top' || result.position === 'bottom') {
+    const base = `50% + (${INSET_DELTA_X}) / 2`;
+    arrowEl.style.left =
+      result.arrowOffset !== null ? `calc(${base} + ${result.arrowOffset}px)` : `calc(${base})`;
+    arrowEl.style.removeProperty('top');
   } else {
-    if (result.position === 'top' || result.position === 'bottom') {
-      arrowEl.style.left = '50%';
-      arrowEl.style.removeProperty('top');
-    } else {
-      arrowEl.style.top = '50%';
-      arrowEl.style.removeProperty('left');
-    }
+    const base = `50% + (${INSET_DELTA_Y}) / 2`;
+    arrowEl.style.top =
+      result.arrowOffset !== null ? `calc(${base} + ${result.arrowOffset}px)` : `calc(${base})`;
+    arrowEl.style.removeProperty('left');
   }
 }
 
@@ -411,6 +431,17 @@ export function positionTooltip(
     if (!result) {
       tooltipElement.style.display = 'none';
       return;
+    }
+
+    // The arrow is pulled inward by the painted-box inset, so the container
+    // must move the same amount to keep the arrow tip at a fixed distance
+    // from the target element.
+    const inset = getMainAxisInset(tooltipElement, result.position);
+    if (inset > 0) {
+      if (result.position === 'top') result.top += inset;
+      else if (result.position === 'bottom') result.top -= inset;
+      else if (result.position === 'left') result.left += inset;
+      else if (result.position === 'right') result.left -= inset;
     }
 
     applyPosition(tooltipElement, result);
