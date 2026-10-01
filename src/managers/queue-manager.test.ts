@@ -757,7 +757,7 @@ describe('queue-manager', () => {
         await expectBlocked();
       });
 
-      it('lets the exclusion go once the app moves to another query string', async () => {
+      it('lets an exclusion on the old query string go once the app moves to another one', async () => {
         // Exclude: equals "/pricing?ref=x#deposit"; the app then moves to ?ref=y
         withRouteRule('^(?!.*(?:(^/pricing\\?ref=x#deposit$))).*$');
         navigateTo('/pricing?ref=x#deposit');
@@ -770,13 +770,22 @@ describe('queue-manager', () => {
         await expectShown();
       });
 
-      it('leaves a full-URL route for another host to the existing evaluation', async () => {
+      it('does not match an exclusion against a route on another host', async () => {
         // page() got a canonical URL on another host than the one the visitor is on
         withRouteRule('^(?!.*(?:(^https://other\\.example\\.com/#deposit$))).*$');
         navigateTo('/#deposit');
         withCurrentRoute('https://other.example.com/#deposit');
 
         await expectShown();
+      });
+
+      it('still blocks the hash route the visitor is on when the route names another host', async () => {
+        // Same canonical URL, but the exclusion matches /#deposit here
+        withRouteRule('^(?!.*(?:(.*deposit.*))).*$');
+        navigateTo('/#deposit');
+        withCurrentRoute('https://other.example.com/#deposit');
+
+        await expectBlocked();
       });
 
       it('falls back when currentRoute is not a string', async () => {

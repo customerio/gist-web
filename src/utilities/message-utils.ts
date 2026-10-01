@@ -111,13 +111,14 @@ export function matchesRouteRule(rule: string): boolean {
 
 /**
  * Whether `route` is the hash route the visitor is on and a rule's exclusion
- * targets that hash: with the route's hash appended, either the page's path or
- * the route's own part before the hash is excluded, while without it it isn't.
- * Each check compares one string with and without the hash, so separate parts
- * of an exclusion can't combine across host and hash. Moving to another hash,
- * path, query or host without a new page() call, or an exclusion that only
- * hits the host, path or query, leaves the rule to the plain evaluation, and
- * so does anything unexpected, such as a route that isn't a string.
+ * targets that hash: with the route's hash appended, the page's path, or the
+ * route's own part before the hash when it has this page's host and query, is
+ * excluded, while without the hash it isn't. Each check compares one string
+ * with and without the hash, so separate parts of an exclusion can't combine
+ * across host and hash. Moving to another hash or path without a new page()
+ * call, or an exclusion that only hits the host, path or query, leaves the
+ * rule to the plain evaluation, and so does anything unexpected, such as a
+ * route that isn't a string.
  */
 function isExcludedByCurrentHash(rule: string, route: string, pathname: string): boolean {
   try {
