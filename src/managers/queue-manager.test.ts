@@ -618,15 +618,6 @@ describe('queue-manager', () => {
         await expectBlocked();
       });
 
-      it('matches the decoded hash when page() gets the encoded URL', async () => {
-        // The legacy snippet passes location.href, which percent-encodes "café"
-        withRouteRule('^(?!.*(?:(.*café.*))).*$');
-        navigateTo('/#/café');
-        withCurrentRoute(window.location.href);
-
-        await expectBlocked();
-      });
-
       it('blocks a full-URL equals exclusion on the current hash route', async () => {
         const escaped = window.location.origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         withRouteRule(`^(?!.*(?:(^${escaped}/#deposit$))).*$`);
@@ -645,10 +636,11 @@ describe('queue-manager', () => {
         await expectShown();
       });
 
-      it('keeps working when the hash has a malformed escape', async () => {
+      it('keeps working when location.hash has a malformed escape', async () => {
+        // The route is another hash, so location.hash "#100%" has to be decoded
         withRouteRule('^(?!.*(?:(.*deposit.*))).*$');
         navigateTo('/#100%');
-        withCurrentRoute('/#100%');
+        withCurrentRoute('/#deposit');
 
         await expectShown();
       });
@@ -685,6 +677,24 @@ describe('queue-manager', () => {
         withCurrentRoute(window.location.href);
 
         await expectBlocked();
+      });
+
+      it('does not match the escapes in an encoded hash', async () => {
+        // location.hash is "#/order%201"; the "2" only exists in the escape
+        withRouteRule('^(?!.*(?:(.*2.*))).*$');
+        navigateTo('/#/order 1');
+        withCurrentRoute('/#/order 1');
+
+        await expectShown();
+      });
+
+      it('does not decode a hash that page() already got decoded', async () => {
+        // The hash's text is "a%20b" (location.hash "#a%2520b"), not "a b"
+        withRouteRule('^(?!.*(?:(.*a b.*))).*$');
+        navigateTo('/#a%2520b');
+        withCurrentRoute('/#a%20b');
+
+        await expectShown();
       });
 
       it('treats an encoded "%" in the hash as the same hash', async () => {

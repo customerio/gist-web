@@ -111,9 +111,8 @@ export function matchesRouteRule(rule: string): boolean {
 
 /**
  * Whether `route` is the hash route the visitor is on and a rule's exclusion
- * targets that hash: with the hash appended (as written or decoded), either
- * the page's path or the route's own part before the hash is excluded, while
- * without it it isn't.
+ * targets that hash: with the route's hash appended, either the page's path or
+ * the route's own part before the hash is excluded, while without it it isn't.
  * Each check compares one string with and without the hash, so separate parts
  * of an exclusion can't combine across host and hash. Moving to another hash
  * without a new page() call, or an exclusion that only hits the host, path or
@@ -121,38 +120,37 @@ export function matchesRouteRule(rule: string): boolean {
  */
 function isExcludedByCurrentHash(rule: string, route: string, pathname: string): boolean {
   const hashStart = route.indexOf('#');
-  if (hashStart === -1) {
-    return false;
-  }
-  const routeHashes = hashForms(route.slice(hashStart));
-  const currentHashes = hashForms(window.location.hash);
-  if (![...routeHashes].some((hash) => currentHashes.has(hash))) {
+  if (hashStart === -1 || !isCurrentHash(route.slice(hashStart))) {
     return false;
   }
   const allows = routeRuleExclusion(rule);
   if (allows == null) {
     return false;
   }
-  const excludedOnlyWithHash = (base: string, hash: string) =>
-    !allows.test(base + hash) && allows.test(base);
-  const bases = new Set([pathname, route.slice(0, hashStart)]);
-  const hashes = new Set([...routeHashes, ...currentHashes]);
-  return [...bases].some((base) => [...hashes].some((hash) => excludedOnlyWithHash(base, hash)));
+  const hash = route.slice(hashStart);
+  const routeBase = route.slice(0, hashStart);
+  const excludedOnlyWithHash = (base: string) => !allows.test(base + hash) && allows.test(base);
+  return (
+    excludedOnlyWithHash(pathname) || (routeBase !== pathname && excludedOnlyWithHash(routeBase))
+  );
 }
 
-// A hash as written and decoded. The browser reports location.hash
-// percent-encoded, while routers usually pass page() the decoded route, and
-// an exclusion may be written either way. decodeURI keeps reserved escapes
-// such as %23 and %2F, so decoding never turns an encoded character into a
-// "#" or "/"; a malformed escape has no decoded form.
-function hashForms(hash: string): Set<string> {
-  const forms = new Set([hash]);
-  try {
-    forms.add(decodeURI(hash));
-  } catch {
-    // Malformed escape: only the form as written.
+// location.hash comes percent-encoded. page() gets either that same form (the
+// legacy snippet passes location.href) or the decoded route a router works
+// with, so the route's hash is current when it equals location.hash as
+// reported or decoded. Only location.hash is decoded, and only to compare:
+// the exclusion is matched against the route as written, so an escape can't
+// satisfy an exclusion the route itself doesn't contain.
+function isCurrentHash(hash: string): boolean {
+  const currentHash = window.location.hash;
+  if (hash === currentHash) {
+    return true;
   }
-  return forms;
+  try {
+    return hash === decodeURI(currentHash);
+  } catch {
+    return false;
+  }
 }
 
 /**
