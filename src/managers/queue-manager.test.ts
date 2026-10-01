@@ -653,6 +653,23 @@ describe('queue-manager', () => {
         await expectShown();
       });
 
+      it('still applies the exclusion when the hash has a malformed escape', async () => {
+        withRouteRule('^(?!.*(?:(.*deposit.*))).*$');
+        navigateTo('/#deposit-100%');
+        withCurrentRoute('/#deposit-100%');
+
+        await expectBlocked();
+      });
+
+      it('does not decode an encoded "#" into the hash route', async () => {
+        // "%23deposit" is part of the hash's text, not a "#deposit" route
+        withRouteRule('^(?!.*(?:(.*#deposit.*))).*$');
+        navigateTo('/#x%23deposit');
+        withCurrentRoute('/#x%23deposit');
+
+        await expectShown();
+      });
+
       it('lets the exclusion go once the app moves to another hash without calling page()', async () => {
         withRouteRule('^(?!.*(?:(.*deposit.*))).*$');
         navigateTo('/#deposit');

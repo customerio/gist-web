@@ -97,7 +97,7 @@ export function matchesRouteRule(rule: string): boolean {
     // on the very page the rule excludes (INAPP-14866). When page() passed the
     // hash route the visitor is on, and the exclusion matches that hash rather
     // than the rest of the route, the exclusion wins.
-    if (currentRoute != null && isExcludedByCurrentHash(rule, currentRoute)) {
+    if (currentRoute != null && isExcludedByCurrentHash(rule, currentRoute, pathname)) {
       return false;
     }
 
@@ -111,38 +111,37 @@ export function matchesRouteRule(rule: string): boolean {
 
 /**
  * Whether `route` is the hash route the visitor is on and a rule's exclusion
- * targets that hash. Each check compares one string with and without its
- * hash, so separate parts of an exclusion can't combine across host and hash:
- * the page's hash route in path form ("/#deposit") is excluded while its path
- * alone isn't, or the route itself is excluded while it isn't without its
- * hash. Moving to another hash without a new page() call, or an exclusion
- * that only hits the host, path or query, leaves the rule to the plain
- * evaluation.
+ * targets that hash: with the hash appended, either the page's path or the
+ * route's own part before the hash is excluded, while without it it isn't.
+ * Each check compares one string with and without the hash, so separate parts
+ * of an exclusion can't combine across host and hash. Moving to another hash
+ * without a new page() call, or an exclusion that only hits the host, path or
+ * query, leaves the rule to the plain evaluation.
  */
-function isExcludedByCurrentHash(rule: string, route: string): boolean {
+function isExcludedByCurrentHash(rule: string, route: string, pathname: string): boolean {
   const hashStart = route.indexOf('#');
-  const currentHash = decodeHash(window.location.hash);
-  if (hashStart === -1 || decodeHash(route.slice(hashStart)) !== currentHash) {
+  if (hashStart === -1) {
+    return false;
+  }
+  const hash = decodeHash(route.slice(hashStart));
+  if (hash !== decodeHash(window.location.hash)) {
     return false;
   }
   const allows = routeRuleExclusion(rule);
   if (allows == null) {
     return false;
   }
-  const isExcluded = (value: string) => !allows.test(value);
-  const { pathname } = window.location;
-  return (
-    (isExcluded(pathname + currentHash) && !isExcluded(pathname)) ||
-    (isExcluded(route) && !isExcluded(route.slice(0, hashStart)))
-  );
+  const excludedOnlyWithHash = (base: string) => !allows.test(base + hash) && allows.test(base);
+  return excludedOnlyWithHash(pathname) || excludedOnlyWithHash(route.slice(0, hashStart));
 }
 
 // The browser reports location.hash percent-encoded, while routers usually
 // pass page() the decoded route, so hashes are compared and matched decoded.
-// A malformed escape is kept as it is.
+// decodeURI keeps reserved escapes such as %23 and %2F, so decoding can't
+// invent a "#" or "/"; a malformed escape is kept as it is.
 function decodeHash(hash: string): string {
   try {
-    return decodeURIComponent(hash);
+    return decodeURI(hash);
   } catch {
     return hash;
   }
