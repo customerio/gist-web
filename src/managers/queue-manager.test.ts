@@ -782,8 +782,9 @@ describe('queue-manager', () => {
       });
 
       it('does not apply an exclusion that only matches a route on another scheme', async () => {
-        // page() got the https URL of the page the visitor has open over http
-        const route = `https://${window.location.host}/#deposit`;
+        // page() got this page's URL, but on the other of http and https
+        const otherScheme = window.location.protocol === 'https:' ? 'http:' : 'https:';
+        const route = `${otherScheme}//${window.location.host}/#deposit`;
         const escaped = route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         withRouteRule(`^(?!.*(?:(^${escaped}$))).*$`);
         navigateTo('/#deposit');
