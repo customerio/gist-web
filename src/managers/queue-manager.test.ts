@@ -770,7 +770,7 @@ describe('queue-manager', () => {
         await expectShown();
       });
 
-      it('does not match an exclusion against a route on another host', async () => {
+      it('does not match an exclusion against the text of a route on another host', async () => {
         // page() got a canonical URL on another host than the one the visitor is on
         withRouteRule('^(?!.*(?:(^https://other\\.example\\.com/#deposit$))).*$');
         navigateTo('/#deposit');
