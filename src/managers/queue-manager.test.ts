@@ -732,10 +732,11 @@ describe('queue-manager', () => {
       });
 
       it('leaves a page name containing "#" to the existing evaluation', async () => {
-        // page("Checkout #2") on a URL whose hash happens to be "#2"
+        // page("checkout #2") on /checkout#2: read as a relative URL, the name
+        // would resolve to this very page
         withRouteRule('^(?!.*(?:(.*2.*))).*$');
-        navigateTo('/#2');
-        withCurrentRoute('Checkout #2');
+        navigateTo('/checkout#2');
+        withCurrentRoute('checkout #2');
 
         await expectShown();
       });
@@ -752,6 +753,46 @@ describe('queue-manager', () => {
         withRouteRule('^(?!.*(?:(.*deposit.*))).*$');
         navigateTo('/#deposit');
         withCurrentRoute('#deposit');
+
+        await expectBlocked();
+      });
+
+      it('lets the exclusion go once the app moves to another query string', async () => {
+        // Exclude: equals "/pricing?ref=x#deposit"; the app then moves to ?ref=y
+        withRouteRule('^(?!.*(?:(^/pricing\\?ref=x#deposit$))).*$');
+        navigateTo('/pricing?ref=x#deposit');
+        withCurrentRoute('/pricing?ref=x#deposit');
+
+        await expectBlocked();
+
+        navigateTo('/pricing?ref=y#deposit');
+
+        await expectShown();
+      });
+
+      it('leaves a full-URL route for another host to the existing evaluation', async () => {
+        // page() got a canonical URL on another host than the one the visitor is on
+        withRouteRule('^(?!.*(?:(^https://other\\.example\\.com/#deposit$))).*$');
+        navigateTo('/#deposit');
+        withCurrentRoute('https://other.example.com/#deposit');
+
+        await expectShown();
+      });
+
+      it('falls back when currentRoute is not a string', async () => {
+        // A plain-JS caller passed a number to setCurrentRoute
+        withRouteRule('^(?!.*(?:(.*deposit.*))).*$');
+        navigateTo('/#deposit');
+        (Gist as unknown as Record<string, unknown>).currentRoute = 123;
+
+        await expectShown();
+      });
+
+      it('matches a decoded path before the hash', async () => {
+        // location.pathname is "/caf%C3%A9"; the router passes "/café#deposit"
+        withRouteRule('^(?!.*(?:(.*deposit.*))).*$');
+        navigateTo('/café#deposit');
+        withCurrentRoute('/café#deposit');
 
         await expectBlocked();
       });

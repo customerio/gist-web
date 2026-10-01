@@ -114,28 +114,42 @@ export function matchesRouteRule(rule: string): boolean {
  * targets that hash: with the route's hash appended, either the page's path or
  * the route's own part before the hash is excluded, while without it it isn't.
  * Each check compares one string with and without the hash, so separate parts
- * of an exclusion can't combine across host and hash. Moving to another hash
- * or path without a new page() call, or an exclusion that only hits the host,
- * path or query, leaves the rule to the plain evaluation.
+ * of an exclusion can't combine across host and hash. Moving to another hash,
+ * path, query or host without a new page() call, or an exclusion that only
+ * hits the host, path or query, leaves the rule to the plain evaluation, and
+ * so does anything unexpected, such as a route that isn't a string.
  */
 function isExcludedByCurrentHash(rule: string, route: string, pathname: string): boolean {
-  const hashStart = route.indexOf('#');
-  if (hashStart === -1) {
+  try {
+    const hashStart = route.indexOf('#');
+    if (hashStart === -1) {
+      return false;
+    }
+    const hash = route.slice(hashStart);
+    const routeBase = route.slice(0, hashStart);
+    const routeBaseUrl = resolveRouteBase(routeBase);
+    if (routeBaseUrl == null || routeBaseUrl.pathname !== pathname || !isCurrentHash(hash)) {
+      return false;
+    }
+    const allows = routeRuleExclusion(rule);
+    if (allows == null) {
+      return false;
+    }
+    const excludedOnlyWithHash = (base: string) => !allows.test(base + hash) && allows.test(base);
+    // The route's own text only counts when it is this page's URL, host and
+    // query included, so a leftover query string or another host can't apply
+    // its exclusion here. The page-path check needs no such care: it is built
+    // from the current location.
+    const routeBaseIsThisPage =
+      routeBaseUrl.origin === window.location.origin &&
+      routeBaseUrl.search === window.location.search;
+    return (
+      excludedOnlyWithHash(pathname) ||
+      (routeBase !== pathname && routeBaseIsThisPage && excludedOnlyWithHash(routeBase))
+    );
+  } catch {
     return false;
   }
-  const hash = route.slice(hashStart);
-  const routeBase = route.slice(0, hashStart);
-  if (!isCurrentHash(hash) || !isCurrentPath(routeBase, pathname)) {
-    return false;
-  }
-  const allows = routeRuleExclusion(rule);
-  if (allows == null) {
-    return false;
-  }
-  const excludedOnlyWithHash = (base: string) => !allows.test(base + hash) && allows.test(base);
-  return (
-    excludedOnlyWithHash(pathname) || (routeBase !== pathname && excludedOnlyWithHash(routeBase))
-  );
 }
 
 // location.hash comes percent-encoded. page() gets either that same form (the
@@ -156,21 +170,20 @@ function isCurrentHash(hash: string): boolean {
   }
 }
 
-// Whether the route's part before the hash is the page the visitor is on: a
-// bare hash, the same path (query aside), or a URL with that path. Anything
-// else, such as a page name containing "#" or a route left over from another
-// page, isn't a hash route of this page.
-function isCurrentPath(routeBase: string, pathname: string): boolean {
-  if (routeBase === '') {
-    return true;
-  }
-  if (routeBase.startsWith('/')) {
-    return routeBase.split('?')[0] === pathname;
+// The route's part before the hash resolved against the page, when it reads as
+// a location: empty (a bare hash), a path, or an absolute URL. Resolving gives
+// the same encoding and normalization as location.pathname. A page name, even
+// one containing "#", isn't a location and gives null.
+function resolveRouteBase(routeBase: string): URL | null {
+  const isLocation =
+    routeBase === '' || routeBase.startsWith('/') || /^[a-z][a-z0-9+.-]*:\/\//i.test(routeBase);
+  if (!isLocation) {
+    return null;
   }
   try {
-    return new URL(routeBase).pathname === pathname;
+    return new URL(routeBase, window.location.href);
   } catch {
-    return false;
+    return null;
   }
 }
 
