@@ -618,6 +618,41 @@ describe('queue-manager', () => {
         await expectBlocked();
       });
 
+      it('matches the decoded hash when page() gets the encoded URL', async () => {
+        // The legacy snippet passes location.href, which percent-encodes "café"
+        withRouteRule('^(?!.*(?:(.*café.*))).*$');
+        navigateTo('/#/café');
+        withCurrentRoute(window.location.href);
+
+        await expectBlocked();
+      });
+
+      it('blocks a full-URL equals exclusion on the current hash route', async () => {
+        const escaped = window.location.origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        withRouteRule(`^(?!.*(?:(^${escaped}/#deposit$))).*$`);
+        navigateTo('/#deposit');
+        withCurrentRoute(window.location.href);
+
+        await expectBlocked();
+      });
+
+      it('does not combine separate exclusion parts across the host and the hash', async () => {
+        // Exclude: contains "shop" (only in the host) or equals "#reviews" (never the whole route)
+        withRouteRule('^(?!.*(?:((.*shop.*)|(^#reviews$)))).*$');
+        navigateTo('/#reviews');
+        withCurrentRoute('https://shop.example.com/#reviews');
+
+        await expectShown();
+      });
+
+      it('keeps working when the hash has a malformed escape', async () => {
+        withRouteRule('^(?!.*(?:(.*deposit.*))).*$');
+        navigateTo('/#100%');
+        withCurrentRoute('/#100%');
+
+        await expectShown();
+      });
+
       it('lets the exclusion go once the app moves to another hash without calling page()', async () => {
         withRouteRule('^(?!.*(?:(.*deposit.*))).*$');
         navigateTo('/#deposit');
