@@ -670,6 +670,32 @@ describe('queue-manager', () => {
         await expectShown();
       });
 
+      it('does not decode an encoded "/" into the hash route', async () => {
+        withRouteRule('^(?!.*(?:(.*/deposit.*))).*$');
+        navigateTo('/#a%2Fdeposit');
+        withCurrentRoute('/#a%2Fdeposit');
+
+        await expectShown();
+      });
+
+      it('matches an exclusion written percent-encoded', async () => {
+        // Exclude: contains "caf%C3%A9", copied from a URL; page(location.href)
+        withRouteRule('^(?!.*(?:(.*caf%C3%A9.*))).*$');
+        navigateTo('/#/café');
+        withCurrentRoute(window.location.href);
+
+        await expectBlocked();
+      });
+
+      it('treats an encoded "%" in the hash as the same hash', async () => {
+        // location.hash is "#off%2525"; the router passes the decoded "/#off%25"
+        withRouteRule('^(?!.*(?:(.*off.*))).*$');
+        navigateTo('/#off%2525');
+        withCurrentRoute('/#off%25');
+
+        await expectBlocked();
+      });
+
       it('lets the exclusion go once the app moves to another hash without calling page()', async () => {
         withRouteRule('^(?!.*(?:(.*deposit.*))).*$');
         navigateTo('/#deposit');
