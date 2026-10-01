@@ -111,35 +111,55 @@ export function matchesRouteRule(rule: string): boolean {
 
 /**
  * Whether `route` is the hash route the visitor is on and a rule's exclusion
- * matches it only because of that hash. Moving to another hash without a new
- * page() call, or an exclusion that also matches the route minus its hash
- * (its host, path or query), leaves the rule to the plain evaluation.
+ * targets that hash: it matches the hash on its own, or matches the route only
+ * because of it. Moving to another hash without a new page() call, or an
+ * exclusion that hits the route's host, path or query rather than its hash,
+ * leaves the rule to the plain evaluation.
  */
 function isExcludedByCurrentHash(rule: string, route: string): boolean {
   const hashStart = route.indexOf('#');
+  if (hashStart === -1 || !isCurrentHash(route.slice(hashStart))) {
+    return false;
+  }
+  const exclusion = routeRuleExclusion(rule);
+  if (exclusion == null) {
+    return false;
+  }
+  const excludes = (value: string) => !exclusion.test(value);
   return (
-    hashStart !== -1 &&
-    route.slice(hashStart) === window.location.hash &&
-    isExcludedByRouteRule(rule, route) &&
-    !isExcludedByRouteRule(rule, route.slice(0, hashStart))
+    excludes(route) && (!excludes(route.slice(0, hashStart)) || excludes(route.slice(hashStart)))
   );
 }
 
+// The browser reports location.hash percent-encoded, while routers usually
+// pass page() the decoded route, so either form counts as the current hash.
+function isCurrentHash(hash: string): boolean {
+  const currentHash = window.location.hash;
+  if (hash === currentHash) {
+    return true;
+  }
+  try {
+    return hash === decodeURI(currentHash);
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Whether `route` hits the exclusion half of a server-compiled route rule.
+ * The exclusion half of a server-compiled route rule, as a regex that matches
+ * only the routes it does not exclude, or null when there is none to isolate.
  * Exclude rules compile to ^(?!E).*$, or ^(?=I)(?!E).*$ alongside include
  * rules, with every rule value escaped — so an unescaped paren is always
  * structure. Any other rule (include-only, the do-not-display sentinel, a
- * hand-written regex) has no exclusion to isolate and returns false, leaving
- * the rule to the plain evaluation.
+ * hand-written regex) returns null, leaving the rule to the plain evaluation.
  */
-function isExcludedByRouteRule(rule: string, route: string): boolean {
+function routeRuleExclusion(rule: string): RegExp | null {
   try {
     let exclusionStart = 1;
     if (rule.startsWith('^(?=')) {
       const includeEnd = closingParenIndex(rule, 1);
       if (includeEnd === -1) {
-        return false;
+        return null;
       }
       exclusionStart = includeEnd + 1;
     }
@@ -149,9 +169,9 @@ function isExcludedByRouteRule(rule: string, route: string): boolean {
       rule.startsWith('(?!', exclusionStart) &&
       rule.endsWith('.*$') &&
       closingParenIndex(rule, exclusionStart) === rule.length - 4;
-    return isExclusion && !new RegExp(`^${rule.slice(exclusionStart)}`).test(route);
+    return isExclusion ? new RegExp(`^${rule.slice(exclusionStart)}`) : null;
   } catch {
-    return false;
+    return null;
   }
 }
 

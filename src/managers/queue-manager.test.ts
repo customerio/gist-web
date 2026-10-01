@@ -600,6 +600,24 @@ describe('queue-manager', () => {
         await expectBlocked();
       });
 
+      it('blocks a hash route whose excluded word also appears before the hash', async () => {
+        // Exclude: contains "checkout", legacy snippet href with it in the query too
+        withRouteRule('^(?!.*(?:(.*checkout.*))).*$');
+        navigateTo('/?step=checkout#checkout');
+        withCurrentRoute(window.location.href);
+
+        await expectBlocked();
+      });
+
+      it('matches the hash however the browser encodes it', async () => {
+        // page() gets the decoded route; location.hash is "#/caf%C3%A9"
+        withRouteRule('^(?!.*(?:(.*café.*))).*$');
+        navigateTo('/#/café');
+        withCurrentRoute('/#/café');
+
+        await expectBlocked();
+      });
+
       it('lets the exclusion go once the app moves to another hash without calling page()', async () => {
         withRouteRule('^(?!.*(?:(.*deposit.*))).*$');
         navigateTo('/#deposit');
