@@ -141,8 +141,9 @@ function isExcludedByCurrentHash(rule: string, route: string, pathname: string):
     // The route's own text only counts when it is this page's URL, scheme,
     // host and query included, so a leftover query string or another host
     // can't apply its exclusion here. Scheme and host rather than origin,
-    // which can't tell file: and custom-scheme URLs apart. The page-path
-    // check needs no such care: it is built from the current location.
+    // which is opaque ("null") or reported differently by each browser for
+    // file: and custom-scheme URLs. The page-path check needs no such care:
+    // it is built from the current location.
     const routeBaseIsThisPage =
       routeBaseUrl.protocol === window.location.protocol &&
       routeBaseUrl.host === window.location.host &&
