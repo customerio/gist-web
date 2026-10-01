@@ -718,6 +718,44 @@ describe('queue-manager', () => {
         await expectShown();
       });
 
+      it('lets the exclusion go once the app moves to another path, even with the same hash', async () => {
+        // Exclude: equals "/#deposit"; page() ran on /#deposit, not on /other#deposit
+        withRouteRule('^(?!.*(?:(^/#deposit$))).*$');
+        navigateTo('/#deposit');
+        withCurrentRoute('/#deposit');
+
+        await expectBlocked();
+
+        navigateTo('/other#deposit');
+
+        await expectShown();
+      });
+
+      it('leaves a page name containing "#" to the existing evaluation', async () => {
+        // page("Checkout #2") on a URL whose hash happens to be "#2"
+        withRouteRule('^(?!.*(?:(.*2.*))).*$');
+        navigateTo('/#2');
+        withCurrentRoute('Checkout #2');
+
+        await expectShown();
+      });
+
+      it('blocks a hash route whose path carries a query string', async () => {
+        withRouteRule('^(?!.*(?:(.*deposit.*))).*$');
+        navigateTo('/pricing?ref=x#deposit');
+        withCurrentRoute('/pricing?ref=x#deposit');
+
+        await expectBlocked();
+      });
+
+      it('blocks a bare hash route passed without a path', async () => {
+        withRouteRule('^(?!.*(?:(.*deposit.*))).*$');
+        navigateTo('/#deposit');
+        withCurrentRoute('#deposit');
+
+        await expectBlocked();
+      });
+
       it('leaves an exclusion that matches outside the hash to the existing evaluation', async () => {
         // Exclude: contains "shop", which is in the query string, not the hash
         withRouteRule('^(?!.*(?:(.*shop.*))).*$');

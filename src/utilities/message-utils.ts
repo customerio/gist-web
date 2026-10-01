@@ -115,20 +115,23 @@ export function matchesRouteRule(rule: string): boolean {
  * the route's own part before the hash is excluded, while without it it isn't.
  * Each check compares one string with and without the hash, so separate parts
  * of an exclusion can't combine across host and hash. Moving to another hash
- * without a new page() call, or an exclusion that only hits the host, path or
- * query, leaves the rule to the plain evaluation.
+ * or path without a new page() call, or an exclusion that only hits the host,
+ * path or query, leaves the rule to the plain evaluation.
  */
 function isExcludedByCurrentHash(rule: string, route: string, pathname: string): boolean {
   const hashStart = route.indexOf('#');
-  if (hashStart === -1 || !isCurrentHash(route.slice(hashStart))) {
+  if (hashStart === -1) {
+    return false;
+  }
+  const hash = route.slice(hashStart);
+  const routeBase = route.slice(0, hashStart);
+  if (!isCurrentHash(hash) || !isCurrentPath(routeBase, pathname)) {
     return false;
   }
   const allows = routeRuleExclusion(rule);
   if (allows == null) {
     return false;
   }
-  const hash = route.slice(hashStart);
-  const routeBase = route.slice(0, hashStart);
   const excludedOnlyWithHash = (base: string) => !allows.test(base + hash) && allows.test(base);
   return (
     excludedOnlyWithHash(pathname) || (routeBase !== pathname && excludedOnlyWithHash(routeBase))
@@ -148,6 +151,24 @@ function isCurrentHash(hash: string): boolean {
   }
   try {
     return hash === decodeURI(currentHash);
+  } catch {
+    return false;
+  }
+}
+
+// Whether the route's part before the hash is the page the visitor is on: a
+// bare hash, the same path (query aside), or a URL with that path. Anything
+// else, such as a page name containing "#" or a route left over from another
+// page, isn't a hash route of this page.
+function isCurrentPath(routeBase: string, pathname: string): boolean {
+  if (routeBase === '') {
+    return true;
+  }
+  if (routeBase.startsWith('/')) {
+    return routeBase.split('?')[0] === pathname;
+  }
+  try {
+    return new URL(routeBase).pathname === pathname;
   } catch {
     return false;
   }
