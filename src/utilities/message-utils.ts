@@ -78,6 +78,7 @@ export function matchesRouteRule(rule: string): boolean {
   try {
     const routeRule = new RegExp(rule);
     const pathname = new URL(window.location.href).pathname;
+    const currentRoute = Gist.currentRoute;
 
     // Route rule evaluation checks two values.
     //
@@ -90,13 +91,89 @@ export function matchesRouteRule(rule: string): boolean {
     // pathname (fallback): The URL path from window.location. Always available and
     // always a path like "/dashboard", regardless of how analytics.page() was called.
     // Catches cases where currentRoute is null or set to a value that doesn't match.
+    //
+    // Hash routes are the exception. pathname drops the hash, so it passes an
+    // exclusion aimed at a hash route like "/#deposit" and the message would show
+    // on the very page the rule excludes (INAPP-14866). When page() passed the
+    // hash route the visitor is on, and the exclusion matches that hash rather
+    // than the rest of the route, the exclusion wins.
+    if (currentRoute != null && isExcludedByCurrentHash(rule, currentRoute)) {
+      return false;
+    }
 
-    const matchesCurrentRoute = Gist.currentRoute != null && routeRule.test(Gist.currentRoute);
-    const matchesPathname = Gist.currentRoute !== pathname && routeRule.test(pathname);
+    const matchesCurrentRoute = currentRoute != null && routeRule.test(currentRoute);
+    const matchesPathname = currentRoute !== pathname && routeRule.test(pathname);
     return matchesCurrentRoute || matchesPathname;
   } catch {
     return false;
   }
+}
+
+/**
+ * Whether `route` is the hash route the visitor is on and a rule's exclusion
+ * matches it only because of that hash. Moving to another hash without a new
+ * page() call, or an exclusion that also matches the route minus its hash
+ * (its host, path or query), leaves the rule to the plain evaluation.
+ */
+function isExcludedByCurrentHash(rule: string, route: string): boolean {
+  const hashStart = route.indexOf('#');
+  return (
+    hashStart !== -1 &&
+    route.slice(hashStart) === window.location.hash &&
+    isExcludedByRouteRule(rule, route) &&
+    !isExcludedByRouteRule(rule, route.slice(0, hashStart))
+  );
+}
+
+/**
+ * Whether `route` hits the exclusion half of a server-compiled route rule.
+ * Exclude rules compile to ^(?!E).*$, or ^(?=I)(?!E).*$ alongside include
+ * rules, with every rule value escaped — so an unescaped paren is always
+ * structure. Any other rule (include-only, the do-not-display sentinel, a
+ * hand-written regex) has no exclusion to isolate and returns false, leaving
+ * the rule to the plain evaluation.
+ */
+function isExcludedByRouteRule(rule: string, route: string): boolean {
+  try {
+    let exclusionStart = 1;
+    if (rule.startsWith('^(?=')) {
+      const includeEnd = closingParenIndex(rule, 1);
+      if (includeEnd === -1) {
+        return false;
+      }
+      exclusionStart = includeEnd + 1;
+    }
+
+    const isExclusion =
+      rule.startsWith('^') &&
+      rule.startsWith('(?!', exclusionStart) &&
+      rule.endsWith('.*$') &&
+      closingParenIndex(rule, exclusionStart) === rule.length - 4;
+    return isExclusion && !new RegExp(`^${rule.slice(exclusionStart)}`).test(route);
+  } catch {
+    return false;
+  }
+}
+
+// Index of the paren closing the group opened at source[open], or -1.
+function closingParenIndex(source: string, open: number): number {
+  let depth = 0;
+  let inCharClass = false;
+  for (let i = open; i < source.length; i++) {
+    const char = source[i];
+    if (char === '\\') {
+      i++;
+    } else if (inCharClass) {
+      inCharClass = char !== ']';
+    } else if (char === '[') {
+      inCharClass = true;
+    } else if (char === '(') {
+      depth++;
+    } else if (char === ')' && --depth === 0) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 /**

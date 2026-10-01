@@ -555,6 +555,125 @@ describe('queue-manager', () => {
       expect(showMessage).not.toHaveBeenCalled();
     });
 
+    // --- Exclusions on hash routes (shapes compiled by the backend) ---
+
+    describe('exclusion matching a hash route', () => {
+      function withCurrentRoute(route: string) {
+        (Gist as unknown as Record<string, unknown>).currentRoute = route;
+      }
+
+      async function expectBlocked() {
+        const result = await handleMessage(message);
+        expect(result).toBe(false);
+        expect(showMessage).not.toHaveBeenCalled();
+      }
+
+      async function expectShown() {
+        await handleMessage(message);
+        expect(showMessage).toHaveBeenCalledWith(message);
+      }
+
+      it('blocks a hash route even though the hash-less pathname passes', async () => {
+        // Exclude: contains "deposit", page("/#deposit") on /#deposit
+        withRouteRule('^(?!.*(?:(.*deposit.*))).*$');
+        navigateTo('/#deposit');
+        withCurrentRoute('/#deposit');
+
+        await expectBlocked();
+      });
+
+      it('blocks a full URL whose hash is excluded', async () => {
+        // The legacy snippet passes the full href, hash included
+        withRouteRule('^(?!.*(?:(.*#deposit.*))).*$');
+        navigateTo('/#deposit');
+        withCurrentRoute(window.location.href);
+
+        await expectBlocked();
+      });
+
+      it('blocks when pathname satisfies the include but the hash route is excluded', async () => {
+        // Include: contains "/app"; exclude: contains "#settings"
+        withRouteRule('^(?=(.*/app.*))(?!.*(?:(.*#settings.*))).*$');
+        navigateTo('/app#settings');
+        withCurrentRoute('/app#settings');
+
+        await expectBlocked();
+      });
+
+      it('lets the exclusion go once the app moves to another hash without calling page()', async () => {
+        withRouteRule('^(?!.*(?:(.*deposit.*))).*$');
+        navigateTo('/#deposit');
+        withCurrentRoute('/#deposit');
+
+        await expectBlocked();
+
+        navigateTo('/#home');
+
+        await expectShown();
+      });
+
+      it('leaves an exclusion that matches outside the hash to the existing evaluation', async () => {
+        // Exclude: contains "shop", which is in the query string, not the hash
+        withRouteRule('^(?!.*(?:(.*shop.*))).*$');
+        navigateTo('/pricing?ref=shop#reviews');
+        withCurrentRoute('/pricing?ref=shop#reviews');
+
+        await expectShown();
+      });
+
+      it('leaves routes without a hash to the existing evaluation', async () => {
+        // Exclude: equals "Checkout", page("Checkout") on /checkout
+        withRouteRule('^(?!.*(?:(^Checkout$))).*$');
+        navigateTo('/checkout');
+        withCurrentRoute('Checkout');
+
+        await expectShown();
+      });
+
+      it('still rescues an include rule through pathname on a hash route', async () => {
+        // Include: equals "/" on a hash-routed app, where every page has pathname "/"
+        withRouteRule('^(^/$)$');
+        navigateTo('/#deposit');
+        withCurrentRoute('/#deposit');
+
+        await expectShown();
+      });
+
+      it('does not let an exclusion that only matches pathname override the hash route', async () => {
+        // Exclude: equals "/" on a hash-routed app
+        withRouteRule('^(?!.*(?:(^/$))).*$');
+        navigateTo('/#deposit');
+        withCurrentRoute('/#deposit');
+
+        await expectShown();
+      });
+
+      it('treats escaped parens in rule values as literal text', async () => {
+        // Include: contains "/shop" or contains "Sale("; exclude: contains "Checkout("
+        withRouteRule('^(?=((.*/shop.*)|(.*Sale\\(.*)))(?!.*(?:(.*Checkout\\(.*))).*$');
+        navigateTo('/shop/#Checkout(EU)');
+        withCurrentRoute('/shop/#Checkout(EU)');
+
+        await expectBlocked();
+      });
+
+      it('skips parens inside character classes when splitting the rule', async () => {
+        withRouteRule('^(?!.*[(]).*$');
+        navigateTo('/#Sale(EU)');
+        withCurrentRoute('/#Sale(EU)');
+
+        await expectBlocked();
+      });
+
+      it('keeps the existing evaluation for hand-written rules it cannot split', async () => {
+        withRouteRule('^(?!.*deposit)(.*)$');
+        navigateTo('/#deposit');
+        withCurrentRoute('/#deposit');
+
+        await expectShown();
+      });
+    });
+
     // --- currentRoute backward compatibility ---
 
     describe('currentRoute fallback', () => {
