@@ -1097,6 +1097,122 @@ describe('queue-manager', () => {
       });
     });
 
+    // --- The cases above with the rules the backend sends ---
+
+    describe('rules as the backend compiles them', () => {
+      // The cases above hand-write their rules, such as "^(\/pricing)$". These
+      // repeat them with the pattern services' CombineRules sends for the same
+      // page rule, such as "^(^/pricing$)$".
+      type Case = [pageRule: string, path: string, currentRoute: string | null, routeRule: string];
+
+      const shown: Case[] = [
+        ['contains "/dashboard"', '/dashboard', null, '^(.*/dashboard.*)$'],
+        ['contains "/dashboard"', '/dashboard/settings/billing', null, '^(.*/dashboard.*)$'],
+        ['contains "/dashboard"', '/app/dashboard', null, '^(.*/dashboard.*)$'],
+        ['contains "/dashboard"', '/dashboard', '/dashboard', '^(.*/dashboard.*)$'],
+        [
+          'contains "/dashboard"',
+          '/dashboard',
+          'http://example.com/dashboard',
+          '^(.*/dashboard.*)$',
+        ],
+        ['equals "/pricing"', '/pricing', null, '^(^/pricing$)$'],
+        [
+          'contains "/dashboard" or equals "/pricing"',
+          '/dashboard',
+          null,
+          '^((.*/dashboard.*)|(^/pricing$))$',
+        ],
+        [
+          'contains "/dashboard" or equals "/pricing"',
+          '/pricing',
+          null,
+          '^((.*/dashboard.*)|(^/pricing$))$',
+        ],
+        ['equals "/"', '/', null, '^(^/$)$'],
+        [
+          'contains "/settings/billing"',
+          '/app/settings/billing/invoices',
+          null,
+          '^(.*/settings/billing.*)$',
+        ],
+        [
+          'contains "/dashboard", excluding contains "/admin"',
+          '/dashboard',
+          null,
+          '^(?=(.*/dashboard.*))(?!.*(?:(.*/admin.*))).*$',
+        ],
+        ['equals "Dashboard"', '/home', 'Dashboard', '^(^Dashboard$)$'],
+        ['equals "Dashboard"', '/app/main', 'Dashboard', '^(^Dashboard$)$'],
+        ['equals "/dashboard"', '/dashboard', '/dashboard', '^(^/dashboard$)$'],
+        [
+          'equals "https://myapp.com/pricing"',
+          '/pricing',
+          'https://myapp.com/pricing',
+          '^(^https://myapp\\.com/pricing$)$',
+        ],
+        ['contains "/api/v2.0/users"', '/api/v2.0/users', null, '^(.*/api/v2\\.0/users.*)$'],
+        ['equals "/search"', '/search?q=test', null, '^(^/search$)$'],
+        ['equals "/docs"', '/docs#section-1', null, '^(^/docs$)$'],
+      ];
+
+      const blocked: Case[] = [
+        ['contains "/dashboard"', '/pricing', null, '^(.*/dashboard.*)$'],
+        ['equals "/pricing"', '/pricing/enterprise', null, '^(^/pricing$)$'],
+        ['equals "/pricing"', '/about', null, '^(^/pricing$)$'],
+        [
+          'contains "/dashboard" or equals "/pricing"',
+          '/about',
+          null,
+          '^((.*/dashboard.*)|(^/pricing$))$',
+        ],
+        ['equals "/"', '/dashboard', null, '^(^/$)$'],
+        [
+          'contains "/dashboard", excluding contains "/admin"',
+          '/admin/dashboard',
+          null,
+          '^(?=(.*/dashboard.*))(?!.*(?:(.*/admin.*))).*$',
+        ],
+        ['equals "Dashboard"', '/home', 'Settings', '^(^Dashboard$)$'],
+        [
+          'equals "https://myapp.com/pricing"',
+          '/pricing',
+          'Pricing',
+          '^(^https://myapp\\.com/pricing$)$',
+        ],
+        ['equals "/Dashboard"', '/dashboard', null, '^(^/Dashboard$)$'],
+      ];
+
+      function givenCase(path: string, currentRoute: string | null, routeRule: string) {
+        withRouteRule(routeRule);
+        navigateTo(path);
+        (Gist as unknown as Record<string, unknown>).currentRoute = currentRoute;
+      }
+
+      it.each(shown)(
+        'shows for %s on %s with currentRoute %s',
+        async (_pageRule, path, currentRoute, routeRule) => {
+          givenCase(path, currentRoute, routeRule);
+
+          await handleMessage(message);
+
+          expect(showMessage).toHaveBeenCalledWith(message);
+        }
+      );
+
+      it.each(blocked)(
+        'blocks for %s on %s with currentRoute %s',
+        async (_pageRule, path, currentRoute, routeRule) => {
+          givenCase(path, currentRoute, routeRule);
+
+          const result = await handleMessage(message);
+
+          expect(result).toBe(false);
+          expect(showMessage).not.toHaveBeenCalled();
+        }
+      );
+    });
+
     // --- Race condition: route not yet initialized ---
 
     describe('defers messages before route initialization', () => {
