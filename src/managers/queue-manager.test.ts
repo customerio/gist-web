@@ -770,11 +770,24 @@ describe('queue-manager', () => {
         await expectShown();
       });
 
-      it('does not match an exclusion against the text of a route on another host', async () => {
+      it('does not apply an exclusion that only matches a route on another host', async () => {
         // page() got a canonical URL on another host than the one the visitor is on
-        withRouteRule('^(?!.*(?:(^https://other\\.example\\.com/#deposit$))).*$');
+        const route = `${window.location.protocol}//other.example.com/#deposit`;
+        const escaped = route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        withRouteRule(`^(?!.*(?:(^${escaped}$))).*$`);
         navigateTo('/#deposit');
-        withCurrentRoute('https://other.example.com/#deposit');
+        withCurrentRoute(route);
+
+        await expectShown();
+      });
+
+      it('does not apply an exclusion that only matches a route on another scheme', async () => {
+        // page() got the https URL of the page the visitor has open over http
+        const route = `https://${window.location.host}/#deposit`;
+        const escaped = route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        withRouteRule(`^(?!.*(?:(^${escaped}$))).*$`);
+        navigateTo('/#deposit');
+        withCurrentRoute(route);
 
         await expectShown();
       });

@@ -113,12 +113,13 @@ export function matchesRouteRule(rule: string): boolean {
  * Whether `route` names the path and hash the visitor is on and a rule's
  * exclusion targets that hash: with the route's hash appended, the page's
  * path, or the route's own part before the hash when it has this page's
- * origin and query, is excluded, while without the hash it isn't. Each check
- * compares one string with and without the hash, so separate parts of an
- * exclusion can't combine across host and hash. Moving to another hash or
- * path without a new page() call, or an exclusion that only hits the host,
- * path or query, leaves the rule to the plain evaluation, and so does
- * anything unexpected, such as a route that isn't a string.
+ * scheme, host and query, is excluded, while without the hash it isn't. Each
+ * check compares one string with and without the hash, so separate parts of
+ * an exclusion can't combine across the hash and what comes before it.
+ * Moving to another hash or path without a new page() call, or an exclusion
+ * that only hits the host, path or query, leaves the rule to the plain
+ * evaluation, and so does anything unexpected, such as a route that isn't a
+ * string.
  */
 function isExcludedByCurrentHash(rule: string, route: string, pathname: string): boolean {
   try {
@@ -137,12 +138,14 @@ function isExcludedByCurrentHash(rule: string, route: string, pathname: string):
       return false;
     }
     const excludedOnlyWithHash = (base: string) => !allows.test(base + hash) && allows.test(base);
-    // The route's own text only counts when it is this page's URL, origin and
-    // query included, so a leftover query string or another origin can't
-    // apply its exclusion here. The page-path check needs no such care: it is
-    // built from the current location.
+    // The route's own text only counts when it is this page's URL, scheme,
+    // host and query included, so a leftover query string or another host
+    // can't apply its exclusion here. Scheme and host rather than origin,
+    // which is "null" for file: and custom schemes alike. The page-path check
+    // needs no such care: it is built from the current location.
     const routeBaseIsThisPage =
-      routeBaseUrl.origin === window.location.origin &&
+      routeBaseUrl.protocol === window.location.protocol &&
+      routeBaseUrl.host === window.location.host &&
       routeBaseUrl.search === window.location.search;
     return (
       excludedOnlyWithHash(pathname) ||
