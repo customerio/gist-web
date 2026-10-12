@@ -14,6 +14,7 @@ import {
   hideMessage,
   removePersistentMessage,
   logBroadcastDismissedLocally,
+  type HideReason,
 } from './managers/message-manager';
 import { fetchMessageByInstanceId } from './utilities/message-utils';
 import {
@@ -296,10 +297,13 @@ export default class Gist {
     this.events.dispatch('messageShown', message);
   }
 
-  static messageDismissed(message: GistMessage | null): void {
+  static messageDismissed(message: GistMessage | null, reason: HideReason = 'dismissed'): void {
     if (message !== null) {
-      log(`Message dismissed: ${message.messageId}`);
-      this.events.dispatch('messageDismissed', message);
+      log(`Message dismissed: ${message.messageId} (${reason})`);
+      // The event fires for every hide so listeners can treat it as "message
+      // left the screen", and carries the reason so metric emitters can count
+      // only genuine user dismissals — a snooze or displacement is not one.
+      this.events.dispatch('messageDismissed', { ...message, dismissReason: reason });
     }
   }
 

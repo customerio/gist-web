@@ -283,7 +283,7 @@ describe('message-manager', () => {
 
     await hideMessage(message);
 
-    expect(mockGist.messageDismissed).toHaveBeenCalledWith(message);
+    expect(mockGist.messageDismissed).toHaveBeenCalledWith(message, 'dismissed');
     expect(hideOverlayComponent).toHaveBeenCalled();
     expect(removeMessageByInstanceId).toHaveBeenCalledWith('inst-1');
     expect(mockGist.overlayInstanceId).toBeNull();
@@ -823,7 +823,7 @@ describe('message-manager', () => {
         expect(checkMessageQueue).toHaveBeenCalled();
       });
       expect(setMessageSnoozed).toHaveBeenCalledWith('q-tour', 30);
-      expect(mockGist.messageDismissed).toHaveBeenCalledWith(message);
+      expect(mockGist.messageDismissed).toHaveBeenCalledWith(message, 'snoozed');
       // The view log is what stops the server re-delivering the message, and
       // the saved step state is what lets the tour resume — both must survive.
       expect(logUserMessageView).not.toHaveBeenCalled();
@@ -884,7 +884,7 @@ describe('message-manager', () => {
       await vi.waitFor(() => {
         expect(checkMessageQueue).toHaveBeenCalled();
       });
-      expect(mockGist.messageDismissed).toHaveBeenCalledWith(message);
+      expect(mockGist.messageDismissed).toHaveBeenCalledWith(message, 'snoozed');
       expect(setMessageSnoozed).not.toHaveBeenCalled();
     });
 
@@ -1144,7 +1144,7 @@ describe('message-manager', () => {
 
       await showMessage(message);
 
-      expect(mockGist.messageDismissed).toHaveBeenCalledWith(existing);
+      expect(mockGist.messageDismissed).toHaveBeenCalledWith(existing, 'displaced');
       expect(hideTooltipComponent).toHaveBeenCalledWith(existing);
       expect(removeMessageByInstanceId).toHaveBeenCalledWith('old-inst');
     });
@@ -1193,7 +1193,7 @@ describe('message-manager', () => {
 
       await hideMessage(message);
 
-      expect(mockGist.messageDismissed).toHaveBeenCalledWith(message);
+      expect(mockGist.messageDismissed).toHaveBeenCalledWith(message, 'dismissed');
       expect(hideTooltipComponent).toHaveBeenCalledWith(message);
       expect(removeMessageByInstanceId).toHaveBeenCalledWith('inst-tooltip');
     });

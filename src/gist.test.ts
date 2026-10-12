@@ -505,13 +505,28 @@ describe('Gist', () => {
   });
 
   describe('messageDismissed', () => {
-    it('dispatches event for non-null message', async () => {
+    it('dispatches event for non-null message with the dismissed reason by default', async () => {
       await Gist.setup(baseConfig());
       const message: GistMessage = { messageId: 'msg-1' };
 
       Gist.messageDismissed(message);
 
-      expect(mockDispatch).toHaveBeenCalledWith('messageDismissed', message);
+      expect(mockDispatch).toHaveBeenCalledWith('messageDismissed', {
+        ...message,
+        dismissReason: 'dismissed',
+      });
+    });
+
+    it('carries the supplied hide reason on the event payload', async () => {
+      await Gist.setup(baseConfig());
+      const message: GistMessage = { messageId: 'msg-1' };
+
+      Gist.messageDismissed(message, 'snoozed');
+
+      expect(mockDispatch).toHaveBeenCalledWith('messageDismissed', {
+        ...message,
+        dismissReason: 'snoozed',
+      });
     });
 
     it('handles null message gracefully', async () => {

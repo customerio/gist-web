@@ -156,7 +156,7 @@ function showTooltipMessage(
     log(
       `Tooltip already showing on target "${targetSelector}" (instance ${existingTooltip.instanceId}), dismissing it first`
     );
-    Gist.messageDismissed(existingTooltip);
+    Gist.messageDismissed(existingTooltip, 'displaced');
     hideTooltipComponent(existingTooltip);
     if (existingTooltip.instanceId) {
       removeMessageByInstanceId(existingTooltip.instanceId);
@@ -225,7 +225,7 @@ export async function hideMessage(
   reason: HideReason = 'dismissed'
 ): Promise<void> {
   if (message) {
-    Gist.messageDismissed(message);
+    Gist.messageDismissed(message, reason);
     // Recorded here rather than at each call site: every dismissal route funnels
     // through this function, and the two gaps found in review were both a call
     // site that forgot. Plain teardown goes through resetMessage instead and
