@@ -79,6 +79,18 @@ interface GistEventData {
 
 const defaultSnoozeDurationInMinutes = 60;
 
+const dismissingInstanceIds = new Set<string>();
+
+export function claimDismissal(instanceId: string | undefined): boolean {
+  if (!instanceId || dismissingInstanceIds.has(instanceId)) return false;
+  dismissingInstanceIds.add(instanceId);
+  return true;
+}
+
+export function releaseDismissal(instanceId: string | undefined): void {
+  if (instanceId) dismissingInstanceIds.delete(instanceId);
+}
+
 export async function showMessage(message: GistMessage): Promise<GistMessage | null> {
   if (!Gist.isDocumentVisible) {
     log('Document hidden, not showing message now.');
@@ -587,10 +599,15 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
             const gistAction = actionUrl.href.replace('gist://', '').split('?')[0];
             switch (gistAction) {
               case 'close':
-                await removePersistentMessage(currentMessage);
-                await logBroadcastDismissedLocally(currentMessage);
-                await hideMessage(currentMessage);
-                await checkMessageQueue();
+                if (!claimDismissal(currentMessage.instanceId)) break;
+                try {
+                  await removePersistentMessage(currentMessage);
+                  await logBroadcastDismissedLocally(currentMessage);
+                  await hideMessage(currentMessage);
+                  await checkMessageQueue();
+                } finally {
+                  releaseDismissal(currentMessage.instanceId);
+                }
                 break;
               case 'snooze': {
                 const parsedShowIn = Number.parseInt(

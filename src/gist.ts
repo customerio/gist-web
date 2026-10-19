@@ -14,6 +14,8 @@ import {
   hideMessage,
   removePersistentMessage,
   logBroadcastDismissedLocally,
+  claimDismissal,
+  releaseDismissal,
   type HideReason,
 } from './managers/message-manager';
 import { fetchMessageByInstanceId } from './utilities/message-utils';
@@ -225,10 +227,15 @@ export default class Gist {
   static async dismissMessage(instanceId: string): Promise<void> {
     const message = fetchMessageByInstanceId(instanceId);
     if (!message) return;
-    await removePersistentMessage(message);
-    await logBroadcastDismissedLocally(message);
-    await hideMessage(message);
-    await checkMessageQueue();
+    if (!claimDismissal(instanceId)) return;
+    try {
+      await removePersistentMessage(message);
+      await logBroadcastDismissedLocally(message);
+      await hideMessage(message);
+      await checkMessageQueue();
+    } finally {
+      releaseDismissal(instanceId);
+    }
   }
 
   static async embedMessage(message: GistMessage, elementId: string): Promise<string | null> {
@@ -300,9 +307,6 @@ export default class Gist {
   static messageDismissed(message: GistMessage | null, reason: HideReason = 'dismissed'): void {
     if (message !== null) {
       log(`Message dismissed: ${message.messageId} (${reason})`);
-      // The event fires for every hide so listeners can treat it as "message
-      // left the screen", and carries the reason so metric emitters can count
-      // only genuine user dismissals — a snooze or displacement is not one.
       this.events.dispatch('messageDismissed', { ...message, dismissReason: reason });
     }
   }
