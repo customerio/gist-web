@@ -32,6 +32,7 @@ export function tooltipHTMLTemplate(
   const arrowColor = messageProperties.tooltipArrowColor;
   const arrowClass = getArrowClass(messageProperties.tooltipPosition);
   const scope = wrapperId ? `#${wrapperId} ` : '';
+  const darkArrowFill = `var(--gist-tooltip-arrow-color-dark, var(--gist-tooltip-arrow-color, ${arrowColor}))`;
 
   const template = `
     <div class="gist-tooltip-outer">
@@ -44,6 +45,17 @@ export function tooltipHTMLTemplate(
                 z-index: 9999999;
                 opacity: 0;
                 transition: opacity 0.3s ease-in-out;
+                /* One shadow around the frame and arrow; none while unset. */
+                filter: drop-shadow(var(--gist-tooltip-shadow));
+                --gist-tooltip-arrow-fill: var(--gist-tooltip-arrow-color, ${arrowColor});
+            }
+            ${scope}.gist-tooltip-container[data-gist-color-scheme="dark"] {
+                --gist-tooltip-arrow-fill: ${darkArrowFill};
+            }
+            @media (prefers-color-scheme: dark) {
+                ${scope}.gist-tooltip-container[data-gist-color-scheme="system"] {
+                    --gist-tooltip-arrow-fill: ${darkArrowFill};
+                }
             }
             ${scope}.gist-tooltip-container.gist-visible {
                 opacity: 1;
@@ -70,7 +82,7 @@ export function tooltipHTMLTemplate(
                 transform: translateX(-50%) translateY(100%);
                 border-left: ${ARROW_SIZE}px solid transparent;
                 border-right: ${ARROW_SIZE}px solid transparent;
-                border-top: ${ARROW_SIZE}px solid ${arrowColor};
+                border-top: ${ARROW_SIZE}px solid var(--gist-tooltip-arrow-fill);
             }
             ${scope}.gist-tooltip-arrow.gist-arrow-top {
                 top: 0;
@@ -78,7 +90,7 @@ export function tooltipHTMLTemplate(
                 transform: translateX(-50%) translateY(-100%);
                 border-left: ${ARROW_SIZE}px solid transparent;
                 border-right: ${ARROW_SIZE}px solid transparent;
-                border-bottom: ${ARROW_SIZE}px solid ${arrowColor};
+                border-bottom: ${ARROW_SIZE}px solid var(--gist-tooltip-arrow-fill);
             }
             ${scope}.gist-tooltip-arrow.gist-arrow-right {
                 right: 0;
@@ -86,7 +98,7 @@ export function tooltipHTMLTemplate(
                 transform: translateY(-50%) translateX(100%);
                 border-top: ${ARROW_SIZE}px solid transparent;
                 border-bottom: ${ARROW_SIZE}px solid transparent;
-                border-left: ${ARROW_SIZE}px solid ${arrowColor};
+                border-left: ${ARROW_SIZE}px solid var(--gist-tooltip-arrow-fill);
             }
             ${scope}.gist-tooltip-arrow.gist-arrow-left {
                 left: 0;
@@ -94,7 +106,7 @@ export function tooltipHTMLTemplate(
                 transform: translateY(-50%) translateX(-100%);
                 border-top: ${ARROW_SIZE}px solid transparent;
                 border-bottom: ${ARROW_SIZE}px solid transparent;
-                border-right: ${ARROW_SIZE}px solid ${arrowColor};
+                border-right: ${ARROW_SIZE}px solid var(--gist-tooltip-arrow-fill);
             }
             @media (max-width: ${maxWidthBreakpoint}px) {
                 ${scope}.gist-tooltip-frame {

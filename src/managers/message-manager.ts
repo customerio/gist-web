@@ -20,6 +20,7 @@ import {
   loadTooltipComponent,
   showTooltipComponent,
   hideTooltipComponent,
+  applyTooltipAppearance,
 } from './message-component-manager';
 import { resolveMessageProperties } from './gist-properties-manager';
 import { findElement } from '../utilities/dom';
@@ -492,6 +493,12 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
         if (Gist.config.isPreviewSession && currentMessage.properties?.gist?.livePreview) {
           updatePreviewBarMessage(currentMessage);
         }
+        if (getCurrentDisplayType(currentMessage) === 'tooltip') {
+          applyTooltipAppearance(
+            currentMessage,
+            data.gist.parameters.displaySettings as DisplaySettings | undefined
+          );
+        }
         if (currentMessage.firstLoad || currentMessage.isDisplayChange) {
           const displayType = getCurrentDisplayType(currentMessage);
 
@@ -715,6 +722,8 @@ async function handleGistEvents(e: MessageEvent): Promise<void> {
           await hideMessageVisually(currentMessage);
           applyDisplaySettings(currentMessage, displaySettings);
           await reloadMessageWithNewDisplay(currentMessage, messageStepName ?? null);
+        } else if (getCurrentDisplayType(currentMessage) === 'tooltip') {
+          applyTooltipAppearance(currentMessage, displaySettings);
         }
         break;
       }
