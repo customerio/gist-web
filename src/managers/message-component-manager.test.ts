@@ -653,14 +653,14 @@ describe('message-component-manager', () => {
 
     it.each([
       ['default', 'light'],
-      ['system', 'system'],
-    ] as const)('marks the color scheme for %s', (colorScheme, expected) => {
+      ['system', 'light dark'],
+    ] as const)('sets the color-scheme for %s', (colorScheme, expected) => {
       mockGist.config = { colorScheme };
       const container = addTooltip(`appearance-${colorScheme}`);
 
       applyTooltipAppearance({ messageId: 'm', instanceId: `appearance-${colorScheme}` }, {});
 
-      expect(container.getAttribute('data-gist-color-scheme')).toBe(expected);
+      expect(container.style.getPropertyValue('color-scheme')).toBe(expected);
     });
 
     it('does nothing when the tooltip is not mounted', () => {

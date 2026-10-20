@@ -32,7 +32,8 @@ export function tooltipHTMLTemplate(
   const arrowColor = messageProperties.tooltipArrowColor;
   const arrowClass = getArrowClass(messageProperties.tooltipPosition);
   const scope = wrapperId ? `#${wrapperId} ` : '';
-  const darkArrowFill = `var(--gist-tooltip-arrow-color-dark, var(--gist-tooltip-arrow-color, ${arrowColor}))`;
+  const lightArrowFill = `var(--gist-tooltip-arrow-color, ${arrowColor})`;
+  const darkArrowFill = `var(--gist-tooltip-arrow-color-dark, ${lightArrowFill})`;
 
   const template = `
     <div class="gist-tooltip-outer">
@@ -47,14 +48,12 @@ export function tooltipHTMLTemplate(
                 transition: opacity 0.3s ease-in-out;
                 /* One shadow around the frame and arrow; none while unset. */
                 filter: drop-shadow(var(--gist-tooltip-shadow));
-                --gist-tooltip-arrow-fill: var(--gist-tooltip-arrow-color, ${arrowColor});
+                --gist-tooltip-arrow-fill: ${lightArrowFill};
             }
-            ${scope}.gist-tooltip-container[data-gist-color-scheme="dark"] {
-                --gist-tooltip-arrow-fill: ${darkArrowFill};
-            }
-            @media (prefers-color-scheme: dark) {
-                ${scope}.gist-tooltip-container[data-gist-color-scheme="system"] {
-                    --gist-tooltip-arrow-fill: ${darkArrowFill};
+            /* Follows the container's color-scheme, the scheme the message renders in. */
+            @supports (color: light-dark(#000, #fff)) {
+                ${scope}.gist-tooltip-container {
+                    --gist-tooltip-arrow-fill: light-dark(${lightArrowFill}, ${darkArrowFill});
                 }
             }
             ${scope}.gist-tooltip-container.gist-visible {

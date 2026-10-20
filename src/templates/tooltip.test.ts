@@ -186,19 +186,16 @@ describe('tooltipHTMLTemplate', () => {
     expect(html).toContain('--gist-tooltip-arrow-fill: var(--gist-tooltip-arrow-color, #fff)');
   });
 
-  it('uses the dark arrow color when the tooltip renders dark', () => {
+  it('picks the dark arrow color by the container color-scheme where supported', () => {
     const html = tooltipHTMLTemplate(
       'el',
       makeProps({ tooltipArrowColor: '#fff' }),
       'https://example.com'
     );
 
-    expect(html).toContain('.gist-tooltip-container[data-gist-color-scheme="dark"]');
-    expect(html).toMatch(
-      /@media \(prefers-color-scheme: dark\) \{\s*\.gist-tooltip-container\[data-gist-color-scheme="system"\]/
-    );
+    expect(html).toContain('@supports (color: light-dark(#000, #fff))');
     expect(html).toContain(
-      'var(--gist-tooltip-arrow-color-dark, var(--gist-tooltip-arrow-color, #fff))'
+      'light-dark(var(--gist-tooltip-arrow-color, #fff), var(--gist-tooltip-arrow-color-dark, var(--gist-tooltip-arrow-color, #fff)))'
     );
   });
 

@@ -431,10 +431,10 @@ function getTooltipContainer(instanceId: string): HTMLElement | null {
   return document.querySelector<HTMLElement>(`#gist-tooltip-${instanceId} .gist-tooltip-container`);
 }
 
-// The arrow takes its dark color when the message renders dark: always for a
-// dark scheme, and by the OS preference when the scheme follows the system.
+// The arrow's light-dark() color follows this: the message's scheme, or the
+// OS preference when it follows the system.
 function setTooltipColorScheme(instanceId: string, scheme: 'light' | 'dark' | undefined): void {
-  getTooltipContainer(instanceId)?.setAttribute('data-gist-color-scheme', scheme ?? 'system');
+  getTooltipContainer(instanceId)?.style.setProperty('color-scheme', scheme ?? 'light dark');
 }
 
 const TOOLTIP_APPEARANCE_PROPERTIES: [keyof DisplaySettings, string][] = [
