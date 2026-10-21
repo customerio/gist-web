@@ -32,6 +32,8 @@ vi.mock('./managers/message-manager', () => ({
   hideMessage: vi.fn(() => Promise.resolve()),
   removePersistentMessage: vi.fn(() => Promise.resolve()),
   logBroadcastDismissedLocally: vi.fn(() => Promise.resolve()),
+  claimDismissal: vi.fn(() => true),
+  releaseDismissal: vi.fn(),
 }));
 vi.mock('./utilities/message-utils', () => ({
   fetchMessageByInstanceId: vi.fn(),
@@ -84,6 +86,8 @@ import {
   hideMessage,
   removePersistentMessage,
   logBroadcastDismissedLocally,
+  claimDismissal,
+  releaseDismissal,
 } from './managers/message-manager';
 import { fetchMessageByInstanceId } from './utilities/message-utils';
 import {
@@ -138,6 +142,7 @@ describe('Gist', () => {
     vi.mocked(checkMessageQueue).mockResolvedValue();
     vi.mocked(checkCurrentMessagesAfterRouteChange).mockResolvedValue();
     vi.mocked(hideMessage).mockResolvedValue();
+    vi.mocked(claimDismissal).mockReturnValue(true);
     vi.mocked(removePersistentMessage).mockResolvedValue();
     vi.mocked(logBroadcastDismissedLocally).mockResolvedValue();
     vi.mocked(setCustomAttribute).mockReturnValue(true);
@@ -418,6 +423,38 @@ describe('Gist', () => {
       expect(logBroadcastDismissedLocally).not.toHaveBeenCalled();
       expect(checkMessageQueue).not.toHaveBeenCalled();
     });
+
+    it('does nothing when the instance is already being dismissed', async () => {
+      const message: GistMessage = {
+        messageId: 'msg-1',
+        instanceId: 'inst-1',
+      };
+      vi.mocked(fetchMessageByInstanceId).mockReturnValue(message);
+      vi.mocked(claimDismissal).mockReturnValue(false);
+
+      await Gist.dismissMessage('inst-1');
+
+      expect(hideMessage).not.toHaveBeenCalled();
+      expect(removePersistentMessage).not.toHaveBeenCalled();
+      expect(logBroadcastDismissedLocally).not.toHaveBeenCalled();
+      expect(checkMessageQueue).not.toHaveBeenCalled();
+      expect(releaseDismissal).not.toHaveBeenCalled();
+    });
+
+    it('claims the instance before the persistent view is reported and releases it after', async () => {
+      const message: GistMessage = {
+        messageId: 'msg-1',
+        instanceId: 'inst-1',
+      };
+      vi.mocked(fetchMessageByInstanceId).mockReturnValue(message);
+
+      await Gist.dismissMessage('inst-1');
+
+      expect(vi.mocked(claimDismissal).mock.invocationCallOrder[0]).toBeLessThan(
+        vi.mocked(removePersistentMessage).mock.invocationCallOrder[0]
+      );
+      expect(releaseDismissal).toHaveBeenCalledWith('inst-1');
+    });
   });
 
   describe('showMessage', () => {
@@ -505,13 +542,28 @@ describe('Gist', () => {
   });
 
   describe('messageDismissed', () => {
-    it('dispatches event for non-null message', async () => {
+    it('dispatches event for non-null message with the dismissed reason by default', async () => {
       await Gist.setup(baseConfig());
       const message: GistMessage = { messageId: 'msg-1' };
 
       Gist.messageDismissed(message);
 
-      expect(mockDispatch).toHaveBeenCalledWith('messageDismissed', message);
+      expect(mockDispatch).toHaveBeenCalledWith('messageDismissed', {
+        ...message,
+        dismissReason: 'dismissed',
+      });
+    });
+
+    it('carries the supplied hide reason on the event payload', async () => {
+      await Gist.setup(baseConfig());
+      const message: GistMessage = { messageId: 'msg-1' };
+
+      Gist.messageDismissed(message, 'snoozed');
+
+      expect(mockDispatch).toHaveBeenCalledWith('messageDismissed', {
+        ...message,
+        dismissReason: 'snoozed',
+      });
     });
 
     it('handles null message gracefully', async () => {

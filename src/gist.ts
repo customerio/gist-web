@@ -14,6 +14,9 @@ import {
   hideMessage,
   removePersistentMessage,
   logBroadcastDismissedLocally,
+  claimDismissal,
+  releaseDismissal,
+  type HideReason,
 } from './managers/message-manager';
 import { fetchMessageByInstanceId } from './utilities/message-utils';
 import {
@@ -224,10 +227,15 @@ export default class Gist {
   static async dismissMessage(instanceId: string): Promise<void> {
     const message = fetchMessageByInstanceId(instanceId);
     if (!message) return;
-    await removePersistentMessage(message);
-    await logBroadcastDismissedLocally(message);
-    await hideMessage(message);
-    await checkMessageQueue();
+    if (!claimDismissal(instanceId)) return;
+    try {
+      await removePersistentMessage(message);
+      await logBroadcastDismissedLocally(message);
+      await hideMessage(message);
+      await checkMessageQueue();
+    } finally {
+      releaseDismissal(instanceId);
+    }
   }
 
   static async embedMessage(message: GistMessage, elementId: string): Promise<string | null> {
@@ -296,10 +304,10 @@ export default class Gist {
     this.events.dispatch('messageShown', message);
   }
 
-  static messageDismissed(message: GistMessage | null): void {
+  static messageDismissed(message: GistMessage | null, reason: HideReason = 'dismissed'): void {
     if (message !== null) {
-      log(`Message dismissed: ${message.messageId}`);
-      this.events.dispatch('messageDismissed', message);
+      log(`Message dismissed: ${message.messageId} (${reason})`);
+      this.events.dispatch('messageDismissed', { ...message, dismissReason: reason });
     }
   }
 
