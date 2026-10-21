@@ -53,6 +53,9 @@ export interface DisplaySettings {
   elementSelector?: string;
   tooltipPosition?: string;
   tooltipArrowColor?: string;
+  tooltipArrowColorDark?: string;
+  /** A drop-shadow() argument (`x y blur [color]`) drawn around the frame and arrow. */
+  tooltipShadow?: string;
   maxWidth?: number;
   overlayColor?: string;
   dismissOutsideClick?: boolean;

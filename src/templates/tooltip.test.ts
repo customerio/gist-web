@@ -172,7 +172,8 @@ describe('tooltipHTMLTemplate', () => {
       'https://example.com'
     );
 
-    expect(html).toContain('border-top: 10px solid #003780');
+    expect(html).toContain('--gist-tooltip-arrow-fill: var(--gist-tooltip-arrow-color, #003780)');
+    expect(html).toContain('border-top: 10px solid var(--gist-tooltip-arrow-fill)');
   });
 
   it('defaults arrow color to #fff when tooltipArrowColor is not customized', () => {
@@ -182,7 +183,26 @@ describe('tooltipHTMLTemplate', () => {
       'https://example.com'
     );
 
-    expect(html).toContain('border-top: 10px solid #fff');
+    expect(html).toContain('--gist-tooltip-arrow-fill: var(--gist-tooltip-arrow-color, #fff)');
+  });
+
+  it('picks the dark arrow color by the container color-scheme where supported', () => {
+    const html = tooltipHTMLTemplate(
+      'el',
+      makeProps({ tooltipArrowColor: '#fff' }),
+      'https://example.com'
+    );
+
+    expect(html).toContain('@supports (color: light-dark(#000, #fff))');
+    expect(html).toContain(
+      'light-dark(var(--gist-tooltip-arrow-color, #fff), var(--gist-tooltip-arrow-color-dark, var(--gist-tooltip-arrow-color, #fff)))'
+    );
+  });
+
+  it('draws one shadow around the frame and arrow', () => {
+    const html = tooltipHTMLTemplate('el', makeProps(), 'https://example.com');
+
+    expect(html).toContain('filter: drop-shadow(var(--gist-tooltip-shadow))');
   });
 
   it('uses position: absolute on the wrapper', () => {

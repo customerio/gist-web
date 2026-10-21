@@ -13,7 +13,12 @@ import {
   type TooltipPosition,
   type TooltipHandle,
 } from './tooltip-position-manager';
-import type { GistMessage, ResolvedMessageProperties, ColorScheme } from '../types';
+import type {
+  GistMessage,
+  ResolvedMessageProperties,
+  ColorScheme,
+  DisplaySettings,
+} from '../types';
 
 function readParentColorScheme(): string | undefined {
   const htmlScheme = getComputedStyle(document.documentElement).colorScheme;
@@ -102,6 +107,7 @@ function updateColorSchemeOnLiveIframes(scheme: 'light' | 'dark' | undefined): v
   const value = scheme ?? 'normal';
   const cssProp = resolveColorSchemeCss(Gist.config?.colorScheme);
   for (const msg of Gist.currentMessages ?? []) {
+    setTooltipColorScheme(msg.instanceId ?? '', scheme);
     const iframeId = getMessageElementId(msg.instanceId ?? '');
     const iframe = document.getElementById(iframeId) as HTMLIFrameElement | null;
     if (iframe) {
@@ -238,7 +244,14 @@ function attachIframeLoadEvent(
   }
 }
 
-const SDK_CAPABILITIES = ['MultiStepDisplayTypes', 'CrossPageStepNavigation', 'Snooze'] as const;
+// TooltipShadow: the SDK draws a tooltip's shadow around the frame and arrow,
+// so the message doesn't paint its own.
+const SDK_CAPABILITIES = [
+  'MultiStepDisplayTypes',
+  'CrossPageStepNavigation',
+  'Snooze',
+  'TooltipShadow',
+] as const;
 
 // An embed lives inside an element the host page owns: it must never ask the
 // SDK to re-render a step as a modal or tooltip, and it must never navigate the
@@ -412,6 +425,46 @@ export function loadTooltipComponent(
   document.body.appendChild(wrapper);
 
   attachIframeLoadEvent(messageElementId, options, stepName);
+}
+
+function getTooltipContainer(instanceId: string): HTMLElement | null {
+  return document.querySelector<HTMLElement>(`#gist-tooltip-${instanceId} .gist-tooltip-container`);
+}
+
+// The arrow's light-dark() color follows this: the message's scheme, or the
+// OS preference when it follows the system.
+function setTooltipColorScheme(instanceId: string, scheme: 'light' | 'dark' | undefined): void {
+  getTooltipContainer(instanceId)?.style.setProperty('color-scheme', scheme ?? 'light dark');
+}
+
+const TOOLTIP_APPEARANCE_PROPERTIES: [keyof DisplaySettings, string][] = [
+  ['tooltipArrowColor', '--gist-tooltip-arrow-color'],
+  ['tooltipArrowColorDark', '--gist-tooltip-arrow-color-dark'],
+  ['tooltipShadow', '--gist-tooltip-shadow'],
+];
+
+/**
+ * Applies the visible step's arrow colors and shadow, which the renderer
+ * reports from the message's own attributes, to the live tooltip. Unset values
+ * fall back to the template's arrow color and no shadow.
+ */
+export function applyTooltipAppearance(
+  message: GistMessage,
+  displaySettings: DisplaySettings | undefined
+): void {
+  const instanceId = message.instanceId ?? '';
+  const container = getTooltipContainer(instanceId);
+  if (!container) return;
+
+  for (const [setting, property] of TOOLTIP_APPEARANCE_PROPERTIES) {
+    const value = displaySettings?.[setting];
+    if (typeof value === 'string' && value) {
+      container.style.setProperty(property, value);
+    } else {
+      container.style.removeProperty(property);
+    }
+  }
+  setTooltipColorScheme(instanceId, resolveRendererColorScheme(Gist.config?.colorScheme));
 }
 
 export async function showTooltipComponent(message: GistMessage): Promise<boolean> {

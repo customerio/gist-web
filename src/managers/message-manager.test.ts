@@ -62,6 +62,7 @@ vi.mock('./message-component-manager', () => ({
   loadTooltipComponent: vi.fn(),
   showTooltipComponent: vi.fn(() => Promise.resolve(true)),
   hideTooltipComponent: vi.fn(),
+  applyTooltipAppearance: vi.fn(),
 }));
 vi.mock('./gist-properties-manager', () => ({
   resolveMessageProperties: vi.fn(() => ({
@@ -1243,6 +1244,25 @@ describe('message-manager', () => {
         const { mocks } = await setupTooltipAndDispatch('routeLoaded');
         expect(mocks.showTooltipComponent).toHaveBeenCalled();
         expect(mocks.showOverlayComponent).not.toHaveBeenCalled();
+      });
+
+      it('applies the visible step appearance on routeLoaded', async () => {
+        const displaySettings = { displayType: 'tooltip', tooltipShadow: '0 2px 4px black' };
+        const { message, mocks } = await setupTooltipAndDispatch('routeLoaded', {
+          displaySettings,
+        });
+        expect(mocks.applyTooltipAppearance).toHaveBeenCalledWith(message, displaySettings);
+      });
+
+      it('applies the new step appearance on changeMessageStep without reloading', async () => {
+        const displaySettings = { displayType: 'tooltip', tooltipArrowColorDark: '#111111' };
+        const { message, mocks } = await setupTooltipAndDispatch('changeMessageStep', {
+          messageStepName: 'step-2',
+          displaySettings,
+        });
+        await vi.waitFor(() => {
+          expect(mocks.applyTooltipAppearance).toHaveBeenCalledWith(message, displaySettings);
+        });
       });
 
       it('emits messageShown on first tooltip routeLoaded', async () => {
