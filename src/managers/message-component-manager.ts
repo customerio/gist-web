@@ -446,12 +446,15 @@ const TOOLTIP_APPEARANCE_PROPERTIES: [keyof DisplaySettings, string][] = [
 /**
  * Applies the visible step's arrow colors and shadow, which the renderer
  * reports from the message's own attributes, to the live tooltip. Unset values
- * fall back to the template's arrow color and no shadow.
+ * fall back to the template's arrow color and no shadow. A report without
+ * settings (no step visible yet) says nothing about the step, so the tooltip
+ * keeps what it has.
  */
 export function applyTooltipAppearance(
   message: GistMessage,
   displaySettings: DisplaySettings | undefined
 ): void {
+  if (!displaySettings) return;
   const instanceId = message.instanceId ?? '';
   const container = getTooltipContainer(instanceId);
   if (!container) return;

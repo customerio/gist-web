@@ -657,6 +657,16 @@ describe('message-component-manager', () => {
       expect(container.style.getPropertyValue('--gist-tooltip-shadow')).toBe('');
     });
 
+    it('keeps the applied appearance when no settings are reported', () => {
+      const container = addTooltip('appearance-3');
+      const message = { messageId: 'm', instanceId: 'appearance-3' };
+
+      applyTooltipAppearance(message, { tooltipShadow: '0 2px 4px black' });
+      applyTooltipAppearance(message, undefined);
+
+      expect(container.style.getPropertyValue('--gist-tooltip-shadow')).toBe('0 2px 4px black');
+    });
+
     it.each([
       ['default', 'light'],
       ['system', 'light dark'],
