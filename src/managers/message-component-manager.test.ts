@@ -622,7 +622,12 @@ describe('message-component-manager', () => {
     }
 
     afterEach(() => {
+      // A non-auto scheme stops the observer an auto test may have started.
+      mockGist.config = { colorScheme: 'default' };
+      applyColorSchemeChange();
       mockGist.config = undefined;
+      mockGist.currentMessages = undefined;
+      document.documentElement.style.colorScheme = '';
     });
 
     it('sets the arrow colors and shadow the step reports', () => {
@@ -679,9 +684,6 @@ describe('message-component-manager', () => {
       applyColorSchemeChange();
 
       expect(container.style.getPropertyValue('color-scheme')).toBe('dark');
-
-      document.documentElement.style.colorScheme = '';
-      mockGist.currentMessages = undefined;
     });
   });
 
