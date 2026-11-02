@@ -454,17 +454,18 @@ export function applyTooltipAppearance(
   message: GistMessage,
   displaySettings: DisplaySettings | undefined
 ): void {
-  if (!displaySettings) return;
   const instanceId = message.instanceId ?? '';
   const container = getTooltipContainer(instanceId);
   if (!container) return;
 
-  for (const [setting, property] of TOOLTIP_APPEARANCE_PROPERTIES) {
-    const value = displaySettings?.[setting];
-    if (typeof value === 'string' && value) {
-      container.style.setProperty(property, value);
-    } else {
-      container.style.removeProperty(property);
+  if (displaySettings) {
+    for (const [setting, property] of TOOLTIP_APPEARANCE_PROPERTIES) {
+      const value = displaySettings[setting];
+      if (typeof value === 'string' && value) {
+        container.style.setProperty(property, value);
+      } else {
+        container.style.removeProperty(property);
+      }
     }
   }
   setTooltipColorScheme(instanceId, resolveRendererColorScheme(Gist.config?.colorScheme));

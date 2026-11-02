@@ -657,7 +657,8 @@ describe('message-component-manager', () => {
       expect(container.style.getPropertyValue('--gist-tooltip-shadow')).toBe('');
     });
 
-    it('keeps the applied appearance when no settings are reported', () => {
+    it('keeps the applied appearance and still sets the scheme when no settings are reported', () => {
+      mockGist.config = { colorScheme: 'default' };
       const container = addTooltip('appearance-3');
       const message = { messageId: 'm', instanceId: 'appearance-3' };
 
@@ -665,6 +666,7 @@ describe('message-component-manager', () => {
       applyTooltipAppearance(message, undefined);
 
       expect(container.style.getPropertyValue('--gist-tooltip-shadow')).toBe('0 2px 4px black');
+      expect(container.style.getPropertyValue('color-scheme')).toBe('light');
     });
 
     it.each([
