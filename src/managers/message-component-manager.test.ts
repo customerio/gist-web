@@ -13,6 +13,7 @@ import {
   hideTooltipComponent,
   clearAllTooltipHandles,
   applyTooltipAppearance,
+  applyColorSchemeChange,
 } from './message-component-manager';
 import { log } from '../utilities/log';
 import { resolveMessageProperties } from './gist-properties-manager';
@@ -667,6 +668,20 @@ describe('message-component-manager', () => {
       expect(() =>
         applyTooltipAppearance({ messageId: 'm', instanceId: 'missing' }, { tooltipShadow: 'x' })
       ).not.toThrow();
+    });
+
+    it('follows the host page color scheme on auto', () => {
+      mockGist.config = { colorScheme: 'auto' };
+      mockGist.currentMessages = [{ messageId: 'm', instanceId: 'appearance-auto' }];
+      const container = addTooltip('appearance-auto');
+      document.documentElement.style.colorScheme = 'dark';
+
+      applyColorSchemeChange();
+
+      expect(container.style.getPropertyValue('color-scheme')).toBe('dark');
+
+      document.documentElement.style.colorScheme = '';
+      mockGist.currentMessages = undefined;
     });
   });
 
