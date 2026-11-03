@@ -12,6 +12,8 @@ import {
   showTooltipComponent,
   hideTooltipComponent,
   clearAllTooltipHandles,
+  applyTooltipAppearance,
+  applyColorSchemeChange,
 } from './message-component-manager';
 import { log } from '../utilities/log';
 import { resolveMessageProperties } from './gist-properties-manager';
@@ -610,6 +612,93 @@ describe('message-component-manager', () => {
     });
   });
 
+  describe('applyTooltipAppearance', () => {
+    function addTooltip(instanceId: string): HTMLElement {
+      const wrapper = document.createElement('div');
+      wrapper.id = `gist-tooltip-${instanceId}`;
+      wrapper.innerHTML = '<div class="gist-tooltip-container"></div>';
+      document.body.appendChild(wrapper);
+      return wrapper.querySelector('.gist-tooltip-container') as HTMLElement;
+    }
+
+    afterEach(() => {
+      // A non-auto scheme stops the observer an auto test may have started.
+      mockGist.config = { colorScheme: 'default' };
+      applyColorSchemeChange();
+      mockGist.config = undefined;
+      mockGist.currentMessages = undefined;
+      document.documentElement.style.colorScheme = '';
+    });
+
+    it('sets the arrow colors and shadow the step reports', () => {
+      const container = addTooltip('appearance-1');
+
+      applyTooltipAppearance(
+        { messageId: 'm', instanceId: 'appearance-1' },
+        {
+          tooltipArrowColor: '#ffffff',
+          tooltipArrowColorDark: '#111111',
+          tooltipShadow: '0 2px 4px black',
+        }
+      );
+
+      expect(container.style.getPropertyValue('--gist-tooltip-arrow-color')).toBe('#ffffff');
+      expect(container.style.getPropertyValue('--gist-tooltip-arrow-color-dark')).toBe('#111111');
+      expect(container.style.getPropertyValue('--gist-tooltip-shadow')).toBe('0 2px 4px black');
+    });
+
+    it('clears values a later step does not report', () => {
+      const container = addTooltip('appearance-2');
+      const message = { messageId: 'm', instanceId: 'appearance-2' };
+
+      applyTooltipAppearance(message, { tooltipShadow: '0 2px 4px black' });
+      applyTooltipAppearance(message, {});
+
+      expect(container.style.getPropertyValue('--gist-tooltip-shadow')).toBe('');
+    });
+
+    it('keeps the applied appearance and still sets the scheme when no settings are reported', () => {
+      mockGist.config = { colorScheme: 'default' };
+      const container = addTooltip('appearance-3');
+      const message = { messageId: 'm', instanceId: 'appearance-3' };
+
+      applyTooltipAppearance(message, { tooltipShadow: '0 2px 4px black' });
+      applyTooltipAppearance(message, undefined);
+
+      expect(container.style.getPropertyValue('--gist-tooltip-shadow')).toBe('0 2px 4px black');
+      expect(container.style.getPropertyValue('color-scheme')).toBe('light');
+    });
+
+    it.each([
+      ['default', 'light'],
+      ['system', 'light dark'],
+    ] as const)('sets the color-scheme for %s', (colorScheme, expected) => {
+      mockGist.config = { colorScheme };
+      const container = addTooltip(`appearance-${colorScheme}`);
+
+      applyTooltipAppearance({ messageId: 'm', instanceId: `appearance-${colorScheme}` }, {});
+
+      expect(container.style.getPropertyValue('color-scheme')).toBe(expected);
+    });
+
+    it('does nothing when the tooltip is not mounted', () => {
+      expect(() =>
+        applyTooltipAppearance({ messageId: 'm', instanceId: 'missing' }, { tooltipShadow: 'x' })
+      ).not.toThrow();
+    });
+
+    it('follows the host page color scheme on auto', () => {
+      mockGist.config = { colorScheme: 'auto' };
+      mockGist.currentMessages = [{ messageId: 'm', instanceId: 'appearance-auto' }];
+      const container = addTooltip('appearance-auto');
+      document.documentElement.style.colorScheme = 'dark';
+
+      applyColorSchemeChange();
+
+      expect(container.style.getPropertyValue('color-scheme')).toBe('dark');
+    });
+  });
+
   describe('hideTooltipComponent', () => {
     it('removes the tooltip wrapper from the DOM', () => {
       const wrapper = document.createElement('div');
@@ -866,7 +955,12 @@ describe('message-component-manager', () => {
 
       expect(postMessage).toHaveBeenCalledWith(
         expect.objectContaining({
-          capabilities: ['MultiStepDisplayTypes', 'CrossPageStepNavigation', 'Snooze'],
+          capabilities: [
+            'MultiStepDisplayTypes',
+            'CrossPageStepNavigation',
+            'Snooze',
+            'TooltipShadow',
+          ],
         }),
         '*'
       );
