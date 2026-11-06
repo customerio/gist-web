@@ -1,6 +1,7 @@
 import Gist from '../gist';
 import { el, findElement, injectStylesheet, appendToBody } from '../utilities/dom';
 import { DEBUG_OVERLAY_CSS } from './debug-overlay-styles';
+import { SDK_VERSION } from '../version';
 import { getMessagesFromLocalStore } from './message-user-queue-manager';
 import { getEligibleBroadcasts } from './message-broadcast-manager';
 import { getUserToken, isUsingGuestUserToken } from './user-manager';
@@ -241,9 +242,13 @@ function refreshSync(): void {
   if (!refs) return;
 
   if (!Gist.config) {
-    renderKv(refs.configRows, [['Status', 'NOT INITIALIZED']], true);
+    refs.configRows.replaceChildren(
+      buildKvRow('SDK Version', SDK_VERSION),
+      buildKvRow('Status', 'NOT INITIALIZED', true)
+    );
   } else {
     renderKv(refs.configRows, [
+      ['SDK Version', SDK_VERSION],
       ['Site ID', Gist.config.siteId],
       ['Connection', settings.useSSE() ? 'SSE' : `Polling ${getPollingIntervalSeconds()}s`],
     ]);
