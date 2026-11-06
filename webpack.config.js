@@ -1,3 +1,6 @@
+const webpack = require('webpack');
+const { version } = require('./package.json');
+
 module.exports = {
   entry: './src/index.ts',
   resolve: {
@@ -15,6 +18,7 @@ module.exports = {
       },
     ],
   },
+  plugins: [new webpack.DefinePlugin({ __GIST_VERSION__: JSON.stringify(version) })],
   watchOptions: {
     poll: 1000,
   },

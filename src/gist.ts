@@ -46,6 +46,7 @@ import {
 } from './managers/inbox-message-manager';
 import { isInboxEnabled, initializeInboxFromCache } from './managers/inbox-config-manager';
 import { destroyInbox } from './managers/inbox-component-manager';
+import { SDK_VERSION } from './version';
 import type { GistConfig, GistMessage, DisplaySettings, ColorScheme, EmbedPayload } from './types';
 import type { InboxMessage } from './managers/inbox-message-manager';
 
@@ -65,6 +66,7 @@ function resolvePayloadSiteId(payloads: EmbedPayload[]): string {
 }
 
 export default class Gist {
+  static readonly version: string = SDK_VERSION;
   static events: EventEmitter;
   static config: GistConfig;
   static initialized: boolean;
