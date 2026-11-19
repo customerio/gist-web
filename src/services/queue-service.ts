@@ -7,6 +7,13 @@ import {
 } from '../utilities/local-storage';
 import { log } from '../utilities/log';
 import { isUsingGuestUserToken, getEncodedUserToken, getUserToken } from '../managers/user-manager';
+import {
+  getRequestIdentity,
+  getUserJwt,
+  handleUserJwtRejection,
+  markQueueFetchSent,
+  markQueueFetchSucceeded,
+} from '../managers/user-jwt-manager';
 import { getUserLocale } from '../managers/locale-manager';
 import { processInboxConfig } from '../managers/inbox-config-manager';
 import { settings } from './settings';
@@ -28,7 +35,8 @@ export async function getUserQueue(): Promise<NetworkResponse | undefined> {
   if (checkInProgress) return;
   checkInProgress = true;
 
-  const existingUserToken = getUserToken();
+  const sentWith = getRequestIdentity();
+  markQueueFetchSent();
   let response: NetworkResponse | undefined;
   try {
     const headers: Record<string, string> = {
@@ -51,13 +59,27 @@ export async function getUserQueue(): Promise<NetworkResponse | undefined> {
     checkInProgress = false;
   }
 
-  if (existingUserToken !== getUserToken()) {
+  if (sentWith.userToken !== getUserToken()) {
     log('User token changed, clearing queue next pull check.');
     clearKeyFromLocalStore(userQueueNextPullCheckLocalStoreName);
     return;
   }
 
-  scheduleNextQueuePull(response);
+  // The answer to a JWT this tab has since replaced says nothing about the new
+  // one: no event, pause or schedule. The fetch setUserJwt asked for goes on the
+  // next tick.
+  if (sentWith.userJwt !== getUserJwt()) {
+    log('User JWT changed during the queue fetch, discarding its response.');
+    return;
+  }
+
+  // A rejection pauses this tab alone, so it leaves the schedule every tab shares.
+  if (!handleUserJwtRejection(response, sentWith)) {
+    scheduleNextQueuePull(response);
+  }
+  if (response && response.status >= 200 && response.status < 400) {
+    markQueueFetchSucceeded();
+  }
   setQueueUseSSE(response);
   await processInboxConfig(response);
   return response;

@@ -20,19 +20,33 @@ export function getUserToken(): string | null {
   return getKeyFromLocalStore(userTokenLocalStoreName) as string | null;
 }
 
-export function setUserToken(userToken: string, expiryDate?: Date): void {
+/**
+ * What a setUserToken call did to the signed-in user: signed someone in from no
+ * token or the guest token, switched from another identified user, or set the
+ * token already held. The user JWT follows it (see user-jwt-manager).
+ */
+export type UserTokenChange = 'signedIn' | 'switched' | 'unchanged';
+
+export function setUserToken(userToken: string, expiryDate?: Date): UserTokenChange {
+  const previousUserToken = getUserToken();
+  const wasUsingGuestUserToken = isUsingGuestUserToken();
   if (expiryDate === undefined) {
     expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + defaultExpiryInDays);
   }
   setKeyToLocalStore(userTokenLocalStoreName, userToken, expiryDate);
 
-  if (isUsingGuestUserToken()) {
+  if (wasUsingGuestUserToken) {
     // Removing pull check time key so that we check the queue immediately after the userToken is set.
     clearKeyFromLocalStore(userQueueNextPullCheckLocalStoreName);
     clearKeyFromLocalStore(usingGuestUserTokenLocalStoreName);
   }
   log(`Set user token "${userToken}" with expiry date set to ${expiryDate}`);
+
+  if (previousUserToken === null || wasUsingGuestUserToken) {
+    return 'signedIn';
+  }
+  return previousUserToken === userToken ? 'unchanged' : 'switched';
 }
 
 export function useGuestSession(): void {

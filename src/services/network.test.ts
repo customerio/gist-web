@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { UserNetworkInstance } from './network';
 import { getEncodedUserToken } from '../managers/user-manager';
+import { setUserJwt } from '../managers/user-jwt-manager';
 
 const mockFetch = vi.fn();
 
@@ -133,5 +134,75 @@ describe('network', () => {
         signal: expect.any(AbortSignal),
       })
     );
+  });
+
+  describe('user JWT', () => {
+    const jsonType = { 'content-type': 'application/json' };
+
+    beforeEach(() => {
+      setUserJwt(null);
+      mockFetch.mockResolvedValue(new Response('{}', { status: 200, headers: jsonType }));
+    });
+
+    function sentHeaders(): Record<string, string> {
+      return mockFetch.mock.calls[0][1].headers;
+    }
+
+    it('sends X-CIO-User-JWT while a JWT is set', async () => {
+      setUserJwt('jwt-a');
+
+      await UserNetworkInstance()('/api/v1/test');
+
+      expect(sentHeaders()['X-CIO-User-JWT']).toBe('jwt-a');
+    });
+
+    it('sends no X-CIO-User-JWT without a JWT', async () => {
+      await UserNetworkInstance()('/api/v1/test');
+
+      expect(sentHeaders()).not.toHaveProperty('X-CIO-User-JWT');
+    });
+
+    it('puts the JWT in no URL', async () => {
+      setUserJwt('jwt-a');
+
+      await UserNetworkInstance().post('/api/v4/users?sessionId=s');
+
+      expect(mockFetch.mock.calls[0][0]).not.toContain('jwt-a');
+    });
+
+    it('rejects a 401 with a JSON content type and an empty body as a 401', async () => {
+      mockFetch.mockResolvedValue(
+        new Response('', { status: 401, headers: { ...jsonType, 'x-test': 'kept' } })
+      );
+
+      await expect(UserNetworkInstance()('/api/v4/users')).rejects.toMatchObject({
+        response: {
+          status: 401,
+          data: undefined,
+          headers: expect.objectContaining({ 'x-test': 'kept' }),
+        },
+      });
+    });
+
+    it("keeps Gist's rejection body", async () => {
+      const body = { error: 'user_jwt_rejected', reason: 'expired' };
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(body), { status: 401, headers: jsonType })
+      );
+
+      await expect(UserNetworkInstance()('/api/v4/users')).rejects.toMatchObject({
+        response: { status: 401, data: body },
+      });
+    });
+
+    it('still fails a success whose JSON body does not parse as a network error', async () => {
+      mockFetch.mockResolvedValue(
+        new Response('{"inAppMessages":', { status: 200, headers: jsonType })
+      );
+
+      await expect(UserNetworkInstance()('/api/v4/users')).rejects.toMatchObject({
+        response: { status: 0 },
+      });
+    });
   });
 });

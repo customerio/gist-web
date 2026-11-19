@@ -8,6 +8,7 @@ import {
   stopSSEListener,
 } from './managers/queue-manager';
 import { setUserToken, clearUserToken, useGuestSession } from './managers/user-manager';
+import { setUserJwt, applyUserTokenChange } from './managers/user-jwt-manager';
 import {
   showMessage,
   embedMessage,
@@ -184,9 +185,21 @@ export default class Gist {
       log('Embed-only mode, ignoring user token.');
       return;
     }
-    setUserToken(userToken, expiryDate);
+    // Before the first await, so this never drops a JWT the app sets right after it.
+    applyUserTokenChange(setUserToken(userToken, expiryDate));
     stopSSEListener(true);
     await startQueueListener();
+  }
+
+  /**
+   * Hands over the JWT the site's backend signed for the signed-in person. It
+   * stays in this tab's memory, goes with every request to Gist, and the queue is
+   * fetched straight away. Callable before setup(); null clears it. When Gist
+   * rejects it, `userJwtRejected` fires once per JWT value and queue fetches pause
+   * until the next setUserJwt or a change of user.
+   */
+  static setUserJwt(jwt: string | null): void {
+    setUserJwt(jwt);
   }
 
   static setUserLocale(userLocale: string): void {
@@ -218,6 +231,7 @@ export default class Gist {
       return;
     }
     clearUserToken();
+    applyUserTokenChange('cleared');
     destroyInbox();
     if (this.config.useAnonymousSession) {
       useGuestSession();

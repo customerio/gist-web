@@ -1,10 +1,12 @@
 import { UserNetworkInstance, getNetworkErrorResponse } from './network';
 import type { NetworkResponse } from './network';
+import { getRequestIdentity, handleUserJwtRejection } from '../managers/user-jwt-manager';
 
 export async function updateMessage(
   queueId: string,
   updatedFields: Record<string, unknown>
 ): Promise<NetworkResponse | undefined> {
+  const sentWith = getRequestIdentity();
   try {
     const response = await UserNetworkInstance()(`/api/v1/messages/${queueId}`, {
       method: 'PATCH',
@@ -15,6 +17,8 @@ export async function updateMessage(
     });
     return response;
   } catch (error) {
-    return getNetworkErrorResponse(error);
+    const response = getNetworkErrorResponse(error);
+    handleUserJwtRejection(response, sentWith);
+    return response;
   }
 }

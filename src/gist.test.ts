@@ -115,6 +115,7 @@ import {
   readEmbedPayloads,
   clearEmbedState,
 } from './managers/embed-manager';
+import { getUserJwt } from './managers/user-jwt-manager';
 
 function resetGist() {
   Gist.initialized = false;
@@ -392,6 +393,60 @@ describe('Gist', () => {
 
       expect(clearUserToken).toHaveBeenCalled();
       expect(useGuestSession).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('setUserJwt', () => {
+    it('is callable before setup() without throwing', () => {
+      expect(() => Gist.setUserJwt('jwt-a')).not.toThrow();
+      expect(getUserJwt()).toBe('jwt-a');
+    });
+
+    it('keeps the JWT when the user signs in or sets the token already held', async () => {
+      await Gist.setup(baseConfig());
+      Gist.setUserJwt('jwt-a');
+
+      vi.mocked(setUserToken).mockReturnValueOnce('signedIn');
+      await Gist.setUserToken('user-1');
+      vi.mocked(setUserToken).mockReturnValueOnce('unchanged');
+      await Gist.setUserToken('user-1');
+
+      expect(getUserJwt()).toBe('jwt-a');
+    });
+
+    it('drops the JWT when another user signs in or the user signs out', async () => {
+      await Gist.setup(baseConfig());
+      Gist.setUserJwt('jwt-a');
+      vi.mocked(setUserToken).mockReturnValueOnce('switched');
+      await Gist.setUserToken('user-2');
+      expect(getUserJwt()).toBeNull();
+
+      Gist.setUserJwt('jwt-b');
+      await Gist.clearUserToken();
+      expect(getUserJwt()).toBeNull();
+    });
+
+    // The JS SDK's reset() doesn't wait for clearUserToken(), so a JWT the app
+    // sets straight after it must survive the sign-out still in progress.
+    it('keeps a JWT set while clearUserToken() or a switch of user is still running', async () => {
+      await Gist.setup(baseConfig());
+      vi.mocked(startQueueListener).mockImplementation(
+        () => new Promise<void>((resolve) => setTimeout(resolve, 0))
+      );
+
+      Gist.setUserJwt('jwt-a');
+      const signingOut = Gist.clearUserToken();
+      Gist.setUserJwt('jwt-next');
+      await signingOut;
+      expect(getUserJwt()).toBe('jwt-next');
+
+      vi.mocked(setUserToken).mockReturnValueOnce('switched');
+      const switching = Gist.setUserToken('user-2');
+      Gist.setUserJwt('jwt-user-2');
+      await switching;
+      expect(getUserJwt()).toBe('jwt-user-2');
+
+      vi.mocked(startQueueListener).mockImplementation(() => Promise.resolve());
     });
   });
 

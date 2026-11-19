@@ -135,4 +135,34 @@ describe('user-manager', () => {
     expect(hash).toMatch(/^[0-9a-f]+$/);
     expect(hash).not.toBe(null);
   });
+
+  describe('setUserToken reports the change of user', () => {
+    function holding(userToken: string | null, guest = false): void {
+      vi.mocked(getKeyFromLocalStore).mockImplementation((key: string) => {
+        if (key === 'gist.web.userToken') return userToken;
+        if (key === 'gist.web.usingGuestUserToken') return guest ? true : null;
+        return null;
+      });
+    }
+
+    it('signs in when no token is held', () => {
+      holding(null);
+      expect(setUserToken('user-1')).toBe('signedIn');
+    });
+
+    it('signs in when the guest token is held', () => {
+      holding('guest-uuid', true);
+      expect(setUserToken('user-1')).toBe('signedIn');
+    });
+
+    it('changes nothing when the same identified token is held', () => {
+      holding('user-1');
+      expect(setUserToken('user-1')).toBe('unchanged');
+    });
+
+    it('switches when another identified token is held', () => {
+      holding('user-1');
+      expect(setUserToken('user-2')).toBe('switched');
+    });
+  });
 });
