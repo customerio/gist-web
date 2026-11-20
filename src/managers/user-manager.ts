@@ -16,10 +16,20 @@ const guestUserTokenLocalStoreName = 'gist.web.guestUserToken';
 const userJwtLocalStoreName = 'gist.web.userJwt';
 const defaultExpiryInDays = 30;
 
+// The user token goes in a header as btoa() of it, which takes no character
+// above U+00FF.
+function fitsUserTokenHeader(value: string): boolean {
+  for (let i = 0; i < value.length; i += 1) {
+    if (value.charCodeAt(i) > 0xff) return false;
+  }
+  return true;
+}
+
 /**
  * The `sub` of a JWT's payload, which names the person the JWT was signed for.
- * Null when the payload can't be read or has no sub. Nothing is verified here:
- * Gist does that.
+ * Null when the payload can't be read, has no sub, or has one the user-token
+ * header can't carry; such a JWT names nobody, and Gist rejects it. Nothing is
+ * verified here: Gist does that.
  */
 export function readUserJwtSubject(jwt: string): string | null {
   const parts = jwt.split('.');
@@ -28,7 +38,7 @@ export function readUserJwtSubject(jwt: string): string | null {
     const binary = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
     const json = new TextDecoder().decode(Uint8Array.from(binary, (char) => char.charCodeAt(0)));
     const sub = (JSON.parse(json) as { sub?: unknown } | null)?.sub;
-    return typeof sub === 'string' && sub !== '' ? sub : null;
+    return typeof sub === 'string' && sub !== '' && fitsUserTokenHeader(sub) ? sub : null;
   } catch {
     return null;
   }

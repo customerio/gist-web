@@ -209,6 +209,7 @@ describe('user-manager', () => {
       ['an empty sub', jwtWith({ sub: '' })],
       ['a null payload', jwtWith(null)],
       ['a payload that is a string', jwtWith('cio_1')],
+      ['a sub with a character above U+00FF', jwtWith({ sub: 'cio_\u2713' })],
     ])('returns null for a JWT with %s', (_case, jwt) => {
       expect(readUserJwtSubject(jwt)).toBeNull();
     });
@@ -225,6 +226,16 @@ describe('user-manager', () => {
       expect(isUserNamedByJwt()).toBe(true);
       expect(getUserToken()).toBe('cio_a');
       expect(getEncodedUserToken()).toBe(btoa('cio_a'));
+    });
+
+    it("sends the stored token, without failing, for a sub the user-token header can't carry", () => {
+      holding({
+        'gist.web.userToken': 'user-1',
+        'gist.web.userJwt': jwtWith({ sub: 'cio_\u2713' }),
+      });
+
+      expect(getUserToken()).toBe('user-1');
+      expect(getEncodedUserToken()).toBe(btoa('user-1'));
     });
 
     it('leaves the stored token as the user while it names nobody', () => {
