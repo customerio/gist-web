@@ -26,11 +26,13 @@ vi.mock('./settings', () => ({
 
 vi.mock('../managers/user-manager', () => ({
   getEncodedUserToken: vi.fn(() => null),
+  getUserToken: vi.fn(() => null),
 }));
 
 describe('network', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     global.fetch = mockFetch;
     vi.mocked(getEncodedUserToken).mockReturnValue(null);
   });

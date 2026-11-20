@@ -7,6 +7,7 @@ import type { GistConfig } from './types';
 
 const QUEUE_PATH = '/api/v4/users';
 const NEXT_PULL_KEY = 'gist.web.userQueueNextPullCheck';
+const USER_JWT_KEY = 'gist.web.userJwt';
 const JWT_HEADER = 'X-CIO-User-JWT';
 const JSON_TYPE = { 'content-type': 'application/json' };
 
@@ -68,6 +69,12 @@ async function setup(config: Partial<GistConfig> = {}): Promise<void> {
 async function holdUserToken(userToken: string): Promise<void> {
   const { setKeyToLocalStore } = await import('./utilities/local-storage');
   setKeyToLocalStore('gist.web.userToken', userToken);
+}
+
+// Stores a JWT the way setUserJwt in another tab, or on an earlier page, does.
+async function storeJwtElsewhere(jwt: string, userToken: string): Promise<void> {
+  const { setKeyToLocalStore } = await import('./utilities/local-storage');
+  setKeyToLocalStore(USER_JWT_KEY, { jwt, userToken });
 }
 
 function onRejected(listener: (event: unknown) => void = () => {}) {
@@ -144,6 +151,49 @@ describe('the user JWT, end to end', () => {
     const guestFetch = queueCalls()[queueCalls().length - 1];
     expect(guestFetch[1].headers['X-Gist-User-Anonymous']).toBe('true');
     expect(jwtSent(guestFetch)).toBeUndefined();
+  });
+
+  describe('a JWT stored on an earlier page or in another tab', () => {
+    it("goes with setup's first fetch on the next page load", async () => {
+      await storeJwtElsewhere('jwt-a', 'user-1');
+
+      await setup();
+
+      expect(queueCalls()).toHaveLength(1);
+      expect(jwtSent(queueCalls()[0])).toBe('jwt-a');
+    });
+
+    it("goes with this tab's next fetch, until another tab signs someone else in", async () => {
+      Gist.setUserJwt('jwt-a');
+      await setup();
+      await advance(100);
+
+      await storeJwtElsewhere('jwt-b', 'user-1');
+      await advance(11_000);
+      expect(queueCalls()).toHaveLength(2);
+      expect(jwtSent(queueCalls()[1])).toBe('jwt-b');
+
+      // Another tab signs user-2 in, before its app has handed over user-2's JWT.
+      await holdUserToken('user-2');
+      await advance(11_000);
+      expect(queueCalls()).toHaveLength(3);
+      expect(jwtSent(queueCalls()[2])).toBeUndefined();
+    });
+
+    it('lets a tab paused by a rejection fetch again once another tab stores a new JWT', async () => {
+      Gist.setUserJwt('jwt-a');
+      queueAnswers.push({ response: () => rejected('expired') });
+      await setup();
+      onRejected();
+      await advance(30_000);
+      expect(queueCalls()).toHaveLength(1);
+
+      await storeJwtElsewhere('jwt-b', 'user-1');
+      await advance(1_000);
+
+      expect(queueCalls()).toHaveLength(2);
+      expect(jwtSent(queueCalls()[1])).toBe('jwt-b');
+    });
   });
 
   it('adds no queue fetch when the site hands over the JWT it already set', async () => {
@@ -318,6 +368,20 @@ describe('the user JWT, end to end', () => {
       expect(jwtSent(queueCalls()[0])).toBe('jwt-a');
     });
 
+    it('signing in from the guest token keeps a JWT handed over just before it', async () => {
+      localStorage.clear();
+      await setup({ useAnonymousSession: true });
+      await advance(100);
+
+      Gist.setUserJwt('jwt-a');
+      await Gist.setUserToken('user-1');
+      await advance(1_000);
+
+      const lastFetch = queueCalls()[queueCalls().length - 1];
+      expect(lastFetch[1].headers['X-Gist-User-Anonymous']).toBe('false');
+      expect(jwtSent(lastFetch)).toBe('jwt-a');
+    });
+
     it('signing in from the guest token lifts the pause and starts the count over', async () => {
       localStorage.clear();
       queueAnswers.push({ response: () => rejected('missing') });
@@ -365,14 +429,14 @@ describe('the user JWT, end to end', () => {
       const signingOut = Gist.clearUserToken();
       Gist.setUserJwt('jwt-next');
       await signingOut;
-      await holdUserToken('user-2');
+      await Gist.setUserToken('user-2');
       await Gist.updateInboxMessageOpenState('queue-1', true);
 
       expect(jwtSent(calls('/api/v1/messages/queue-1')[0])).toBe('jwt-next');
     });
   });
 
-  it('keeps the JWT out of console lines, storage, URLs and the debug overlay, with logging on', async () => {
+  it('keeps the JWT out of console lines, URLs and the debug overlay, and stores it under its own key only, with logging on', async () => {
     const secret = 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJjaW9fMWEyYjNjIn0.c2lnbmF0dXJl';
     const consoleSpies = (['log', 'info', 'warn', 'error', 'debug'] as const).map((method) =>
       vi.spyOn(console, method).mockImplementation(() => {})
@@ -407,13 +471,15 @@ describe('the user JWT, end to end', () => {
     const printed = consoleSpies.flatMap((spy) => spy.mock.calls.flat().map(String)).join('\n');
     expect(printed).toContain('User JWT set');
     expect(printed).not.toContain(secret);
+    const keysHoldingSecret: string[] = [];
     for (const storage of [localStorage, sessionStorage]) {
       for (let i = 0; i < storage.length; i++) {
         const key = storage.key(i)!;
         expect(key).not.toContain(secret);
-        expect(storage.getItem(key)).not.toContain(secret);
+        if (storage.getItem(key)?.includes(secret)) keysHoldingSecret.push(key);
       }
     }
+    expect(keysHoldingSecret).toEqual([USER_JWT_KEY]);
     expect(opened).toHaveBeenCalled();
     const urls = [
       ...fetchMock.mock.calls.map(([url]) => url),

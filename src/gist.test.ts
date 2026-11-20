@@ -12,8 +12,13 @@ vi.mock('./utilities/event-emitter', () => {
     },
   };
 });
+// Storage the JWT module really uses, so the JWT tests below see what it stored.
+const storedItems = vi.hoisted(() => new Map<string, unknown>());
 vi.mock('./utilities/local-storage', () => ({
   clearExpiredFromLocalStore: vi.fn(),
+  getKeyFromLocalStore: vi.fn((key: string) => storedItems.get(key) ?? null),
+  setKeyToLocalStore: vi.fn((key: string, value: unknown) => storedItems.set(key, value)),
+  clearKeyFromLocalStore: vi.fn((key: string) => storedItems.delete(key)),
 }));
 vi.mock('./managers/queue-manager', () => ({
   startQueueListener: vi.fn(() => Promise.resolve()),
@@ -24,6 +29,7 @@ vi.mock('./managers/queue-manager', () => ({
 vi.mock('./managers/user-manager', () => ({
   setUserToken: vi.fn(),
   clearUserToken: vi.fn(),
+  getUserToken: vi.fn(() => null),
   useGuestSession: vi.fn(),
 }));
 vi.mock('./managers/message-manager', () => ({
@@ -138,6 +144,7 @@ function baseConfig(overrides: Partial<GistConfig> = {}): GistConfig {
 describe('Gist', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    storedItems.clear();
     vi.mocked(setupPreview).mockReturnValue(false);
     vi.mocked(startQueueListener).mockResolvedValue();
     vi.mocked(checkMessageQueue).mockResolvedValue();

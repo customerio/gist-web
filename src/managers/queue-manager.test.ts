@@ -63,6 +63,7 @@ vi.mock('./gist-properties-manager', () => ({
 vi.mock('../utilities/local-storage', () => ({
   clearKeyFromLocalStore: vi.fn(),
   getKeyFromLocalStore: vi.fn(() => null),
+  setKeyToLocalStore: vi.fn(),
 }));
 vi.mock('./message-broadcast-manager', () => ({
   updateBroadcastsLocalStore: vi.fn(),
