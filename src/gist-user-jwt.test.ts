@@ -149,22 +149,29 @@ describe('the user JWT, end to end', () => {
   describe('when Gist rejects the JWT', () => {
     it('tells the app once, pauses this tab and leaves the shared schedule alone', async () => {
       Gist.setUserJwt('jwt-a');
-      queueAnswers.push({ response: () => rejected('expired') });
       await setup();
       const listener = onRejected();
-
       await advance(100);
+      const schedule = localStorage.getItem(NEXT_PULL_KEY);
+      expect(schedule).not.toBeNull();
 
+      // The fetch for a new JWT goes ahead of the shared schedule, and is rejected.
+      queueAnswers.push({ response: () => rejected('expired') });
+      Gist.setUserJwt('jwt-b');
+      await advance(1_000);
+
+      expect(queueCalls()).toHaveLength(2);
       expect(listener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledWith({ reason: 'expired' });
-      expect(localStorage.getItem(NEXT_PULL_KEY)).toBeNull();
-
-      await advance(60_000);
-      expect(queueCalls()).toHaveLength(1);
+      expect(localStorage.getItem(NEXT_PULL_KEY)).toBe(schedule);
 
       otherAnswers.push({ response: () => rejected('expired'), latencyMs: 0 });
       await Gist.removeInboxMessage('queue-1');
       expect(listener).toHaveBeenCalledTimes(1);
+      expect(localStorage.getItem(NEXT_PULL_KEY)).toBe(schedule);
+
+      await advance(60_000);
+      expect(queueCalls()).toHaveLength(2);
     });
 
     it('leaves the reason out when the 401 has no body', async () => {
@@ -261,7 +268,6 @@ describe('the user JWT, end to end', () => {
     it('another identified user drops the JWT, lifts the pause and starts the count over', async () => {
       Gist.setUserJwt('jwt-a');
       queueAnswers.push({ response: () => rejected('expired') });
-      queueAnswers.push({ response: () => rejected('missing') });
       await setup();
       const listener = onRejected();
       await advance(100);
@@ -271,8 +277,15 @@ describe('the user JWT, end to end', () => {
 
       expect(queueCalls()).toHaveLength(2);
       expect(jwtSent(queueCalls()[1])).toBeUndefined();
+
+      // The value already reported for the previous user is reported again.
+      queueAnswers.push({ response: () => rejected('bad_subject') });
+      Gist.setUserJwt('jwt-a');
+      await advance(1_000);
+
+      expect(queueCalls()).toHaveLength(3);
       expect(listener).toHaveBeenCalledTimes(2);
-      expect(listener).toHaveBeenLastCalledWith({ reason: 'missing' });
+      expect(listener).toHaveBeenLastCalledWith({ reason: 'bad_subject' });
     });
 
     it('signing in from no token keeps a JWT set just before it', async () => {
@@ -307,7 +320,6 @@ describe('the user JWT, end to end', () => {
     it('clearUserToken() drops the JWT, lifts the pause and starts the count over', async () => {
       Gist.setUserJwt('jwt-a');
       queueAnswers.push({ response: () => rejected('expired') });
-      queueAnswers.push({ response: () => rejected('missing') });
       await setup({ useAnonymousSession: true });
       const listener = onRejected();
       await advance(100);
@@ -317,6 +329,13 @@ describe('the user JWT, end to end', () => {
 
       expect(queueCalls()).toHaveLength(2);
       expect(jwtSent(queueCalls()[1])).toBeUndefined();
+
+      // The value already reported before the sign-out is reported again.
+      queueAnswers.push({ response: () => rejected('expired') });
+      Gist.setUserJwt('jwt-a');
+      await advance(1_000);
+
+      expect(queueCalls()).toHaveLength(3);
       expect(listener).toHaveBeenCalledTimes(2);
     });
 

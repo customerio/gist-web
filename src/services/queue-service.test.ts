@@ -218,14 +218,15 @@ describe('queue-service', () => {
         headers: { 'x-gist-queue-polling-interval': '30' },
       });
       await getUserQueue();
-      localStorage.clear();
+      const schedule = localStorage.getItem(userQueueNextPullCheckLocalStoreName);
+      expect(schedule).not.toBeNull();
       setUserJwt('jwt-a');
       mockPost.mockRejectedValueOnce({ response: rejection });
 
       const result = await getUserQueue();
 
       expect(result?.status).toBe(401);
-      expect(getKeyFromLocalStore(userQueueNextPullCheckLocalStoreName)).toBeNull();
+      expect(localStorage.getItem(userQueueNextPullCheckLocalStoreName)).toBe(schedule);
       expect(getPollingIntervalSeconds()).toBe(30);
       expect(isQueuePausedByUserJwtRejection()).toBe(true);
       expect(dispatch).toHaveBeenCalledWith('userJwtRejected', { reason: 'expired' });
