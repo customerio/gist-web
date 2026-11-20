@@ -215,6 +215,11 @@ export function handleUserJwtRejection(
     return false;
   }
 
+  // Another tab changed the user since the last rejection here, and this answer
+  // came before the next queue tick could notice: start over first.
+  if (rejectedSinceLastSuccess && sentWith.userToken !== userTokenAtRejection) {
+    startOverForNewUser();
+  }
   // Set before dispatching, so a listener that calls setUserJwt lifts the pause.
   queuePaused = true;
   pausedForUserJwt = sentWith.userJwt;

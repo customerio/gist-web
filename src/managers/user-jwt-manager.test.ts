@@ -350,6 +350,25 @@ describe('user-jwt-manager', () => {
     });
   });
 
+  describe('a rejection after another tab changed the user', () => {
+    it('starts over before counting it, though no queue tick came in between', () => {
+      jwt.setUserJwt(jwtFor('cio_a'));
+      jwt.markQueueFetchSent(0);
+      rejectCurrent();
+      jwt.setUserJwt(jwtFor('cio_a'));
+      jwt.markQueueFetchSent(1_000);
+      rejectCurrent();
+
+      // Another tab signs Bob in, and a view log carrying Bob's JWT is rejected
+      // before this tab's next queue tick.
+      storeAsAnotherTab(jwtFor('cio_b'));
+      rejectCurrent();
+      jwt.setUserJwt(jwtFor('cio_b'));
+
+      expect(jwt.isRequestedQueueFetchHeld(10, 1_500)).toBe(false);
+    });
+  });
+
   describe('applyUserTokenChange', () => {
     function rejectTwice(jwtValue: string): void {
       jwt.setUserJwt(jwtValue);
