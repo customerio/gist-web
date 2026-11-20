@@ -90,6 +90,37 @@ async function holdUserToken(userToken: string): Promise<void> {
   setKeyToLocalStore('gist.web.userToken', userToken);
 }
 
+const base64url = (bytes: Uint8Array) =>
+  btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+
+// A JWT signed with a fresh RSA key the way a customer's backend signs one with
+// RS256, in the header and claims Gist's validator checks. Returns whether the
+// signature verifies, to show the token is a real one.
+async function signRs256(claims: object): Promise<{ jwt: string; verified: boolean }> {
+  const algorithm = { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' };
+  const { privateKey, publicKey } = await crypto.subtle.generateKey(
+    { ...algorithm, modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]) },
+    false,
+    ['sign', 'verify']
+  );
+  const encoder = new TextEncoder();
+  const header = base64url(encoder.encode(JSON.stringify({ alg: 'RS256', typ: 'JWT' })));
+  const signingInput = `${header}.${base64url(encoder.encode(JSON.stringify(claims)))}`;
+  const signature = new Uint8Array(
+    await crypto.subtle.sign(algorithm, privateKey, encoder.encode(signingInput))
+  );
+  const verified = await crypto.subtle.verify(
+    algorithm,
+    publicKey,
+    signature,
+    encoder.encode(signingInput)
+  );
+  return { jwt: `${signingInput}.${base64url(signature)}`, verified };
+}
+
 // What setUserJwt in another tab, or on an earlier page, leaves in storage.
 async function storeJwtElsewhere(jwt: string): Promise<void> {
   const { setKeyToLocalStore } = await import('./utilities/local-storage');
@@ -148,6 +179,21 @@ describe('the user JWT, end to end', () => {
     expect(queueCalls()).toHaveLength(1);
     expect(jwtSent(queueCalls()[0])).toBe(alice);
     expect(userTokenSent(queueCalls()[0])).toBe(ALICE);
+  });
+
+  it('reads the person from a real RS256-signed JWT and sends the JWT exactly as signed', async () => {
+    const { jwt, verified } = await signRs256({
+      sub: 'cio_1a2b3c',
+      iat: 1_763_600_000,
+      exp: 1_763_600_600,
+    });
+    expect(verified).toBe(true);
+
+    await Gist.setUserJwt(jwt);
+    await setup();
+
+    expect(jwtSent(queueCalls()[0])).toBe(jwt);
+    expect(userTokenSent(queueCalls()[0])).toBe('cio_1a2b3c');
   });
 
   it('sends the JWT and the person it names with the queue fetch, an inbox open-state update and a view log', async () => {
