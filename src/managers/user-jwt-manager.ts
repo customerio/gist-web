@@ -36,7 +36,14 @@ export function getUserJwt(): string | null {
 
 export function setUserJwt(jwt: string | null): void {
   const value = typeof jwt === 'string' ? jwt.trim() : '';
-  userJwt = value === '' ? null : value;
+  const next = value === '' ? null : value;
+  // The JWT this tab already holds changes nothing unless a rejection paused the
+  // queue, so a site can hand it over as often as it likes without extra fetches.
+  if (next === userJwt && !queuePaused) {
+    log('User JWT unchanged.');
+    return;
+  }
+  userJwt = next;
   queuePaused = false;
   queueFetchRequested = true;
   log(userJwt === null ? 'User JWT cleared.' : 'User JWT set.');

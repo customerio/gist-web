@@ -194,9 +194,10 @@ export default class Gist {
   /**
    * Hands over the JWT the site's backend signed for the signed-in person. It
    * stays in this tab's memory, goes with every request to Gist, and the queue is
-   * fetched straight away. Callable before setup(); null clears it. When Gist
-   * rejects it, `userJwtRejected` fires once per JWT value and queue fetches pause
-   * until the next setUserJwt or a change of user.
+   * fetched straight away whenever the value changes, so a site can call this as
+   * often as it likes. Callable before setup(); null clears it. When Gist rejects
+   * it, `userJwtRejected` fires once per JWT value and queue fetches pause until
+   * the next setUserJwt or a change of user.
    */
   static setUserJwt(jwt: string | null): void {
     setUserJwt(jwt);

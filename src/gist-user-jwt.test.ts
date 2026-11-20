@@ -146,6 +146,24 @@ describe('the user JWT, end to end', () => {
     expect(jwtSent(guestFetch)).toBeUndefined();
   });
 
+  it('adds no queue fetch when the site hands over the JWT it already set', async () => {
+    Gist.setUserJwt('jwt-a');
+    await setup();
+    await advance(100);
+
+    // A site that hands over its JWT on every render or route change.
+    for (let i = 0; i < 5; i++) {
+      Gist.setUserJwt('jwt-a');
+      await advance(1_000);
+    }
+    expect(queueCalls()).toHaveLength(1);
+
+    // The shared schedule's next fetch, 10 seconds after the first, still goes.
+    await advance(6_000);
+    expect(queueCalls()).toHaveLength(2);
+    expect(jwtSent(queueCalls()[1])).toBe('jwt-a');
+  });
+
   describe('when Gist rejects the JWT', () => {
     it('tells the app once, pauses this tab and leaves the shared schedule alone', async () => {
       Gist.setUserJwt('jwt-a');

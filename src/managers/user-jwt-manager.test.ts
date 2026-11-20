@@ -59,6 +59,21 @@ describe('user-jwt-manager', () => {
     it('works before anything else has run', () => {
       expect(() => jwt.setUserJwt('jwt-a')).not.toThrow();
     });
+
+    it('asks for no fetch when given the JWT it already holds, unless a rejection paused the queue', () => {
+      jwt.setUserJwt(null);
+      expect(jwt.isQueueFetchRequested()).toBe(false);
+
+      jwt.setUserJwt('jwt-a');
+      jwt.markQueueFetchSent(0);
+      jwt.setUserJwt(' jwt-a ');
+      expect(jwt.isQueueFetchRequested()).toBe(false);
+
+      rejectCurrent();
+      jwt.setUserJwt('jwt-a');
+      expect(jwt.isQueuePausedByUserJwtRejection()).toBe(false);
+      expect(jwt.isQueueFetchRequested()).toBe(true);
+    });
   });
 
   describe('handleUserJwtRejection', () => {
