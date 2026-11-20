@@ -1,11 +1,6 @@
 import Gist from '../gist';
 import { log } from '../utilities/log';
-import {
-  clearKeyFromLocalStore,
-  getKeyFromLocalStore,
-  setKeyToLocalStore,
-} from '../utilities/local-storage';
-import { getUserToken, isUsingGuestUserToken } from './user-manager';
+import { clearUserJwt, getUserJwt, getUserToken, storeUserJwt } from './user-manager';
 import type { UserTokenChange } from './user-manager';
 import type { NetworkResponse } from '../services/network';
 
@@ -20,43 +15,29 @@ export interface RequestIdentity {
   userJwt: string | null;
 }
 
-// The JWT is kept in gist-web's storage beside the user token, so every tab and
-// later page loads use the one the app handed over last. It's stored with the
-// user token it was handed over for and used only while that token is current, so
-// a switch of user in another tab can't pair one person's JWT with another's
-// token. It never reaches a URL, a log line or the debug overlay.
-const userJwtLocalStoreName = 'gist.web.userJwt';
-// As long as a user token is kept by default. Sign-out, a switch of user or a new
-// JWT replaces it sooner, and Gist enforces the JWT's own expiry.
-const userJwtExpiryInDays = 30;
-
-interface StoredUserJwt {
-  jwt: string;
-  userToken: string | null;
-}
-
+// The JWT itself is stored beside the user token (see user-manager), so every tab
+// and later page load sends the one the site handed over last. While its sub names
+// a person, that person is the user token, so a request never pairs one person's
+// JWT with another's token, and what gist-web caches is filed under the person
+// whose queue Gist served.
+//
 // The rest belongs to this tab and lives in memory, so a rejection leaves other
 // tabs alone.
-// The user token this page last applied itself: through a change of user in its
-// own setUserToken or clearUserToken, or what storage held when the page started. A setUserToken with the token storage already holds
-// doesn't count, because Data Pipelines JS passes on whatever user storage holds.
-// When storage names someone else, another tab changed the user while this page's
-// app may still act for the previous person, so its setUserJwt calls are ignored
-// until it applies a user itself or reloads.
-let userTokenAppliedHere: string | null | undefined;
-// Whether nobody was signed in when this page applied its user token: no token or
-// the guest token. Such a page takes whoever another tab or window signs in, as
-// after a sign-in through a popup, on its first hand-over.
-let signedOutWhenApplied = false;
-// Whether this page has handed over a JWT since it was recorded as signed out. It
-// then adopts nobody, so a JWT its app kept from the previous person can't be
-// paired with someone who signs in elsewhere.
-let handedOverWhileSignedOut = false;
-// After a counted rejection, no queue fetch until a different JWT or a user change.
+
+// The JWTs this page's app has handed over, and the stored JWT this page left
+// last: the one it handed over, or none after it cleared the JWT or the user.
+// Once another tab has changed the stored JWT, this page can bring only a JWT it
+// hasn't handed over before. So an app that still holds an older JWT can't undo
+// a newer one another tab stored, for the same person or someone else, or sign
+// the previous person back in after another tab signed them out, and its null
+// can't take the JWT away from whoever another tab signed in.
+const handedOverHere = new Set<string>();
+let lastStoredHere: string | null = null;
+// After a counted rejection, no queue fetch until a different JWT or user.
 let queuePaused = false;
-// The JWT whose rejection paused the queue; a different one in storage lifts the
-// pause, so a JWT handed over in another tab reaches this one too.
-let pausedForUserJwt: string | null = null;
+// The request whose rejection paused the queue. A different JWT or user in
+// storage lifts the pause, so another tab's new JWT reaches this one too.
+let pausedFor: RequestIdentity | null = null;
 // setUserJwt asked for a queue fetch that hasn't been sent yet.
 let queueFetchRequested = false;
 // From a counted rejection until a queue fetch succeeds or the user changes, the
@@ -67,128 +48,74 @@ let lastRequestedFetchAt: number | null = null;
 // The JWT values, no JWT included, whose rejection the app has been told about.
 const rejectionsReported = new Set<string | null>();
 
-function readStoredUserJwt(): StoredUserJwt | null {
-  const stored = getKeyFromLocalStore(userJwtLocalStoreName) as
-    | Partial<StoredUserJwt>
-    | null
-    | undefined;
-  if (!stored || typeof stored.jwt !== 'string' || stored.jwt === '') return null;
-  return {
-    jwt: stored.jwt,
-    userToken: typeof stored.userToken === 'string' ? stored.userToken : null,
-  };
+function mayHandOver(jwt: string | null): boolean {
+  const stored = getUserJwt();
+  if (jwt === stored || stored === lastStoredHere) return true;
+  return jwt !== null && !handedOverHere.has(jwt);
 }
 
-function storeUserJwt(jwt: string, userToken: string | null): void {
-  const expiryDate = new Date();
-  expiryDate.setDate(expiryDate.getDate() + userJwtExpiryInDays);
-  setKeyToLocalStore(userJwtLocalStoreName, { jwt, userToken }, expiryDate);
-}
-
-/** The JWT to send: the stored one, while the user token it was handed over for is current. */
-export function getUserJwt(): string | null {
-  const stored = readStoredUserJwt();
-  if (stored === null) return null;
-  return stored.userToken === getUserToken() ? stored.jwt : null;
-}
-
-function noteUserTokenAppliedHere(): void {
-  userTokenAppliedHere = getUserToken();
-  signedOutWhenApplied = userTokenAppliedHere === null || isUsingGuestUserToken();
-  handedOverWhileSignedOut = false;
-}
-
-/** Records the user token this page starts with, unless a setUserJwt before setup already did. */
-export function noteUserTokenAtStartup(): void {
-  if (userTokenAppliedHere === undefined) noteUserTokenAppliedHere();
+function startOverForNewUser(): void {
+  queuePaused = false;
+  pausedFor = null;
+  rejectedSinceLastSuccess = false;
+  lastRequestedFetchAt = null;
+  rejectionsReported.clear();
 }
 
 /**
- * Whether this page counts as signed out: it recorded nobody, or it's a preview,
- * which records its preview token before setup marks the page as one.
+ * Takes the JWT the site handed over, or null to clear it, and returns whether
+ * the user changed with it, so the caller can restart what belongs to the user.
  */
-function isSignedOutPage(): boolean {
-  return signedOutWhenApplied || Gist.config?.isPreviewSession === true;
-}
-
-/** Whether another tab replaced the user this page applied, so this page's app may be stale. */
-function isUserReplacedByAnotherTab(): boolean {
-  return (
-    userTokenAppliedHere !== undefined &&
-    !isSignedOutPage() &&
-    getUserToken() !== userTokenAppliedHere
-  );
-}
-
-/**
- * Whether this page may hand over `jwt` for the user token in storage. A page whose
- * user is still signed in may. A signed-out page takes whoever another tab or
- * window signed in meanwhile, but only for a JWT (a null from it would clear
- * theirs) and only on its first hand-over. A page whose user another tab replaced
- * may not.
- */
-function mayHandOverJwt(jwt: string | null): boolean {
-  noteUserTokenAtStartup();
-  if (getUserToken() === userTokenAppliedHere) return true;
-  if (!isSignedOutPage() || jwt === null || handedOverWhileSignedOut) return false;
-  noteUserTokenAppliedHere();
-  return true;
-}
-
-export function setUserJwt(jwt: string | null): void {
+export function setUserJwt(jwt: string | null): boolean {
   const value = typeof jwt === 'string' ? jwt.trim() : '';
   const next = value === '' ? null : value;
-  if (!mayHandOverJwt(next)) {
-    log('User JWT ignored: another tab changed the user since this page did.');
-    return;
+  if (!mayHandOver(next)) {
+    log(
+      next === null
+        ? 'User JWT left in place: another tab handed it over.'
+        : 'User JWT ignored: another tab has replaced it since this page handed it over.'
+    );
+    return false;
   }
-  // The JWT already in use changes nothing unless a rejection paused the queue,
-  // so a site can hand it over as often as it likes without extra fetches.
+  // Handing over again the JWT in use changes nothing unless a rejection paused
+  // the queue, so a site can call this as often as it likes without extra fetches.
   if (next === getUserJwt() && !queuePaused) {
     log('User JWT unchanged.');
-    return;
+    return false;
   }
+
+  const previousUserToken = getUserToken();
   if (next === null) {
-    clearKeyFromLocalStore(userJwtLocalStoreName);
+    clearUserJwt();
   } else {
-    storeUserJwt(next, getUserToken());
-    if (isSignedOutPage()) handedOverWhileSignedOut = true;
+    storeUserJwt(next);
+    handedOverHere.add(next);
+  }
+  lastStoredHere = next;
+  const userChanged = getUserToken() !== previousUserToken;
+  if (userChanged) {
+    startOverForNewUser();
   }
   queuePaused = false;
   queueFetchRequested = true;
   log(next === null ? 'User JWT cleared.' : 'User JWT set.');
+  return userChanged;
 }
 
 /**
- * Applies a change of user made in this tab to the stored JWT, which every tab
- * shares. Signing in keeps a JWT handed over while nobody was signed in (no user
- * token yet, or the guest token), because an app that calls setUserJwt right after
- * identify() reaches gist-web first; it then belongs to the user who signed in.
- * Switching to another user or signing out drops it. Any change of user lifts this
- * tab's pause and starts the one-event-per-JWT count over; setting the same token
- * changes nothing.
+ * Applies a change of user made with setUserToken or clearUserToken in this tab.
+ * setUserToken changes the user only while no stored JWT names one (see gist.ts),
+ * so a JWT still stored then names nobody, and it goes. Any change of user also
+ * lifts this tab's pause and starts the one-event-per-JWT count over; setting the
+ * same token changes nothing.
  */
-export function applyUserTokenChange(
-  change: UserTokenChange | 'cleared',
-  previousUserToken: string | null = null
-): void {
+export function applyUserTokenChange(change: UserTokenChange | 'cleared'): void {
   if (change === 'unchanged') return;
-  noteUserTokenAppliedHere();
-  const stored = readStoredUserJwt();
-  if (
-    change === 'signedIn' &&
-    stored !== null &&
-    (stored.userToken === null || stored.userToken === previousUserToken)
-  ) {
-    storeUserJwt(stored.jwt, getUserToken());
-  } else if (stored !== null) {
-    clearKeyFromLocalStore(userJwtLocalStoreName);
+  if (getUserJwt() !== null) {
+    clearUserJwt();
   }
-  queuePaused = false;
-  pausedForUserJwt = null;
-  rejectedSinceLastSuccess = false;
-  lastRequestedFetchAt = null;
-  rejectionsReported.clear();
+  lastStoredHere = null;
+  startOverForNewUser();
 }
 
 export function getRequestIdentity(): RequestIdentity {
@@ -196,10 +123,14 @@ export function getRequestIdentity(): RequestIdentity {
 }
 
 export function isQueuePausedByUserJwtRejection(): boolean {
-  if (queuePaused && getUserJwt() !== pausedForUserJwt) {
-    // Another tab handed over a new JWT, or switched to another user.
-    log('User JWT changed in another tab, queue fetches resume.');
-    queuePaused = false;
+  if (queuePaused && pausedFor !== null) {
+    const current = getRequestIdentity();
+    if (current.userJwt !== pausedFor.userJwt || current.userToken !== pausedFor.userToken) {
+      // Another tab handed over a new JWT, or changed the user.
+      log('User JWT or user changed in another tab, queue fetches resume.');
+      queuePaused = false;
+      pausedFor = null;
+    }
   }
   return queuePaused;
 }
@@ -244,10 +175,7 @@ export function markQueueFetchSucceeded(): void {
  * whatever its body. It counts only while the request's user token and JWT are
  * still this tab's, since an answer to an earlier user or JWT says nothing about
  * the current one. A counted rejection pauses this tab's queue fetches and
- * dispatches `userJwtRejected` once per JWT value, unless another tab replaced
- * this page's user: that page's app can't hand over a JWT for the new user, so it
- * isn't asked, and the tab waits for another tab's JWT or a reload. Returns
- * whether it counted.
+ * dispatches `userJwtRejected` once per JWT value. Returns whether it counted.
  */
 export function handleUserJwtRejection(
   response: NetworkResponse | undefined,
@@ -261,12 +189,8 @@ export function handleUserJwtRejection(
 
   // Set before dispatching, so a listener that calls setUserJwt lifts the pause.
   queuePaused = true;
-  pausedForUserJwt = sentWith.userJwt;
+  pausedFor = sentWith;
   rejectedSinceLastSuccess = true;
-  if (isUserReplacedByAnotherTab()) {
-    log('User JWT rejected for a user another tab signed in, queue fetches paused.');
-    return true;
-  }
   if (rejectionsReported.has(sentWith.userJwt)) {
     log('User JWT rejected again, queue fetches stay paused.');
     return true;

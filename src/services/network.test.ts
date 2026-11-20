@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { UserNetworkInstance } from './network';
 import { getEncodedUserToken } from '../managers/user-manager';
-import { setUserJwt } from '../managers/user-jwt-manager';
 
 const mockFetch = vi.fn();
 
@@ -24,10 +23,12 @@ vi.mock('./settings', () => ({
   },
 }));
 
+const storedUserJwt = vi.hoisted(() => ({ value: null as string | null }));
 vi.mock('../managers/user-manager', () => ({
   getEncodedUserToken: vi.fn(() => null),
   getUserToken: vi.fn(() => null),
   isUsingGuestUserToken: vi.fn(() => false),
+  getUserJwt: vi.fn(() => storedUserJwt.value),
 }));
 
 describe('network', () => {
@@ -143,7 +144,7 @@ describe('network', () => {
     const jsonType = { 'content-type': 'application/json' };
 
     beforeEach(() => {
-      setUserJwt(null);
+      storedUserJwt.value = null;
       mockFetch.mockResolvedValue(new Response('{}', { status: 200, headers: jsonType }));
     });
 
@@ -152,7 +153,7 @@ describe('network', () => {
     }
 
     it('sends X-CIO-User-JWT while a JWT is set', async () => {
-      setUserJwt('jwt-a');
+      storedUserJwt.value = 'jwt-a';
 
       await UserNetworkInstance()('/api/v1/test');
 
@@ -166,7 +167,7 @@ describe('network', () => {
     });
 
     it('puts the JWT in no URL', async () => {
-      setUserJwt('jwt-a');
+      storedUserJwt.value = 'jwt-a';
 
       await UserNetworkInstance().post('/api/v4/users?sessionId=s');
 

@@ -10,14 +10,10 @@ import {
 import {
   setUserToken,
   clearUserToken,
-  getUserToken,
   useGuestSession,
+  isUserNamedByJwt,
 } from './managers/user-manager';
-import {
-  setUserJwt,
-  applyUserTokenChange,
-  noteUserTokenAtStartup,
-} from './managers/user-jwt-manager';
+import { setUserJwt, applyUserTokenChange } from './managers/user-jwt-manager';
 import {
   showMessage,
   embedMessage,
@@ -148,8 +144,6 @@ export default class Gist {
     ) {
       useGuestSession();
     }
-    // The user this page starts with, unless a setUserJwt before setup recorded one.
-    noteUserTokenAtStartup();
 
     await startQueueListener();
 
@@ -196,25 +190,45 @@ export default class Gist {
       log('Embed-only mode, ignoring user token.');
       return;
     }
+    // While a stored JWT names the user, the JWT decides who that is. Data
+    // Pipelines JS passes the site's own user id here on every identify, so the
+    // token is only kept for when no JWT names anyone.
+    if (isUserNamedByJwt()) {
+      setUserToken(userToken, expiryDate);
+      log('User token kept for later: the user JWT names the user.');
+      return;
+    }
     // Before the first await, so this never drops a JWT the app sets right after it.
-    const previousUserToken = getUserToken();
-    applyUserTokenChange(setUserToken(userToken, expiryDate), previousUserToken);
+    applyUserTokenChange(setUserToken(userToken, expiryDate));
     stopSSEListener(true);
     await startQueueListener();
   }
 
   /**
    * Hands over the JWT the site's backend signed for the signed-in person. It's
-   * kept in gist-web's storage beside the user token, so every tab and later page
-   * loads send it with their requests to Gist until the user signs out, another
-   * user signs in or a new JWT replaces it. The queue is fetched straight away
-   * whenever the value changes, so a site can call this as often as it likes.
-   * Callable before setup(); null clears it. When Gist rejects it,
-   * `userJwtRejected` fires once per JWT value in each tab, and that tab's queue
-   * fetches pause until a different JWT or a change of user.
+   * kept in gist-web's storage, so every tab and later page load sends it with
+   * their requests to Gist until clearUserToken() or a new JWT replaces it. While
+   * its sub names a person, that person is the user: gist-web files what it
+   * caches under the sub and sends it as the user token, and setUserToken() only
+   * keeps its token for later. A JWT this page handed over before can't replace a
+   * newer one another tab stored, and null clears only the JWT this page handed
+   * over last. The queue is fetched straight away whenever the value changes, so
+   * a site can call this as often as it likes. Callable before setup(). When Gist
+   * rejects the JWT, `userJwtRejected` fires once per JWT value in each tab, and
+   * that tab's queue fetches pause until a different JWT or user.
    */
-  static setUserJwt(jwt: string | null): void {
-    setUserJwt(jwt);
+  static async setUserJwt(jwt: string | null): Promise<void> {
+    if (this.config?.isPreviewSession) return;
+    if (this.config?.embedOnly) {
+      log('Embed-only mode, ignoring user JWT.');
+      return;
+    }
+    // Stored before the first await, like a change of user token.
+    const userChanged = setUserJwt(jwt);
+    // Before setup(), setup starts the queue for whoever the JWT names.
+    if (!userChanged || !this.initialized) return;
+    stopSSEListener(true);
+    await startQueueListener();
   }
 
   static setUserLocale(userLocale: string): void {

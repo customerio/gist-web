@@ -3,43 +3,54 @@ import type { NetworkResponse } from '../services/network';
 import { setKeyToLocalStore, shouldPersistSession } from '../utilities/local-storage';
 
 const mockDispatch = vi.fn();
-let currentUserToken: string | null = 'user-1';
-let currentIsGuest = false;
 
 vi.mock('../gist', () => ({ default: { events: { dispatch: mockDispatch } } }));
 vi.mock('../utilities/log', () => ({ log: vi.fn() }));
-vi.mock('./user-manager', () => ({
-  getUserToken: vi.fn(() => currentUserToken),
-  isUsingGuestUserToken: vi.fn(() => currentIsGuest),
+vi.mock('../services/queue-service', () => ({
+  userQueueNextPullCheckLocalStoreName: 'gist.web.userQueueNextPullCheck',
 }));
 
 type UserJwtManager = typeof import('./user-jwt-manager');
 let jwt: UserJwtManager;
 
+const USER_JWT_KEY = 'gist.web.userJwt';
+const USER_TOKEN_KEY = 'gist.web.userToken';
 const EXPIRED = { error: 'user_jwt_rejected', reason: 'expired' };
+
+let issued = 0;
+
+// A new JWT naming `sub`, as a backend signs one at each sign-in or renewal.
+function jwtFor(sub: string): string {
+  const encode = (value: unknown) =>
+    btoa(JSON.stringify(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  issued += 1;
+  return `${encode({ alg: 'RS256', typ: 'JWT' })}.${encode({ sub, n: issued })}.signature`;
+}
 
 function rejection(data: unknown): NetworkResponse {
   return { status: 401, headers: {}, data } as NetworkResponse;
 }
 
 // Rejects the request a tab sends now, with its current user token and JWT.
-function rejectCurrent(data: unknown = EXPIRED): boolean {
-  return jwt.handleUserJwtRejection(rejection(data), jwt.getRequestIdentity());
+function rejectCurrent(data: unknown = EXPIRED, tab: UserJwtManager = jwt): boolean {
+  return tab.handleUserJwtRejection(rejection(data), tab.getRequestIdentity());
 }
-
-const USER_JWT_KEY = 'gist.web.userJwt';
 
 function storedUserJwt(): unknown {
   const item = localStorage.getItem(USER_JWT_KEY);
   return item === null ? null : (JSON.parse(item) as { value: unknown }).value;
 }
 
-// Stores a JWT the way setUserJwt in another tab does.
-function storeAsAnotherTab(jwtValue: string, userToken: string | null): void {
-  setKeyToLocalStore(USER_JWT_KEY, { jwt: jwtValue, userToken });
+// What another tab, or an earlier page, leaves in storage.
+function storeAsAnotherTab(jwtValue: string): void {
+  setKeyToLocalStore(USER_JWT_KEY, jwtValue);
 }
 
-// Another tab: a fresh copy of the module, sharing this tab's storage and user token.
+function holdUserToken(userToken: string): void {
+  setKeyToLocalStore(USER_TOKEN_KEY, userToken);
+}
+
+// Another tab, or the page after a reload: a fresh copy of the module over the same storage.
 async function openAnotherTab(): Promise<UserJwtManager> {
   vi.resetModules();
   return import('./user-jwt-manager');
@@ -49,62 +60,88 @@ describe('user-jwt-manager', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     vi.resetModules();
-    currentUserToken = 'user-1';
-    currentIsGuest = false;
     localStorage.clear();
     sessionStorage.clear();
+    holdUserToken('user-1');
     jwt = await import('./user-jwt-manager');
   });
 
   describe('setUserJwt', () => {
-    it('stores the JWT with the user token it was handed over for, and asks for a queue fetch', () => {
-      jwt.setUserJwt('jwt-a');
+    it('stores the JWT as handed over, makes the person it names the user and asks for a queue fetch', () => {
+      const alice = jwtFor('cio_a');
 
-      expect(jwt.getUserJwt()).toBe('jwt-a');
+      expect(jwt.setUserJwt(alice)).toBe(true);
+
+      expect(storedUserJwt()).toBe(alice);
+      expect(jwt.getRequestIdentity()).toEqual({ userToken: 'cio_a', userJwt: alice });
       expect(jwt.isQueueFetchRequested()).toBe(true);
-      expect(storedUserJwt()).toEqual({ jwt: 'jwt-a', userToken: 'user-1' });
     });
 
-    it('clears the JWT for null, an empty string or whitespace', () => {
-      for (const value of [null, '', '   ']) {
-        jwt.setUserJwt('jwt-a');
-        jwt.setUserJwt(value);
-        expect(jwt.getUserJwt()).toBeNull();
+    it('reports no change of user for a new JWT naming the same person', () => {
+      jwt.setUserJwt(jwtFor('cio_a'));
+      const renewed = jwtFor('cio_a');
+
+      expect(jwt.setUserJwt(renewed)).toBe(false);
+
+      expect(jwt.getRequestIdentity()).toEqual({ userToken: 'cio_a', userJwt: renewed });
+    });
+
+    it('reports a change of user for a JWT naming someone else', () => {
+      jwt.setUserJwt(jwtFor('cio_a'));
+      const bob = jwtFor('cio_b');
+
+      expect(jwt.setUserJwt(bob)).toBe(true);
+
+      expect(jwt.getRequestIdentity()).toEqual({ userToken: 'cio_b', userJwt: bob });
+    });
+
+    it('sends a JWT that names nobody with the token it finds, leaving the user as is', () => {
+      expect(jwt.setUserJwt('not-a-jwt')).toBe(false);
+
+      expect(jwt.getRequestIdentity()).toEqual({ userToken: 'user-1', userJwt: 'not-a-jwt' });
+    });
+
+    it('clears the JWT for null, an empty string or whitespace, which leaves the stored token the user', () => {
+      for (const cleared of [null, '', '   ']) {
+        jwt.setUserJwt(jwtFor('cio_a'));
+
+        expect(jwt.setUserJwt(cleared)).toBe(true);
+
         expect(storedUserJwt()).toBeNull();
+        expect(jwt.getRequestIdentity()).toEqual({ userToken: 'user-1', userJwt: null });
       }
     });
 
     it('keeps the JWT in sessionStorage when the session is not persisted', () => {
       shouldPersistSession(false);
+      const alice = jwtFor('cio_a');
 
-      jwt.setUserJwt('jwt-a');
+      jwt.setUserJwt(alice);
 
-      expect(jwt.getUserJwt()).toBe('jwt-a');
-      expect(sessionStorage.getItem(USER_JWT_KEY)).not.toBeNull();
       expect(localStorage.getItem(USER_JWT_KEY)).toBeNull();
+      expect(sessionStorage.getItem(USER_JWT_KEY)).toContain(alice);
     });
 
     it('trims whitespace, which a request header cannot carry', () => {
-      jwt.setUserJwt(' jwt-a\n');
+      const alice = jwtFor('cio_a');
 
-      expect(jwt.getUserJwt()).toBe('jwt-a');
+      jwt.setUserJwt(`  ${alice}\n`);
+
+      expect(storedUserJwt()).toBe(alice);
     });
 
-    it('works before anything else has run', () => {
-      expect(() => jwt.setUserJwt('jwt-a')).not.toThrow();
-    });
-
-    it('asks for no fetch when given the JWT it already holds, unless a rejection paused the queue', () => {
+    it('asks for no fetch when given the JWT already in use, unless a rejection paused the queue', () => {
       jwt.setUserJwt(null);
       expect(jwt.isQueueFetchRequested()).toBe(false);
 
-      jwt.setUserJwt('jwt-a');
+      const alice = jwtFor('cio_a');
+      jwt.setUserJwt(alice);
       jwt.markQueueFetchSent(0);
-      jwt.setUserJwt(' jwt-a ');
+      jwt.setUserJwt(` ${alice} `);
       expect(jwt.isQueueFetchRequested()).toBe(false);
 
       rejectCurrent();
-      jwt.setUserJwt('jwt-a');
+      jwt.setUserJwt(alice);
       expect(jwt.isQueuePausedByUserJwtRejection()).toBe(false);
       expect(jwt.isQueueFetchRequested()).toBe(true);
     });
@@ -112,7 +149,7 @@ describe('user-jwt-manager', () => {
 
   describe('handleUserJwtRejection', () => {
     it('ignores anything but a 401', () => {
-      jwt.setUserJwt('jwt-a');
+      jwt.setUserJwt(jwtFor('cio_a'));
       const response = { status: 500, headers: {}, data: {} } as NetworkResponse;
 
       expect(jwt.handleUserJwtRejection(response, jwt.getRequestIdentity())).toBe(false);
@@ -122,7 +159,7 @@ describe('user-jwt-manager', () => {
     });
 
     it("pauses the queue and dispatches userJwtRejected with Gist's reason", () => {
-      jwt.setUserJwt('jwt-a');
+      jwt.setUserJwt(jwtFor('cio_a'));
 
       expect(rejectCurrent()).toBe(true);
 
@@ -132,7 +169,7 @@ describe('user-jwt-manager', () => {
     });
 
     it('leaves the reason out when the 401 has no body', () => {
-      jwt.setUserJwt('jwt-a');
+      jwt.setUserJwt(jwtFor('cio_a'));
 
       jwt.handleUserJwtRejection(rejection(undefined), jwt.getRequestIdentity());
 
@@ -141,23 +178,24 @@ describe('user-jwt-manager', () => {
     });
 
     it('counts a 401 whatever its body holds', () => {
-      jwt.setUserJwt('jwt-a');
+      jwt.setUserJwt(jwtFor('cio_a'));
 
       expect(rejectCurrent('<html>Unauthorized</html>')).toBe(true);
       expect(mockDispatch).toHaveBeenCalledWith('userJwtRejected', {});
     });
 
     it('dispatches once per JWT value until a new value is set', () => {
-      jwt.setUserJwt('jwt-a');
+      const alice = jwtFor('cio_a');
+      jwt.setUserJwt(alice);
       rejectCurrent();
-      jwt.setUserJwt('jwt-a');
+      jwt.setUserJwt(alice);
       rejectCurrent();
       rejectCurrent();
 
       expect(mockDispatch).toHaveBeenCalledTimes(1);
       expect(jwt.isQueuePausedByUserJwtRejection()).toBe(true);
 
-      jwt.setUserJwt('jwt-b');
+      jwt.setUserJwt(jwtFor('cio_a'));
       rejectCurrent({ reason: 'bad_signature' });
 
       expect(mockDispatch).toHaveBeenCalledTimes(2);
@@ -175,9 +213,9 @@ describe('user-jwt-manager', () => {
     });
 
     it('ignores the answer to a JWT this tab has since replaced', () => {
-      jwt.setUserJwt('jwt-a');
+      jwt.setUserJwt(jwtFor('cio_a'));
       const sentWith = jwt.getRequestIdentity();
-      jwt.setUserJwt('jwt-b');
+      jwt.setUserJwt(jwtFor('cio_a'));
 
       expect(jwt.handleUserJwtRejection(rejection(EXPIRED), sentWith)).toBe(false);
       expect(jwt.isQueuePausedByUserJwtRejection()).toBe(false);
@@ -185,9 +223,9 @@ describe('user-jwt-manager', () => {
     });
 
     it('ignores the answer to a user this tab has since left', () => {
-      jwt.setUserJwt('jwt-a');
       const sentWith = jwt.getRequestIdentity();
-      currentUserToken = 'user-2';
+      jwt.applyUserTokenChange('switched');
+      holdUserToken('user-2');
 
       expect(jwt.handleUserJwtRejection(rejection(EXPIRED), sentWith)).toBe(false);
       expect(jwt.isQueuePausedByUserJwtRejection()).toBe(false);
@@ -195,12 +233,13 @@ describe('user-jwt-manager', () => {
     });
 
     it('lets a listener that hands over a new JWT lift the pause', () => {
-      jwt.setUserJwt('jwt-a');
-      mockDispatch.mockImplementationOnce(() => jwt.setUserJwt('jwt-b'));
+      jwt.setUserJwt(jwtFor('cio_a'));
+      const renewed = jwtFor('cio_a');
+      mockDispatch.mockImplementationOnce(() => jwt.setUserJwt(renewed));
 
       rejectCurrent();
 
-      expect(jwt.getUserJwt()).toBe('jwt-b');
+      expect(storedUserJwt()).toBe(renewed);
       expect(jwt.isQueuePausedByUserJwtRejection()).toBe(false);
       expect(jwt.isQueueFetchRequested()).toBe(true);
     });
@@ -208,43 +247,61 @@ describe('user-jwt-manager', () => {
 
   describe('the fetch setUserJwt asks for, after a rejection', () => {
     it('is never held without a rejection', () => {
-      jwt.setUserJwt('jwt-a');
+      jwt.setUserJwt(jwtFor('cio_a'));
       jwt.markQueueFetchSent(0);
-      jwt.setUserJwt('jwt-b');
+      jwt.setUserJwt(jwtFor('cio_a'));
 
       expect(jwt.isRequestedQueueFetchHeld(10, 1)).toBe(false);
     });
 
     it('goes straight away the first time, then once per polling interval', () => {
-      jwt.setUserJwt('jwt-a');
+      jwt.setUserJwt(jwtFor('cio_a'));
       jwt.markQueueFetchSent(0);
       rejectCurrent();
 
-      jwt.setUserJwt('jwt-b');
+      jwt.setUserJwt(jwtFor('cio_a'));
       expect(jwt.isRequestedQueueFetchHeld(10, 500)).toBe(false);
       jwt.markQueueFetchSent(1_000);
       rejectCurrent();
 
-      jwt.setUserJwt('jwt-c');
+      jwt.setUserJwt(jwtFor('cio_a'));
       expect(jwt.isRequestedQueueFetchHeld(10, 1_500)).toBe(true);
       expect(jwt.isRequestedQueueFetchHeld(10, 10_999)).toBe(true);
       expect(jwt.isRequestedQueueFetchHeld(10, 11_000)).toBe(false);
     });
 
     it('is free again once a queue fetch succeeds', () => {
-      jwt.setUserJwt('jwt-a');
+      jwt.setUserJwt(jwtFor('cio_a'));
       rejectCurrent();
-      jwt.setUserJwt('jwt-b');
+      jwt.setUserJwt(jwtFor('cio_a'));
       jwt.markQueueFetchSent(1_000);
       jwt.markQueueFetchSucceeded();
 
-      jwt.setUserJwt('jwt-c');
+      jwt.setUserJwt(jwtFor('cio_a'));
 
       expect(jwt.isRequestedQueueFetchHeld(10, 2_000)).toBe(false);
     });
 
+    it('is free again once a JWT names someone else', () => {
+      jwt.setUserJwt(jwtFor('cio_a'));
+      jwt.markQueueFetchSent(0);
+      rejectCurrent();
+      jwt.setUserJwt(jwtFor('cio_a'));
+      jwt.markQueueFetchSent(1_000);
+      rejectCurrent();
+      mockDispatch.mockClear();
+
+      jwt.setUserJwt(jwtFor('cio_b'));
+      jwt.markQueueFetchSent(1_500);
+      rejectCurrent();
+      jwt.setUserJwt(jwtFor('cio_b'));
+
+      expect(jwt.isRequestedQueueFetchHeld(10, 2_000)).toBe(false);
+      expect(mockDispatch).toHaveBeenCalledTimes(1);
+    });
+
     it('is consumed by the fetch that carries it', () => {
-      jwt.setUserJwt('jwt-a');
+      jwt.setUserJwt(jwtFor('cio_a'));
       jwt.markQueueFetchSent(0);
 
       expect(jwt.isQueueFetchRequested()).toBe(false);
@@ -252,283 +309,180 @@ describe('user-jwt-manager', () => {
   });
 
   describe('applyUserTokenChange', () => {
-    function rejectAndPause(): void {
-      jwt.setUserJwt('jwt-a');
+    function rejectTwice(jwtValue: string): void {
+      jwt.setUserJwt(jwtValue);
       jwt.markQueueFetchSent(0);
       rejectCurrent();
-      jwt.setUserJwt('jwt-a');
+      jwt.setUserJwt(jwtValue);
       jwt.markQueueFetchSent(1_000);
       rejectCurrent();
       mockDispatch.mockClear();
     }
 
     it('setting the token already held keeps the JWT, the pause and the count', () => {
-      rejectAndPause();
+      const opaque = 'opaque-jwt';
+      rejectTwice(opaque);
 
       jwt.applyUserTokenChange('unchanged');
 
-      expect(jwt.getUserJwt()).toBe('jwt-a');
+      expect(storedUserJwt()).toBe(opaque);
       expect(jwt.isQueuePausedByUserJwtRejection()).toBe(true);
       rejectCurrent();
       expect(mockDispatch).not.toHaveBeenCalled();
     });
 
-    it('switching to another identified user drops the JWT, lifts the pause and starts the count over', () => {
-      rejectAndPause();
+    it.each(['signedIn', 'switched', 'cleared'] as const)(
+      '%s drops a JWT that names nobody, lifts the pause and starts the count over',
+      (change) => {
+        const opaque = 'opaque-jwt';
+        rejectTwice(opaque);
 
-      jwt.applyUserTokenChange('switched');
+        jwt.applyUserTokenChange(change);
 
-      expect(jwt.getUserJwt()).toBeNull();
-      expect(storedUserJwt()).toBeNull();
-      expect(jwt.isQueuePausedByUserJwtRejection()).toBe(false);
-      jwt.setUserJwt('jwt-a');
-      expect(jwt.isRequestedQueueFetchHeld(10, 1_500)).toBe(false);
-      rejectCurrent();
-      expect(mockDispatch).toHaveBeenCalledTimes(1);
-    });
-
-    it('signing in from no token keeps a JWT handed over before it, also through a guest session', () => {
-      currentUserToken = null;
-      jwt.setUserJwt('jwt-a');
-      currentUserToken = 'guest-1';
-      currentIsGuest = true;
-      jwt.noteUserTokenAtStartup();
-      currentUserToken = 'user-1';
-      currentIsGuest = false;
-
-      jwt.applyUserTokenChange('signedIn', 'guest-1');
-
-      expect(jwt.getUserJwt()).toBe('jwt-a');
-      expect(storedUserJwt()).toEqual({ jwt: 'jwt-a', userToken: 'user-1' });
-    });
-
-    it('signing in from the guest token keeps the JWT for the new user, lifts the pause and starts the count over', () => {
-      currentUserToken = 'guest-1';
-      currentIsGuest = true;
-      rejectAndPause();
-      currentUserToken = 'user-1';
-      currentIsGuest = false;
-
-      jwt.applyUserTokenChange('signedIn', 'guest-1');
-
-      expect(jwt.getUserJwt()).toBe('jwt-a');
-      expect(storedUserJwt()).toEqual({ jwt: 'jwt-a', userToken: 'user-1' });
-      expect(jwt.isQueuePausedByUserJwtRejection()).toBe(false);
-      rejectCurrent();
-      expect(mockDispatch).toHaveBeenCalledTimes(1);
-    });
-
-    it('signing in drops a JWT stored for someone else', () => {
-      currentUserToken = 'user-9';
-      jwt.setUserJwt('jwt-a');
-      currentUserToken = 'user-1';
-
-      jwt.applyUserTokenChange('signedIn', null);
-
-      expect(jwt.getUserJwt()).toBeNull();
-      expect(storedUserJwt()).toBeNull();
-    });
-
-    it('signing out drops the JWT, lifts the pause and starts the count over', () => {
-      rejectAndPause();
-
-      jwt.applyUserTokenChange('cleared');
-
-      expect(jwt.getUserJwt()).toBeNull();
-      expect(storedUserJwt()).toBeNull();
-      expect(jwt.isQueuePausedByUserJwtRejection()).toBe(false);
-      jwt.setUserJwt('jwt-a');
-      rejectCurrent();
-      expect(mockDispatch).toHaveBeenCalledTimes(1);
-    });
+        expect(storedUserJwt()).toBeNull();
+        expect(jwt.isQueuePausedByUserJwtRejection()).toBe(false);
+        expect(jwt.isRequestedQueueFetchHeld(10, 1_500)).toBe(false);
+        jwt.setUserJwt(opaque);
+        rejectCurrent();
+        expect(mockDispatch).toHaveBeenCalledTimes(1);
+      }
+    );
   });
 
-  // Every tab shares the stored JWT and the user token; the pause is this tab's.
+  // Every tab shares the stored JWT and the user it names; the pause is this tab's.
   describe('other tabs', () => {
-    it('uses a JWT another tab stored for the current user', () => {
-      storeAsAnotherTab('jwt-b', 'user-1');
+    it('uses the JWT another tab stored, and the person it names', () => {
+      const bob = jwtFor('cio_b');
 
-      expect(jwt.getUserJwt()).toBe('jwt-b');
-    });
+      storeAsAnotherTab(bob);
 
-    it('sends no JWT once another tab has switched to someone else', () => {
-      jwt.setUserJwt('jwt-a');
-
-      currentUserToken = 'user-2';
-
-      expect(jwt.getRequestIdentity()).toEqual({ userToken: 'user-2', userJwt: null });
+      expect(jwt.getRequestIdentity()).toEqual({ userToken: 'cio_b', userJwt: bob });
     });
 
     it('stays paused while storage holds the rejected JWT', () => {
-      jwt.setUserJwt('jwt-a');
+      const alice = jwtFor('cio_a');
+      jwt.setUserJwt(alice);
       rejectCurrent();
 
-      storeAsAnotherTab('jwt-a', 'user-1');
+      storeAsAnotherTab(alice);
 
       expect(jwt.isQueuePausedByUserJwtRejection()).toBe(true);
     });
 
     it('lifts the pause when another tab stores a different JWT', () => {
-      jwt.setUserJwt('jwt-a');
+      jwt.setUserJwt(jwtFor('cio_a'));
       rejectCurrent();
 
-      storeAsAnotherTab('jwt-b', 'user-1');
+      storeAsAnotherTab(jwtFor('cio_a'));
 
       expect(jwt.isQueuePausedByUserJwtRejection()).toBe(false);
     });
 
-    it('lifts the pause when another tab switches to someone else', () => {
-      jwt.setUserJwt('jwt-a');
-      rejectCurrent();
+    it('lifts the pause when another tab changes the user', () => {
+      rejectCurrent({ reason: 'missing' });
 
-      currentUserToken = 'user-2';
+      holdUserToken('user-2');
 
       expect(jwt.isQueuePausedByUserJwtRejection()).toBe(false);
     });
 
     it('keeps a pause to the tab whose JWT was rejected', async () => {
+      const alice = jwtFor('cio_a');
       const otherTab = await openAnotherTab();
-      jwt.setUserJwt('jwt-a');
+      jwt.setUserJwt(alice);
 
       rejectCurrent();
 
       expect(jwt.isQueuePausedByUserJwtRejection()).toBe(true);
       expect(otherTab.isQueuePausedByUserJwtRejection()).toBe(false);
-      expect(otherTab.getUserJwt()).toBe('jwt-a');
+      expect(otherTab.getRequestIdentity()).toEqual({ userToken: 'cio_a', userJwt: alice });
     });
 
-    it("ignores a JWT from a tab whose app hasn't seen another tab's switch of user", async () => {
-      const otherTab = await openAnotherTab();
-      jwt.setUserJwt('jwt-1');
+    it('ignores a JWT this page handed over before, once another tab stored a newer one for the same person', () => {
+      const older = jwtFor('cio_a');
+      jwt.setUserJwt(older);
+      const newer = jwtFor('cio_a');
+      storeAsAnotherTab(newer);
 
-      currentUserToken = 'user-2';
-      otherTab.applyUserTokenChange('switched', 'user-1');
-      otherTab.setUserJwt('jwt-2');
-      jwt.setUserJwt('jwt-1');
+      expect(jwt.setUserJwt(older)).toBe(false);
 
-      expect(storedUserJwt()).toEqual({ jwt: 'jwt-2', userToken: 'user-2' });
-      expect(jwt.getRequestIdentity()).toEqual({ userToken: 'user-2', userJwt: 'jwt-2' });
+      expect(storedUserJwt()).toBe(newer);
     });
 
-    // Data Pipelines JS passes on the user storage holds, so a stale tab's own
-    // identify() sets the other tab's user here without its app knowing them.
-    it("doesn't take a JWT after a setUserToken with the token storage already holds", () => {
-      jwt.setUserJwt('jwt-1');
-      currentUserToken = 'user-2';
+    it("ignores the previous person's JWT from a page whose app hasn't seen another tab sign someone else in", () => {
+      const alice = jwtFor('cio_a');
+      jwt.setUserJwt(alice);
+      const bob = jwtFor('cio_b');
+      storeAsAnotherTab(bob);
+
+      jwt.setUserJwt(alice);
+
+      expect(jwt.getRequestIdentity()).toEqual({ userToken: 'cio_b', userJwt: bob });
+    });
+
+    it("doesn't sign the previous person back in after another tab signed them out", () => {
+      const alice = jwtFor('cio_a');
+      jwt.setUserJwt(alice);
       localStorage.removeItem(USER_JWT_KEY);
+      localStorage.removeItem(USER_TOKEN_KEY);
 
-      jwt.applyUserTokenChange('unchanged');
-      jwt.setUserJwt('jwt-1');
+      jwt.setUserJwt(alice);
 
       expect(storedUserJwt()).toBeNull();
+      expect(jwt.getRequestIdentity()).toEqual({ userToken: null, userJwt: null });
+    });
+
+    it('takes a JWT this page has not handed over before, whoever another tab signed in', () => {
+      jwt.setUserJwt(jwtFor('cio_a'));
+      storeAsAnotherTab(jwtFor('cio_b'));
+      const carol = jwtFor('cio_c');
+
+      expect(jwt.setUserJwt(carol)).toBe(true);
+
+      expect(jwt.getRequestIdentity()).toEqual({ userToken: 'cio_c', userJwt: carol });
+    });
+
+    it("leaves another tab's JWT in place when a page hands over null", async () => {
+      const bob = jwtFor('cio_b');
+      jwt.setUserJwt(jwtFor('cio_a'));
+      storeAsAnotherTab(bob);
+      const freshPage = await openAnotherTab();
+
+      jwt.setUserJwt(null);
+      freshPage.setUserJwt(null);
+
+      expect(storedUserJwt()).toBe(bob);
+    });
+
+    it('lets a page hand over again a JWT it handed over before its own clear or change of user', () => {
+      const alice = jwtFor('cio_a');
+      jwt.setUserJwt(alice);
+      jwt.setUserJwt(null);
+
+      jwt.setUserJwt(alice);
+      expect(storedUserJwt()).toBe(alice);
+
+      jwt.applyUserTokenChange('cleared');
+      localStorage.removeItem(USER_JWT_KEY);
+      jwt.setUserJwt(alice);
+      expect(storedUserJwt()).toBe(alice);
     });
 
     it('takes a JWT again after a reload', async () => {
-      jwt.setUserJwt('jwt-1');
-      currentUserToken = 'user-2';
+      const alice = jwtFor('cio_a');
+      jwt.setUserJwt(alice);
+      storeAsAnotherTab(jwtFor('cio_b'));
 
       const reloaded = await openAnotherTab();
-      reloaded.setUserJwt('jwt-2');
+      reloaded.setUserJwt(alice);
 
-      expect(storedUserJwt()).toEqual({ jwt: 'jwt-2', userToken: 'user-2' });
-    });
-
-    it('lets a page that was signed out take a JWT for the person another window signed in', () => {
-      currentUserToken = null;
-      jwt.noteUserTokenAtStartup();
-
-      currentUserToken = 'user-1';
-      jwt.setUserJwt('jwt-1');
-
-      expect(storedUserJwt()).toEqual({ jwt: 'jwt-1', userToken: 'user-1' });
-    });
-
-    it('lets a guest page take a JWT for the person another tab signed in', () => {
-      currentUserToken = 'guest-1';
-      currentIsGuest = true;
-      jwt.noteUserTokenAtStartup();
-
-      currentUserToken = 'user-1';
-      currentIsGuest = false;
-      jwt.setUserJwt('jwt-1');
-
-      expect(storedUserJwt()).toEqual({ jwt: 'jwt-1', userToken: 'user-1' });
-    });
-
-    it('treats a preview session as signed out, so the page takes a JWT once the preview ends', async () => {
-      const Gist = (await import('../gist')).default as unknown as {
-        config?: { isPreviewSession?: boolean };
-      };
-      try {
-        // setupPreview() sets the preview token before setup marks the page as a preview.
-        currentUserToken = 'preview-session-1';
-        jwt.applyUserTokenChange('signedIn', null);
-        Gist.config = { isPreviewSession: true };
-
-        // The session ends with the tab kept open: storage holds the visitor's token again.
-        currentUserToken = 'user-1';
-        jwt.setUserJwt('jwt-1');
-
-        expect(storedUserJwt()).toEqual({ jwt: 'jwt-1', userToken: 'user-1' });
-      } finally {
-        // The mocked Gist outlives vi.resetModules(), so later tests mustn't see a preview.
-        delete Gist.config;
-      }
-    });
-
-    it("leaves another tab's JWT alone when a signed-out page hands over null", () => {
-      currentUserToken = 'guest-1';
-      currentIsGuest = true;
-      jwt.noteUserTokenAtStartup();
-      currentUserToken = 'user-1';
-      currentIsGuest = false;
-      storeAsAnotherTab('jwt-1', 'user-1');
-
-      jwt.setUserJwt(null);
-      jwt.setUserJwt(null);
-
-      expect(storedUserJwt()).toEqual({ jwt: 'jwt-1', userToken: 'user-1' });
-    });
-
-    it("doesn't let a signed-out page that already handed over a JWT adopt another tab's user", () => {
-      currentUserToken = 'guest-1';
-      currentIsGuest = true;
-      jwt.noteUserTokenAtStartup();
-      jwt.setUserJwt('jwt-kept-from-before');
-
-      currentUserToken = 'user-2';
-      currentIsGuest = false;
-      jwt.setUserJwt('jwt-kept-from-before');
-
-      expect(storedUserJwt()).toEqual({ jwt: 'jwt-kept-from-before', userToken: 'guest-1' });
-      expect(jwt.getUserJwt()).toBeNull();
-    });
-
-    it('keeps the user a setUserJwt before setup recorded, though another tab switched before setup', () => {
-      jwt.setUserJwt('jwt-1');
-      currentUserToken = 'user-2';
-
-      jwt.noteUserTokenAtStartup();
-      jwt.setUserJwt('jwt-1b');
-
-      expect(storedUserJwt()).toEqual({ jwt: 'jwt-1', userToken: 'user-1' });
-    });
-
-    it("pauses a stale tab on a rejection without asking its app, which couldn't answer", () => {
-      jwt.setUserJwt('jwt-1');
-      currentUserToken = 'user-2';
-      storeAsAnotherTab('jwt-2', 'user-2');
-
-      expect(rejectCurrent()).toBe(true);
-
-      expect(jwt.isQueuePausedByUserJwtRejection()).toBe(true);
-      expect(mockDispatch).not.toHaveBeenCalled();
+      expect(storedUserJwt()).toBe(alice);
     });
 
     it('ignores the answer to a JWT another tab replaced while the request was out', () => {
-      jwt.setUserJwt('jwt-a');
+      jwt.setUserJwt(jwtFor('cio_a'));
       const sentWith = jwt.getRequestIdentity();
-      storeAsAnotherTab('jwt-b', 'user-1');
+      storeAsAnotherTab(jwtFor('cio_a'));
 
       expect(jwt.handleUserJwtRejection(rejection(EXPIRED), sentWith)).toBe(false);
       expect(jwt.isQueuePausedByUserJwtRejection()).toBe(false);

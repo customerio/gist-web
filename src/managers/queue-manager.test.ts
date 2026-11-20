@@ -26,10 +26,18 @@ import Gist from '../gist';
 import type { GistMessage } from '../types';
 
 vi.mock('../utilities/log', () => ({ log: vi.fn() }));
+const storedUserJwt = vi.hoisted(() => ({ value: null as string | null }));
 vi.mock('./user-manager', () => ({
   getUserToken: vi.fn(() => 'test-token'),
   isUsingGuestUserToken: vi.fn(() => false),
   isAnonymousUser: vi.fn(() => false),
+  getUserJwt: vi.fn(() => storedUserJwt.value),
+  storeUserJwt: vi.fn((jwt: string) => {
+    storedUserJwt.value = jwt;
+  }),
+  clearUserJwt: vi.fn(() => {
+    storedUserJwt.value = null;
+  }),
 }));
 vi.mock('../services/queue-service', () => ({
   getUserQueue: vi.fn(),

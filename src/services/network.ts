@@ -1,7 +1,6 @@
 import Gist from '../gist';
 import { settings } from './settings';
-import { getEncodedUserToken } from '../managers/user-manager';
-import { getUserJwt } from '../managers/user-jwt-manager';
+import { getEncodedUserToken, getUserJwt } from '../managers/user-manager';
 
 export interface NetworkResponse {
   status: number;

@@ -10,12 +10,11 @@ import {
   setKeyToLocalStore,
   shouldPersistSession,
 } from '../utilities/local-storage';
-import { getEncodedUserToken, getUserToken } from '../managers/user-manager';
+import { getEncodedUserToken, getUserToken, getUserJwt } from '../managers/user-manager';
 import { processInboxConfig } from '../managers/inbox-config-manager';
 import Gist from '../gist';
 import {
   applyUserTokenChange,
-  getUserJwt,
   isQueuePausedByUserJwtRejection,
   markQueueFetchSent,
   setUserJwt,
@@ -44,10 +43,18 @@ vi.mock('./network', async (importOriginal) => {
 
 vi.mock('../utilities/log', () => ({ log: vi.fn() }));
 
+const storedUserJwt = vi.hoisted(() => ({ value: null as string | null }));
 vi.mock('../managers/user-manager', () => ({
   isUsingGuestUserToken: vi.fn(() => false),
   getEncodedUserToken: vi.fn(() => null),
   getUserToken: vi.fn(() => null),
+  getUserJwt: vi.fn(() => storedUserJwt.value),
+  storeUserJwt: vi.fn((jwt: string) => {
+    storedUserJwt.value = jwt;
+  }),
+  clearUserJwt: vi.fn(() => {
+    storedUserJwt.value = null;
+  }),
 }));
 
 vi.mock('../managers/locale-manager', () => ({

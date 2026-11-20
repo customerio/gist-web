@@ -6,10 +6,14 @@ import {
   clearKeyFromLocalStore,
 } from '../utilities/local-storage';
 import { log } from '../utilities/log';
-import { isUsingGuestUserToken, getEncodedUserToken, getUserToken } from '../managers/user-manager';
+import {
+  isUsingGuestUserToken,
+  getEncodedUserToken,
+  getUserToken,
+  getUserJwt,
+} from '../managers/user-manager';
 import {
   getRequestIdentity,
-  getUserJwt,
   handleUserJwtRejection,
   markQueueFetchSent,
   markQueueFetchSucceeded,
