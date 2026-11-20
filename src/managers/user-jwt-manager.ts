@@ -25,9 +25,9 @@ export interface RequestIdentity {
 // tabs alone.
 
 // The JWTs this page's app has handed over, and the stored JWT this page left
-// last: the one it handed over, or none after it cleared the JWT or the user.
-// Once another tab has changed the stored JWT, this page can bring only a JWT it
-// hasn't handed over before. So an app that still holds an older JWT can't undo
+// last: the one it handed over, also when it found that one stored already, or
+// none after it cleared the JWT or the user. Once another tab has changed the
+// stored JWT, this page can bring only a JWT it hasn't handed over before. So an app that still holds an older JWT can't undo
 // a newer one another tab stored, for the same person or someone else, or sign
 // the previous person back in after another tab signed them out, and its null
 // can't take the JWT away from whoever another tab signed in.
@@ -77,6 +77,12 @@ export function setUserJwt(jwt: string | null): boolean {
     );
     return false;
   }
+  // Recorded before the check below: a page's app hands over its JWT on every
+  // load, and mostly finds it stored already.
+  if (next !== null) {
+    handedOverHere.add(next);
+  }
+  lastStoredHere = next;
   // Handing over again the JWT in use changes nothing unless a rejection paused
   // the queue, so a site can call this as often as it likes without extra fetches.
   if (next === getUserJwt() && !queuePaused) {
@@ -89,9 +95,7 @@ export function setUserJwt(jwt: string | null): boolean {
     clearUserJwt();
   } else {
     storeUserJwt(next);
-    handedOverHere.add(next);
   }
-  lastStoredHere = next;
   const userChanged = getUserToken() !== previousUserToken;
   if (userChanged) {
     startOverForNewUser();

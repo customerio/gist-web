@@ -323,6 +323,23 @@ describe('the user JWT, end to end', () => {
       expect(userTokenSent(lastQueueCall())).toBe(BOB);
     });
 
+    it("ignores the previous person's JWT from a page whose app first handed over the JWT it found stored", async () => {
+      const alice = jwtFor(ALICE);
+      await storeJwtElsewhere(alice);
+      await setup();
+      await advance(100);
+      // This page's app hands over its JWT on load, as on every page.
+      await Gist.setUserJwt(alice);
+
+      const bob = jwtFor(BOB);
+      await storeJwtElsewhere(bob);
+      await Gist.setUserJwt(alice);
+      await advance(11_000);
+
+      expect(jwtSent(lastQueueCall())).toBe(bob);
+      expect(userTokenSent(lastQueueCall())).toBe(BOB);
+    });
+
     it('keeps the newer JWT another tab stored for the same person', async () => {
       const older = jwtFor(ALICE);
       void Gist.setUserJwt(older);

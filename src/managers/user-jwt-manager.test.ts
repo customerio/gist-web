@@ -468,6 +468,23 @@ describe('user-jwt-manager', () => {
       expect(storedUserJwt()).toBe(alice);
     });
 
+    // An app hands over its JWT on every page load, so a reloaded page mostly finds
+    // it stored already.
+    it('counts a JWT a page finds stored and hands over again as its own', async () => {
+      const alice = jwtFor('cio_a');
+      jwt.setUserJwt(alice);
+      const reloaded = await openAnotherTab();
+      reloaded.setUserJwt(alice);
+      storeAsAnotherTab(jwtFor('cio_b'));
+
+      reloaded.setUserJwt(alice);
+      expect(storedUserJwt()).not.toBe(alice);
+
+      localStorage.removeItem(USER_JWT_KEY);
+      reloaded.setUserJwt(alice);
+      expect(storedUserJwt()).toBeNull();
+    });
+
     it('takes a JWT again after a reload', async () => {
       const alice = jwtFor('cio_a');
       jwt.setUserJwt(alice);
