@@ -27,6 +27,7 @@ vi.mock('./settings', () => ({
 vi.mock('../managers/user-manager', () => ({
   getEncodedUserToken: vi.fn(() => null),
   getUserToken: vi.fn(() => null),
+  isUsingGuestUserToken: vi.fn(() => false),
 }));
 
 describe('network', () => {

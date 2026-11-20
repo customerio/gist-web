@@ -196,6 +196,48 @@ describe('the user JWT, end to end', () => {
       expect(jwtSent(queueCalls()[queueCalls().length - 1])).toBe('jwt-2');
     });
 
+    it("ignores this tab's JWT after its own identify passes on another tab's user", async () => {
+      Gist.setUserJwt('jwt-1');
+      await setup();
+      await advance(100);
+
+      // Another tab signs user-2 in; this tab's Data Pipelines JS passes the shared user on.
+      await holdUserToken('user-2');
+      await Gist.setUserToken('user-2');
+      Gist.setUserJwt('jwt-1');
+      await advance(11_000);
+
+      expect(jwtSent(queueCalls()[queueCalls().length - 1])).toBeUndefined();
+    });
+
+    it('takes a JWT on a signed-out page once another window signs someone in', async () => {
+      localStorage.clear();
+      await setup();
+      await advance(100);
+      expect(queueCalls()).toHaveLength(0);
+
+      // A sign-in popup signs user-1 in. This page's login handler hands over the JWT,
+      // then its identify() reaches gist-web with the user the popup stored.
+      await holdUserToken('user-1');
+      Gist.setUserJwt('jwt-1');
+      await Gist.setUserToken('user-1');
+      await advance(1_000);
+
+      expect(queueCalls().length).toBeGreaterThan(0);
+      expect(jwtSent(queueCalls()[0])).toBe('jwt-1');
+    });
+
+    it('keeps the user a setUserJwt before setup recorded, though another tab switched before setup', async () => {
+      Gist.setUserJwt('jwt-1');
+      await holdUserToken('user-2');
+      await setup();
+      Gist.setUserJwt('jwt-1b');
+      await advance(1_000);
+
+      expect(queueCalls().length).toBeGreaterThan(0);
+      for (const call of queueCalls()) expect(jwtSent(call)).toBeUndefined();
+    });
+
     it("ignores a page's first JWT when another tab signed someone else in after the page loaded", async () => {
       await setup();
       await advance(100);

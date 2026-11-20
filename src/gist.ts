@@ -16,7 +16,7 @@ import {
 import {
   setUserJwt,
   applyUserTokenChange,
-  noteUserTokenAppliedHere,
+  noteUserTokenAtStartup,
 } from './managers/user-jwt-manager';
 import {
   showMessage,
@@ -148,8 +148,8 @@ export default class Gist {
     ) {
       useGuestSession();
     }
-    // The user this page starts with; a setUserJwt for anyone else is ignored.
-    noteUserTokenAppliedHere();
+    // The user this page starts with, unless a setUserJwt before setup recorded one.
+    noteUserTokenAtStartup();
 
     await startQueueListener();
 
@@ -250,7 +250,6 @@ export default class Gist {
     destroyInbox();
     if (this.config.useAnonymousSession) {
       useGuestSession();
-      noteUserTokenAppliedHere();
     }
     stopSSEListener(true);
     await startQueueListener();

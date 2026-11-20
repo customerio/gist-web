@@ -4,10 +4,14 @@ import { setKeyToLocalStore, shouldPersistSession } from '../utilities/local-sto
 
 const mockDispatch = vi.fn();
 let currentUserToken: string | null = 'user-1';
+let currentIsGuest = false;
 
 vi.mock('../gist', () => ({ default: { events: { dispatch: mockDispatch } } }));
 vi.mock('../utilities/log', () => ({ log: vi.fn() }));
-vi.mock('./user-manager', () => ({ getUserToken: vi.fn(() => currentUserToken) }));
+vi.mock('./user-manager', () => ({
+  getUserToken: vi.fn(() => currentUserToken),
+  isUsingGuestUserToken: vi.fn(() => currentIsGuest),
+}));
 
 type UserJwtManager = typeof import('./user-jwt-manager');
 let jwt: UserJwtManager;
@@ -46,6 +50,7 @@ describe('user-jwt-manager', () => {
     vi.clearAllMocks();
     vi.resetModules();
     currentUserToken = 'user-1';
+    currentIsGuest = false;
     localStorage.clear();
     sessionStorage.clear();
     jwt = await import('./user-jwt-manager');
@@ -286,8 +291,10 @@ describe('user-jwt-manager', () => {
       currentUserToken = null;
       jwt.setUserJwt('jwt-a');
       currentUserToken = 'guest-1';
-      jwt.noteUserTokenAppliedHere();
+      currentIsGuest = true;
+      jwt.noteUserTokenAtStartup();
       currentUserToken = 'user-1';
+      currentIsGuest = false;
 
       jwt.applyUserTokenChange('signedIn', 'guest-1');
 
@@ -297,8 +304,10 @@ describe('user-jwt-manager', () => {
 
     it('signing in from the guest token keeps the JWT for the new user, lifts the pause and starts the count over', () => {
       currentUserToken = 'guest-1';
+      currentIsGuest = true;
       rejectAndPause();
       currentUserToken = 'user-1';
+      currentIsGuest = false;
 
       jwt.applyUserTokenChange('signedIn', 'guest-1');
 
@@ -401,16 +410,85 @@ describe('user-jwt-manager', () => {
       expect(jwt.getRequestIdentity()).toEqual({ userToken: 'user-2', userJwt: 'jwt-2' });
     });
 
-    it('takes a JWT again once this tab applies the new user itself', () => {
+    // Data Pipelines JS passes on the user storage holds, so a stale tab's own
+    // identify() sets the other tab's user here without its app knowing them.
+    it("doesn't take a JWT after a setUserToken with the token storage already holds", () => {
       jwt.setUserJwt('jwt-1');
       currentUserToken = 'user-2';
-      jwt.setUserJwt('jwt-1');
-      expect(jwt.getUserJwt()).toBeNull();
+      localStorage.removeItem(USER_JWT_KEY);
 
       jwt.applyUserTokenChange('unchanged');
-      jwt.setUserJwt('jwt-2');
+      jwt.setUserJwt('jwt-1');
+
+      expect(storedUserJwt()).toBeNull();
+    });
+
+    it('takes a JWT again after a reload', async () => {
+      jwt.setUserJwt('jwt-1');
+      currentUserToken = 'user-2';
+
+      const reloaded = await openAnotherTab();
+      reloaded.setUserJwt('jwt-2');
 
       expect(storedUserJwt()).toEqual({ jwt: 'jwt-2', userToken: 'user-2' });
+    });
+
+    it('lets a page that was signed out take a JWT for the person another window signed in', () => {
+      currentUserToken = null;
+      jwt.noteUserTokenAtStartup();
+
+      currentUserToken = 'user-1';
+      jwt.setUserJwt('jwt-1');
+
+      expect(storedUserJwt()).toEqual({ jwt: 'jwt-1', userToken: 'user-1' });
+    });
+
+    it('lets a guest page take a JWT for the person another tab signed in', () => {
+      currentUserToken = 'guest-1';
+      currentIsGuest = true;
+      jwt.noteUserTokenAtStartup();
+
+      currentUserToken = 'user-1';
+      currentIsGuest = false;
+      jwt.setUserJwt('jwt-1');
+
+      expect(storedUserJwt()).toEqual({ jwt: 'jwt-1', userToken: 'user-1' });
+    });
+
+    it('treats a preview session as signed out, so the page takes a JWT once the preview ends', async () => {
+      const Gist = (await import('../gist')).default as unknown as {
+        config?: { isPreviewSession?: boolean };
+      };
+      currentUserToken = 'preview-session-1';
+      Gist.config = { isPreviewSession: true };
+      jwt.noteUserTokenAtStartup();
+
+      Gist.config = { isPreviewSession: false };
+      currentUserToken = 'user-1';
+      jwt.setUserJwt('jwt-1');
+
+      expect(storedUserJwt()).toEqual({ jwt: 'jwt-1', userToken: 'user-1' });
+    });
+
+    it('keeps the user a setUserJwt before setup recorded, though another tab switched before setup', () => {
+      jwt.setUserJwt('jwt-1');
+      currentUserToken = 'user-2';
+
+      jwt.noteUserTokenAtStartup();
+      jwt.setUserJwt('jwt-1b');
+
+      expect(storedUserJwt()).toEqual({ jwt: 'jwt-1', userToken: 'user-1' });
+    });
+
+    it("pauses a stale tab on a rejection without asking its app, which couldn't answer", () => {
+      jwt.setUserJwt('jwt-1');
+      currentUserToken = 'user-2';
+      storeAsAnotherTab('jwt-2', 'user-2');
+
+      expect(rejectCurrent()).toBe(true);
+
+      expect(jwt.isQueuePausedByUserJwtRejection()).toBe(true);
+      expect(mockDispatch).not.toHaveBeenCalled();
     });
 
     it('ignores the answer to a JWT another tab replaced while the request was out', () => {

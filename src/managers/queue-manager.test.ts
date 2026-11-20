@@ -28,6 +28,7 @@ import type { GistMessage } from '../types';
 vi.mock('../utilities/log', () => ({ log: vi.fn() }));
 vi.mock('./user-manager', () => ({
   getUserToken: vi.fn(() => 'test-token'),
+  isUsingGuestUserToken: vi.fn(() => false),
   isAnonymousUser: vi.fn(() => false),
 }));
 vi.mock('../services/queue-service', () => ({

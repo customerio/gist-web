@@ -30,6 +30,7 @@ vi.mock('./managers/user-manager', () => ({
   setUserToken: vi.fn(),
   clearUserToken: vi.fn(),
   getUserToken: vi.fn(() => null),
+  isUsingGuestUserToken: vi.fn(() => false),
   useGuestSession: vi.fn(),
 }));
 vi.mock('./managers/message-manager', () => ({
