@@ -10,34 +10,117 @@ import { userQueueNextPullCheckLocalStoreName } from '../services/queue-service'
 const userTokenLocalStoreName = 'gist.web.userToken';
 const usingGuestUserTokenLocalStoreName = 'gist.web.usingGuestUserToken';
 const guestUserTokenLocalStoreName = 'gist.web.guestUserToken';
+// The JWT the site handed over last, exactly as it was handed over (see
+// user-jwt-manager). Every tab and later page load shares it, as they share the
+// user token. It never reaches a URL, a log line or the debug overlay.
+const userJwtLocalStoreName = 'gist.web.userJwt';
 const defaultExpiryInDays = 30;
 
-export function isUsingGuestUserToken(): boolean {
-  return getKeyFromLocalStore(usingGuestUserTokenLocalStoreName) !== null;
+// The user token goes in a header as btoa() of it, which takes no character
+// above U+00FF.
+function fitsUserTokenHeader(value: string): boolean {
+  for (let i = 0; i < value.length; i += 1) {
+    if (value.charCodeAt(i) > 0xff) return false;
+  }
+  return true;
 }
 
-export function getUserToken(): string | null {
+/**
+ * The `sub` of a JWT's payload, which names the person the JWT was signed for.
+ * Null when the payload can't be read, has no sub, or has one the user-token
+ * header can't carry; such a JWT names nobody, and Gist rejects it. Nothing is
+ * verified here: Gist does that.
+ */
+export function readUserJwtSubject(jwt: string): string | null {
+  const parts = jwt.split('.');
+  if (parts.length !== 3) return null;
+  try {
+    const binary = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+    const json = new TextDecoder().decode(Uint8Array.from(binary, (char) => char.charCodeAt(0)));
+    const sub = (JSON.parse(json) as { sub?: unknown } | null)?.sub;
+    return typeof sub === 'string' && sub !== '' && fitsUserTokenHeader(sub) ? sub : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The JWT the site handed over last, while it's stored. */
+export function getUserJwt(): string | null {
+  const jwt = getKeyFromLocalStore(userJwtLocalStoreName);
+  return typeof jwt === 'string' && jwt !== '' ? jwt : null;
+}
+
+export function storeUserJwt(jwt: string): void {
+  // As long as a user token is kept by default. Gist enforces the JWT's own expiry.
+  const expiryDate = new Date();
+  expiryDate.setDate(expiryDate.getDate() + defaultExpiryInDays);
+  setKeyToLocalStore(userJwtLocalStoreName, jwt, expiryDate);
+}
+
+export function clearUserJwt(): void {
+  clearKeyFromLocalStore(userJwtLocalStoreName);
+}
+
+function getUserJwtSubject(): string | null {
+  const jwt = getUserJwt();
+  return jwt === null ? null : readUserJwtSubject(jwt);
+}
+
+/** Whether the stored JWT names a person, who is then the user. */
+export function isUserNamedByJwt(): boolean {
+  return getUserJwtSubject() !== null;
+}
+
+function getStoredUserToken(): string | null {
   return getKeyFromLocalStore(userTokenLocalStoreName) as string | null;
 }
 
-export function setUserToken(userToken: string, expiryDate?: Date): void {
+function isGuestSessionStored(): boolean {
+  return getKeyFromLocalStore(usingGuestUserTokenLocalStoreName) !== null;
+}
+
+export function isUsingGuestUserToken(): boolean {
+  return !isUserNamedByJwt() && isGuestSessionStored();
+}
+
+/**
+ * The user gist-web acts for, files what it caches under and sends as the user
+ * token: the person the stored JWT names, or else the token setUserToken stored.
+ * The JWT and the user token come from one stored value, so they name the same
+ * person in every tab.
+ */
+export function getUserToken(): string | null {
+  return getUserJwtSubject() ?? getStoredUserToken();
+}
+
+/**
+ * Stores the token and returns whether that changed the stored user: a sign-in
+ * from no token or the guest token, or a switch from another token. While a JWT
+ * names the user, the stored token only waits for the JWT to go (see gist.ts).
+ */
+export function setUserToken(userToken: string, expiryDate?: Date): boolean {
+  const previousUserToken = getStoredUserToken();
+  const wasUsingGuestUserToken = isGuestSessionStored();
   if (expiryDate === undefined) {
     expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + defaultExpiryInDays);
   }
   setKeyToLocalStore(userTokenLocalStoreName, userToken, expiryDate);
 
-  if (isUsingGuestUserToken()) {
+  if (wasUsingGuestUserToken) {
     // Removing pull check time key so that we check the queue immediately after the userToken is set.
     clearKeyFromLocalStore(userQueueNextPullCheckLocalStoreName);
     clearKeyFromLocalStore(usingGuestUserTokenLocalStoreName);
   }
   log(`Set user token "${userToken}" with expiry date set to ${expiryDate}`);
+
+  return wasUsingGuestUserToken || previousUserToken !== userToken;
 }
 
 export function useGuestSession(): void {
-  // Guest sessions should never override existing sessions
-  if (getUserToken() === null) {
+  // Guest sessions never override a stored token. A JWT that names the user
+  // doesn't stop one: the guest token waits under it, for when the JWT goes.
+  if (getStoredUserToken() === null) {
     let guestUserToken = getKeyFromLocalStore(guestUserTokenLocalStoreName) as string | null;
     if (guestUserToken == null) {
       guestUserToken = uuidv4();
@@ -73,6 +156,7 @@ export function getEncodedUserToken(): string | null {
 
 export function clearUserToken(): void {
   clearKeyFromLocalStore(userTokenLocalStoreName);
+  clearUserJwt();
   log(`Cleared user token`);
 }
 

@@ -13,17 +13,36 @@ import { resolveMessageProperties } from './gist-properties-manager';
 import { applyDisplaySettings } from '../utilities/message-utils';
 import { findElement, waitForElement } from '../utilities/dom';
 import { settings } from '../services/settings';
+import { getUserQueue } from '../services/queue-service';
+import { getKeyFromLocalStore } from '../utilities/local-storage';
+import {
+  applyUserTokenChange,
+  getRequestIdentity,
+  handleUserJwtRejection,
+  markQueueFetchSent,
+  setUserJwt,
+} from './user-jwt-manager';
 import Gist from '../gist';
 import type { GistMessage } from '../types';
 
 vi.mock('../utilities/log', () => ({ log: vi.fn() }));
+const storedUserJwt = vi.hoisted(() => ({ value: null as string | null }));
 vi.mock('./user-manager', () => ({
   getUserToken: vi.fn(() => 'test-token'),
+  isUsingGuestUserToken: vi.fn(() => false),
   isAnonymousUser: vi.fn(() => false),
+  getUserJwt: vi.fn(() => storedUserJwt.value),
+  storeUserJwt: vi.fn((jwt: string) => {
+    storedUserJwt.value = jwt;
+  }),
+  clearUserJwt: vi.fn(() => {
+    storedUserJwt.value = null;
+  }),
 }));
 vi.mock('../services/queue-service', () => ({
   getUserQueue: vi.fn(),
   getQueueSSEEndpoint: vi.fn(() => null),
+  getPollingIntervalSeconds: vi.fn(() => 10),
   userQueueNextPullCheckLocalStoreName: 'gist.web.userQueueNextPullCheck',
 }));
 vi.mock('./message-manager', () => ({
@@ -53,6 +72,7 @@ vi.mock('./gist-properties-manager', () => ({
 vi.mock('../utilities/local-storage', () => ({
   clearKeyFromLocalStore: vi.fn(),
   getKeyFromLocalStore: vi.fn(() => null),
+  setKeyToLocalStore: vi.fn(),
 }));
 vi.mock('./message-broadcast-manager', () => ({
   updateBroadcastsLocalStore: vi.fn(),
@@ -1182,6 +1202,66 @@ describe('queue-manager', () => {
         expect(waitForElement).not.toHaveBeenCalled();
         expect(showMessage).toHaveBeenCalledWith(message);
       });
+    });
+  });
+  describe('queue fetches and the user JWT', () => {
+    const rejection = { status: 401, headers: {}, data: { reason: 'expired' } };
+
+    function rejectCurrentJwt(): void {
+      handleUserJwtRejection(rejection, getRequestIdentity());
+    }
+
+    beforeEach(() => {
+      applyUserTokenChange();
+      markQueueFetchSent();
+      (Gist as unknown as Record<string, unknown>).config = {};
+      vi.mocked(settings.hasActiveSSEConnection).mockReturnValue(false);
+      vi.mocked(settings.useSSE).mockReturnValue(false);
+    });
+
+    afterEach(() => {
+      vi.mocked(getKeyFromLocalStore).mockImplementation(() => null);
+    });
+
+    it('a tab paused by a rejection fetches nothing, though the shared schedule is due', async () => {
+      setUserJwt('jwt-a');
+      markQueueFetchSent();
+      rejectCurrentJwt();
+
+      await pullMessagesFromQueue();
+
+      expect(getUserQueue).not.toHaveBeenCalled();
+    });
+
+    it('fetches for setUserJwt even when the shared schedule says later', async () => {
+      vi.mocked(getKeyFromLocalStore).mockImplementation(() => 30);
+      setUserJwt('jwt-a');
+
+      await pullMessagesFromQueue();
+
+      expect(getUserQueue).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves the shared schedule in charge when nothing asked for a fetch', async () => {
+      vi.mocked(getKeyFromLocalStore).mockImplementation(() => 30);
+
+      await pullMessagesFromQueue();
+
+      expect(getUserQueue).not.toHaveBeenCalled();
+    });
+
+    it('after a rejection, holds a second fetch for a new JWT until the polling interval has passed', async () => {
+      setUserJwt('jwt-a');
+      markQueueFetchSent();
+      rejectCurrentJwt();
+      setUserJwt('jwt-b');
+      markQueueFetchSent();
+      rejectCurrentJwt();
+      setUserJwt('jwt-c');
+
+      await pullMessagesFromQueue();
+
+      expect(getUserQueue).not.toHaveBeenCalled();
     });
   });
 });

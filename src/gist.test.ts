@@ -12,8 +12,14 @@ vi.mock('./utilities/event-emitter', () => {
     },
   };
 });
+// Storage the JWT module really uses, so the JWT tests below see what it stored.
+const storedItems = vi.hoisted(() => new Map<string, unknown>());
 vi.mock('./utilities/local-storage', () => ({
   clearExpiredFromLocalStore: vi.fn(),
+  isSessionBeingPersisted: vi.fn(() => true),
+  getKeyFromLocalStore: vi.fn((key: string) => storedItems.get(key) ?? null),
+  setKeyToLocalStore: vi.fn((key: string, value: unknown) => storedItems.set(key, value)),
+  clearKeyFromLocalStore: vi.fn((key: string) => storedItems.delete(key)),
 }));
 vi.mock('./managers/queue-manager', () => ({
   startQueueListener: vi.fn(() => Promise.resolve()),
@@ -24,7 +30,14 @@ vi.mock('./managers/queue-manager', () => ({
 vi.mock('./managers/user-manager', () => ({
   setUserToken: vi.fn(),
   clearUserToken: vi.fn(),
+  getUserToken: vi.fn(() => null),
+  isUsingGuestUserToken: vi.fn(() => false),
   useGuestSession: vi.fn(),
+  // Any stored JWT names someone here: these tests follow only whether one is stored.
+  isUserNamedByJwt: vi.fn(() => storedItems.has('gist.web.userJwt')),
+  getUserJwt: vi.fn(() => (storedItems.get('gist.web.userJwt') as string | undefined) ?? null),
+  storeUserJwt: vi.fn((jwt: string) => storedItems.set('gist.web.userJwt', jwt)),
+  clearUserJwt: vi.fn(() => storedItems.delete('gist.web.userJwt')),
 }));
 vi.mock('./managers/message-manager', () => ({
   showMessage: vi.fn(),
@@ -72,14 +85,21 @@ vi.mock('./managers/embed-manager', () => ({
 }));
 
 import Gist from './gist';
-import { clearExpiredFromLocalStore } from './utilities/local-storage';
+import { clearExpiredFromLocalStore, isSessionBeingPersisted } from './utilities/local-storage';
 import {
   startQueueListener,
   checkMessageQueue,
   checkCurrentMessagesAfterRouteChange,
   stopSSEListener,
 } from './managers/queue-manager';
-import { setUserToken, clearUserToken, useGuestSession } from './managers/user-manager';
+import {
+  setUserToken,
+  clearUserToken,
+  useGuestSession,
+  getUserToken,
+  getUserJwt,
+  isUserNamedByJwt,
+} from './managers/user-manager';
 import {
   showMessage,
   embedMessage,
@@ -115,6 +135,7 @@ import {
   readEmbedPayloads,
   clearEmbedState,
 } from './managers/embed-manager';
+import { applyUserTokenChange } from './managers/user-jwt-manager';
 
 function resetGist() {
   Gist.initialized = false;
@@ -137,6 +158,7 @@ function baseConfig(overrides: Partial<GistConfig> = {}): GistConfig {
 describe('Gist', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    storedItems.clear();
     vi.mocked(setupPreview).mockReturnValue(false);
     vi.mocked(startQueueListener).mockResolvedValue();
     vi.mocked(checkMessageQueue).mockResolvedValue();
@@ -392,6 +414,131 @@ describe('Gist', () => {
 
       expect(clearUserToken).toHaveBeenCalled();
       expect(useGuestSession).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('setUserJwt', () => {
+    beforeEach(() => {
+      // The JWT module keeps this tab's state between tests: start each one signed out.
+      applyUserTokenChange();
+      vi.mocked(getUserToken).mockImplementation(() => null);
+    });
+
+    it('is callable before setup() without throwing, and leaves the queue to setup()', async () => {
+      await expect(Gist.setUserJwt('jwt-a')).resolves.toBeUndefined();
+      expect(getUserJwt()).toBe('jwt-a');
+      expect(startQueueListener).not.toHaveBeenCalled();
+    });
+
+    it("ignores a JWT handed over before setup() on a preview's later pages", async () => {
+      vi.mocked(isSessionBeingPersisted).mockReturnValueOnce(false);
+
+      await Gist.setUserJwt('jwt-a');
+
+      expect(getUserJwt()).toBeNull();
+    });
+
+    it('restarts the queue for the person a new JWT names', async () => {
+      // Each JWT names a person of its own here.
+      vi.mocked(getUserToken).mockImplementation(() => getUserJwt());
+      await Gist.setup(baseConfig());
+      vi.mocked(startQueueListener).mockClear();
+
+      await Gist.setUserJwt('jwt-a');
+
+      expect(stopSSEListener).toHaveBeenCalledWith(true);
+      expect(startQueueListener).toHaveBeenCalledTimes(1);
+    });
+
+    it('restarts nothing for a JWT that names the user already held', async () => {
+      await Gist.setup(baseConfig());
+      vi.mocked(startQueueListener).mockClear();
+
+      await Gist.setUserJwt('jwt-a');
+
+      expect(getUserJwt()).toBe('jwt-a');
+      expect(startQueueListener).not.toHaveBeenCalled();
+    });
+
+    it('ignores the JWT in a preview session and in embed-only mode', async () => {
+      vi.mocked(setupPreview).mockReturnValue(true);
+      await Gist.setup(baseConfig());
+      await Gist.setUserJwt('jwt-a');
+      expect(getUserJwt()).toBeNull();
+
+      resetGist();
+      vi.mocked(setupPreview).mockReturnValue(false);
+      await Gist.setup(baseConfig({ embedOnly: true }));
+      await Gist.setUserJwt('jwt-b');
+      expect(getUserJwt()).toBeNull();
+    });
+
+    it('keeps the user a JWT names: setUserToken only keeps its token for later', async () => {
+      await Gist.setup(baseConfig());
+      await Gist.setUserJwt('jwt-a');
+      vi.mocked(startQueueListener).mockClear();
+
+      await Gist.setUserToken('user-1');
+
+      expect(setUserToken).toHaveBeenCalledWith('user-1', undefined);
+      expect(getUserJwt()).toBe('jwt-a');
+      expect(stopSSEListener).not.toHaveBeenCalled();
+      expect(startQueueListener).not.toHaveBeenCalled();
+    });
+
+    it('keeps a JWT that names nobody when setUserToken sets the token already held', async () => {
+      await Gist.setup(baseConfig());
+      await Gist.setUserJwt('jwt-a');
+      vi.mocked(isUserNamedByJwt).mockReturnValueOnce(false);
+      vi.mocked(setUserToken).mockReturnValueOnce(false);
+
+      await Gist.setUserToken('user-1');
+
+      expect(getUserJwt()).toBe('jwt-a');
+    });
+
+    it('drops a JWT that names nobody when another user signs in', async () => {
+      await Gist.setup(baseConfig());
+      await Gist.setUserJwt('jwt-a');
+      vi.mocked(isUserNamedByJwt).mockReturnValueOnce(false);
+      vi.mocked(setUserToken).mockReturnValueOnce(true);
+
+      await Gist.setUserToken('user-2');
+
+      expect(getUserJwt()).toBeNull();
+    });
+
+    it('drops the JWT when the user signs out', async () => {
+      await Gist.setup(baseConfig());
+      await Gist.setUserJwt('jwt-a');
+
+      await Gist.clearUserToken();
+
+      expect(getUserJwt()).toBeNull();
+    });
+
+    // The JS SDK's reset() doesn't wait for clearUserToken(), so a JWT the app
+    // sets straight after it must survive the sign-out still in progress.
+    it('keeps a JWT set while clearUserToken() or a switch of user is still running', async () => {
+      await Gist.setup(baseConfig());
+      vi.mocked(startQueueListener).mockImplementation(
+        () => new Promise<void>((resolve) => setTimeout(resolve, 0))
+      );
+
+      await Gist.setUserJwt('jwt-a');
+      const signingOut = Gist.clearUserToken();
+      void Gist.setUserJwt('jwt-next');
+      await signingOut;
+      expect(getUserJwt()).toBe('jwt-next');
+
+      vi.mocked(isUserNamedByJwt).mockReturnValueOnce(false);
+      vi.mocked(setUserToken).mockReturnValueOnce(true);
+      const switching = Gist.setUserToken('user-2');
+      void Gist.setUserJwt('jwt-user-2');
+      await switching;
+      expect(getUserJwt()).toBe('jwt-user-2');
+
+      vi.mocked(startQueueListener).mockImplementation(() => Promise.resolve());
     });
   });
 

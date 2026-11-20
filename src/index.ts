@@ -44,3 +44,4 @@ export type {
   EmbedDisplayConfig,
   EmbedPayload,
 } from './types';
+export type { UserJwtRejectedEvent } from './managers/user-jwt-manager';

@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   getUserQueue,
   getQueueSSEEndpoint,
+  getPollingIntervalSeconds,
   userQueueNextPullCheckLocalStoreName,
 } from './queue-service';
 import {
@@ -9,8 +10,15 @@ import {
   setKeyToLocalStore,
   shouldPersistSession,
 } from '../utilities/local-storage';
-import { getEncodedUserToken, getUserToken } from '../managers/user-manager';
+import { getEncodedUserToken, getUserToken, getUserJwt } from '../managers/user-manager';
 import { processInboxConfig } from '../managers/inbox-config-manager';
+import Gist from '../gist';
+import {
+  applyUserTokenChange,
+  isQueuePausedByUserJwtRejection,
+  markQueueFetchSent,
+  setUserJwt,
+} from '../managers/user-jwt-manager';
 
 const mockPost = vi.fn();
 
@@ -35,10 +43,18 @@ vi.mock('./network', async (importOriginal) => {
 
 vi.mock('../utilities/log', () => ({ log: vi.fn() }));
 
+const storedUserJwt = vi.hoisted(() => ({ value: null as string | null }));
 vi.mock('../managers/user-manager', () => ({
   isUsingGuestUserToken: vi.fn(() => false),
   getEncodedUserToken: vi.fn(() => null),
   getUserToken: vi.fn(() => null),
+  getUserJwt: vi.fn(() => storedUserJwt.value),
+  storeUserJwt: vi.fn((jwt: string) => {
+    storedUserJwt.value = jwt;
+  }),
+  clearUserJwt: vi.fn(() => {
+    storedUserJwt.value = null;
+  }),
 }));
 
 vi.mock('../managers/locale-manager', () => ({
@@ -182,5 +198,69 @@ describe('queue-service', () => {
 
     const storedValue = getKeyFromLocalStore(userQueueNextPullCheckLocalStoreName);
     expect(Number(storedValue)).toBe(120);
+  });
+
+  describe('user JWT rejections', () => {
+    const dispatch = vi.fn();
+    const rejection = {
+      status: 401,
+      data: { error: 'user_jwt_rejected', reason: 'expired' },
+      headers: {},
+    };
+
+    beforeEach(() => {
+      (Gist as unknown as { events?: unknown }).events = { dispatch };
+      applyUserTokenChange();
+      markQueueFetchSent();
+    });
+
+    afterEach(() => {
+      delete (Gist as unknown as { events?: unknown }).events;
+    });
+
+    it('a rejection pauses this tab and leaves the shared schedule and polling interval alone', async () => {
+      mockPost.mockResolvedValueOnce({
+        status: 200,
+        data: {},
+        headers: { 'x-gist-queue-polling-interval': '30' },
+      });
+      await getUserQueue();
+      const schedule = localStorage.getItem(userQueueNextPullCheckLocalStoreName);
+      expect(schedule).not.toBeNull();
+      setUserJwt('jwt-a');
+      mockPost.mockRejectedValueOnce({ response: rejection });
+
+      const result = await getUserQueue();
+
+      expect(result?.status).toBe(401);
+      expect(localStorage.getItem(userQueueNextPullCheckLocalStoreName)).toBe(schedule);
+      expect(getPollingIntervalSeconds()).toBe(30);
+      expect(isQueuePausedByUserJwtRejection()).toBe(true);
+      expect(dispatch).toHaveBeenCalledWith('userJwtRejected', { reason: 'expired' });
+    });
+
+    it('discards the answer to a JWT replaced while the fetch was in flight', async () => {
+      setUserJwt('jwt-a');
+      mockPost.mockImplementationOnce(() => {
+        setUserJwt('jwt-b');
+        return Promise.reject({ response: rejection });
+      });
+
+      const result = await getUserQueue();
+
+      expect(result).toBeUndefined();
+      expect(dispatch).not.toHaveBeenCalled();
+      expect(isQueuePausedByUserJwtRejection()).toBe(false);
+      expect(getKeyFromLocalStore(userQueueNextPullCheckLocalStoreName)).toBeNull();
+
+      let sentJwt: string | null = null;
+      mockPost.mockImplementationOnce(() => {
+        sentJwt = getUserJwt();
+        return Promise.resolve({ status: 200, data: {}, headers: {} });
+      });
+      await getUserQueue();
+
+      expect(sentJwt).toBe('jwt-b');
+    });
   });
 });
