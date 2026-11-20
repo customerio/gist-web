@@ -5,7 +5,7 @@ import {
   isSessionBeingPersisted,
   clearSessionPersistenceFlag,
 } from './local-storage';
-import { clearUserToken, getUserToken } from '../managers/user-manager';
+import { clearUserJwt, clearUserToken, getUserToken } from '../managers/user-manager';
 import { initPreviewBar, setPreviewBarInitialStep } from '../managers/preview-bar-manager';
 
 export const PREVIEW_PARAM_ID = 'cioPreviewId';
@@ -16,6 +16,9 @@ export function setupPreview(): boolean {
   const cioPreviewId = params.get(PREVIEW_PARAM_ID);
   if (cioPreviewId) {
     shouldPersistSession(false);
+    // A JWT in the tab's sessionStorage names a real person, who would be the
+    // user in place of the preview token.
+    clearUserJwt();
     Gist.setUserToken(cioPreviewId);
     log(`Preview mode enabled with user token: ${cioPreviewId}`);
     initPreviewBar();

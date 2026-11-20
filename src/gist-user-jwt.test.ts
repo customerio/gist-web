@@ -141,7 +141,7 @@ describe('the user JWT, end to end', () => {
 
   it("takes the JWT before setup() and sends it, and the person it names, with setup's first queue fetch", async () => {
     const alice = jwtFor(ALICE);
-    expect(() => Gist.setUserJwt(alice)).not.toThrow();
+    await expect(Gist.setUserJwt(alice)).resolves.toBeUndefined();
 
     await setup();
 
@@ -246,6 +246,44 @@ describe('the user JWT, end to end', () => {
 
       expect(jwtSent(calls('/api/v1/messages/queue-2')[0])).toBeUndefined();
       expect(userTokenSent(calls('/api/v1/messages/queue-2')[0])).toBe('alice-id');
+    });
+
+    it('keeps a guest session waiting under a JWT handed over before setup(), for when the JWT goes', async () => {
+      localStorage.clear();
+      void Gist.setUserJwt(jwtFor(ALICE));
+      await setup({ useAnonymousSession: true });
+      await advance(100);
+      expect(userTokenSent(lastQueueCall())).toBe(ALICE);
+      expect(lastQueueCall()[1].headers['X-Gist-User-Anonymous']).toBe('false');
+
+      await Gist.setUserJwt(null);
+      await advance(1_100);
+
+      expect(lastQueueCall()[1].headers['X-Gist-User-Anonymous']).toBe('true');
+      expect(jwtSent(lastQueueCall())).toBeUndefined();
+    });
+
+    it("leaves a preview's user to the preview token on its later pages", async () => {
+      // A preview's second page: the tab already runs on sessionStorage, where an
+      // earlier page may have left a JWT.
+      const { shouldPersistSession, setKeyToLocalStore } =
+        await import('./utilities/local-storage');
+      shouldPersistSession(false);
+      setKeyToLocalStore(USER_JWT_KEY, jwtFor(BOB));
+      window.history.replaceState({}, '', '/?cioPreviewId=preview-1');
+      try {
+        await Gist.setUserJwt(jwtFor(ALICE));
+        await setup();
+        await advance(100);
+
+        expect(queueCalls().length).toBeGreaterThan(0);
+        for (const call of queueCalls()) {
+          expect(userTokenSent(call)).toBe('preview-1');
+          expect(jwtSent(call)).toBeUndefined();
+        }
+      } finally {
+        window.history.replaceState({}, '', '/');
+      }
     });
 
     it('sends a JWT that names nobody with the user token held, until another user signs in', async () => {

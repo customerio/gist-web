@@ -1,6 +1,6 @@
 import EventEmitter from './utilities/event-emitter';
 import { log } from './utilities/log';
-import { clearExpiredFromLocalStore } from './utilities/local-storage';
+import { clearExpiredFromLocalStore, isSessionBeingPersisted } from './utilities/local-storage';
 import {
   startQueueListener,
   checkMessageQueue,
@@ -207,18 +207,21 @@ export default class Gist {
   /**
    * Hands over the JWT the site's backend signed for the signed-in person. It's
    * kept in gist-web's storage, so every tab and later page load sends it with
-   * their requests to Gist until clearUserToken() or a new JWT replaces it. While
-   * its sub names a person, that person is the user: gist-web files what it
-   * caches under the sub and sends it as the user token, and setUserToken() only
-   * keeps its token for later. A JWT this page handed over before can't replace a
-   * newer one another tab stored, and null clears only the JWT this page handed
-   * over last. The queue is fetched straight away whenever the value changes, so
-   * a site can call this as often as it likes. Callable before setup(). When Gist
-   * rejects the JWT, `userJwtRejected` fires once per JWT value in each tab, and
-   * that tab's queue fetches pause until a different JWT or user.
+   * their requests to Gist, until clearUserToken(), this page's null, a new JWT
+   * or 30 days end it. While its sub names a person, that person is the user:
+   * gist-web files what it caches under the sub and sends it as the user token,
+   * and setUserToken() only keeps its token for later. A JWT this page handed
+   * over before can't replace a newer one another tab stored, and null clears
+   * only the JWT this page left in storage. The queue is fetched straight away
+   * whenever the value changes, so a site can call this as often as it likes.
+   * Callable before setup(); ignored in a preview session and in embed-only mode.
+   * When Gist rejects the JWT, `userJwtRejected` fires once per JWT value in each
+   * tab, and that tab's queue fetches pause until a different JWT or user.
    */
   static async setUserJwt(jwt: string | null): Promise<void> {
-    if (this.config?.isPreviewSession) return;
+    // A preview runs on the tab's sessionStorage from its first page on, so its
+    // later pages are known to be previews before setup() too.
+    if (this.config?.isPreviewSession || !isSessionBeingPersisted()) return;
     if (this.config?.embedOnly) {
       log('Embed-only mode, ignoring user JWT.');
       return;

@@ -27,17 +27,23 @@ export interface RequestIdentity {
 // The JWTs this page's app has handed over, and the stored JWT this page left
 // last: the one it handed over, also when it found that one stored already, or
 // none after it cleared the JWT or the user. Once another tab has changed the
-// stored JWT, this page can bring only a JWT it hasn't handed over before. So an app that still holds an older JWT can't undo
-// a newer one another tab stored, for the same person or someone else, or sign
-// the previous person back in after another tab signed them out, and its null
-// can't take the JWT away from whoever another tab signed in.
+// stored JWT, this page can bring only a JWT it hasn't handed over before. So an
+// app that still holds an older JWT can't undo a newer one another tab stored,
+// for the same person or someone else, or sign the previous person back in after
+// another tab signed them out, and its null can't take the JWT away from whoever
+// another tab signed in. Only the latest few are kept: a site renews short-lived
+// JWTs, so an older one has expired.
 const handedOverHere = new Set<string>();
+const handedOverKept = 20;
 let lastStoredHere: string | null = null;
 // After a counted rejection, no queue fetch until a different JWT or user.
 let queuePaused = false;
-// The request whose rejection paused the queue. A different JWT or user in
-// storage lifts the pause, so another tab's new JWT reaches this one too.
-let pausedFor: RequestIdentity | null = null;
+// The JWT whose rejection paused the queue; a different one in storage lifts the
+// pause, so another tab's new JWT reaches this one too.
+let pausedForUserJwt: string | null = null;
+// The user token of the request whose rejection last counted. Another tab's
+// change of user starts this tab over, as a change made here does.
+let userTokenAtRejection: string | null = null;
 // setUserJwt asked for a queue fetch that hasn't been sent yet.
 let queueFetchRequested = false;
 // From a counted rejection until a queue fetch succeeds or the user changes, the
@@ -54,9 +60,19 @@ function mayHandOver(jwt: string | null): boolean {
   return jwt !== null && !handedOverHere.has(jwt);
 }
 
+// A value a request header can't carry would make every request fail, in every
+// tab, with no rejection to tell the app.
+function canGoInAHeader(value: string): boolean {
+  for (let i = 0; i < value.length; i += 1) {
+    const code = value.charCodeAt(i);
+    if (code === 0 || code === 10 || code === 13 || code > 0xff) return false;
+  }
+  return true;
+}
+
 function startOverForNewUser(): void {
   queuePaused = false;
-  pausedFor = null;
+  pausedForUserJwt = null;
   rejectedSinceLastSuccess = false;
   lastRequestedFetchAt = null;
   rejectionsReported.clear();
@@ -69,6 +85,10 @@ function startOverForNewUser(): void {
 export function setUserJwt(jwt: string | null): boolean {
   const value = typeof jwt === 'string' ? jwt.trim() : '';
   const next = value === '' ? null : value;
+  if (next !== null && !canGoInAHeader(next)) {
+    log("User JWT ignored: a request header can't carry it.");
+    return false;
+  }
   if (!mayHandOver(next)) {
     log(
       next === null
@@ -81,6 +101,9 @@ export function setUserJwt(jwt: string | null): boolean {
   // load, and mostly finds it stored already.
   if (next !== null) {
     handedOverHere.add(next);
+    if (handedOverHere.size > handedOverKept) {
+      handedOverHere.delete(handedOverHere.values().next().value as string);
+    }
   }
   lastStoredHere = next;
   // Handing over again the JWT in use changes nothing unless a rejection paused
@@ -127,14 +150,15 @@ export function getRequestIdentity(): RequestIdentity {
 }
 
 export function isQueuePausedByUserJwtRejection(): boolean {
-  if (queuePaused && pausedFor !== null) {
-    const current = getRequestIdentity();
-    if (current.userJwt !== pausedFor.userJwt || current.userToken !== pausedFor.userToken) {
-      // Another tab handed over a new JWT, or changed the user.
-      log('User JWT or user changed in another tab, queue fetches resume.');
-      queuePaused = false;
-      pausedFor = null;
-    }
+  const current = getRequestIdentity();
+  if (rejectedSinceLastSuccess && current.userToken !== userTokenAtRejection) {
+    log('User changed in another tab, queue fetches start over.');
+    startOverForNewUser();
+  }
+  if (queuePaused && current.userJwt !== pausedForUserJwt) {
+    log('User JWT changed in another tab, queue fetches resume.');
+    queuePaused = false;
+    pausedForUserJwt = null;
   }
   return queuePaused;
 }
@@ -193,7 +217,8 @@ export function handleUserJwtRejection(
 
   // Set before dispatching, so a listener that calls setUserJwt lifts the pause.
   queuePaused = true;
-  pausedFor = sentWith;
+  pausedForUserJwt = sentWith.userJwt;
+  userTokenAtRejection = sentWith.userToken;
   rejectedSinceLastSuccess = true;
   if (rejectionsReported.has(sentWith.userJwt)) {
     log('User JWT rejected again, queue fetches stay paused.');

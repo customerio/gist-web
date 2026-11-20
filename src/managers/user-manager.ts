@@ -114,8 +114,9 @@ export function setUserToken(userToken: string, expiryDate?: Date): UserTokenCha
 }
 
 export function useGuestSession(): void {
-  // Guest sessions should never override existing sessions
-  if (getUserToken() === null) {
+  // Guest sessions never override a stored token. A JWT that names the user
+  // doesn't stop one: the guest token waits under it, for when the JWT goes.
+  if (getStoredUserToken() === null) {
     let guestUserToken = getKeyFromLocalStore(guestUserTokenLocalStoreName) as string | null;
     if (guestUserToken == null) {
       guestUserToken = uuidv4();

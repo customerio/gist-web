@@ -16,6 +16,7 @@ vi.mock('./utilities/event-emitter', () => {
 const storedItems = vi.hoisted(() => new Map<string, unknown>());
 vi.mock('./utilities/local-storage', () => ({
   clearExpiredFromLocalStore: vi.fn(),
+  isSessionBeingPersisted: vi.fn(() => true),
   getKeyFromLocalStore: vi.fn((key: string) => storedItems.get(key) ?? null),
   setKeyToLocalStore: vi.fn((key: string, value: unknown) => storedItems.set(key, value)),
   clearKeyFromLocalStore: vi.fn((key: string) => storedItems.delete(key)),
@@ -84,7 +85,7 @@ vi.mock('./managers/embed-manager', () => ({
 }));
 
 import Gist from './gist';
-import { clearExpiredFromLocalStore } from './utilities/local-storage';
+import { clearExpiredFromLocalStore, isSessionBeingPersisted } from './utilities/local-storage';
 import {
   startQueueListener,
   checkMessageQueue,
@@ -423,10 +424,18 @@ describe('Gist', () => {
       vi.mocked(getUserToken).mockImplementation(() => null);
     });
 
-    it('is callable before setup() without throwing, and leaves the queue to setup()', () => {
-      expect(() => Gist.setUserJwt('jwt-a')).not.toThrow();
+    it('is callable before setup() without throwing, and leaves the queue to setup()', async () => {
+      await expect(Gist.setUserJwt('jwt-a')).resolves.toBeUndefined();
       expect(getUserJwt()).toBe('jwt-a');
       expect(startQueueListener).not.toHaveBeenCalled();
+    });
+
+    it("ignores a JWT handed over before setup() on a preview's later pages", async () => {
+      vi.mocked(isSessionBeingPersisted).mockReturnValueOnce(false);
+
+      await Gist.setUserJwt('jwt-a');
+
+      expect(getUserJwt()).toBeNull();
     });
 
     it('restarts the queue for the person a new JWT names', async () => {

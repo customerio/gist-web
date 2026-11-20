@@ -122,6 +122,20 @@ describe('user-jwt-manager', () => {
       expect(sessionStorage.getItem(USER_JWT_KEY)).toContain(alice);
     });
 
+    it.each([
+      ['a line break', 'a.b\nc.d'],
+      ['a carriage return', 'a.b\rc.d'],
+      ['a NUL', 'a.b\0c.d'],
+      ['a character above U+00FF', 'a.b\u2713c.d'],
+    ])("ignores a JWT with %s, which a request header can't carry", (_case, value) => {
+      const alice = jwtFor('cio_a');
+      jwt.setUserJwt(alice);
+
+      expect(jwt.setUserJwt(value)).toBe(false);
+
+      expect(storedUserJwt()).toBe(alice);
+    });
+
     it('trims whitespace, which a request header cannot carry', () => {
       const alice = jwtFor('cio_a');
 
@@ -308,6 +322,34 @@ describe('user-jwt-manager', () => {
     });
   });
 
+  describe('changes of user and the pause', () => {
+    it("lifts the pause on this tab's own change of user, though its requests would look the same", () => {
+      rejectCurrent({ reason: 'missing' });
+
+      // For example clearUserToken(), and the same guest token again.
+      jwt.applyUserTokenChange('cleared');
+
+      expect(jwt.isQueuePausedByUserJwtRejection()).toBe(false);
+    });
+
+    it('starts over when another tab changes the user after rejections here', () => {
+      jwt.setUserJwt(jwtFor('cio_a'));
+      jwt.markQueueFetchSent(0);
+      rejectCurrent();
+      jwt.setUserJwt(jwtFor('cio_a'));
+      jwt.markQueueFetchSent(1_000);
+      rejectCurrent();
+      mockDispatch.mockClear();
+
+      // Another tab signs Bob in, then this page's app hands over its own JWT for Bob.
+      storeAsAnotherTab(jwtFor('cio_b'));
+      jwt.setUserJwt(jwtFor('cio_b'));
+
+      expect(jwt.isQueuePausedByUserJwtRejection()).toBe(false);
+      expect(jwt.isRequestedQueueFetchHeld(10, 1_500)).toBe(false);
+    });
+  });
+
   describe('applyUserTokenChange', () => {
     function rejectTwice(jwtValue: string): void {
       jwt.setUserJwt(jwtValue);
@@ -483,6 +525,29 @@ describe('user-jwt-manager', () => {
       localStorage.removeItem(USER_JWT_KEY);
       reloaded.setUserJwt(alice);
       expect(storedUserJwt()).toBeNull();
+    });
+
+    it('lets a page clear a JWT it found stored and handed over', async () => {
+      const alice = jwtFor('cio_a');
+      jwt.setUserJwt(alice);
+      const reloaded = await openAnotherTab();
+      reloaded.setUserJwt(alice);
+
+      reloaded.setUserJwt(null);
+
+      expect(storedUserJwt()).toBeNull();
+    });
+
+    it('remembers only the latest 20 JWTs it handed over', () => {
+      const handed = Array.from({ length: 21 }, () => jwtFor('cio_a'));
+      for (const value of handed) jwt.setUserJwt(value);
+      storeAsAnotherTab(jwtFor('cio_b'));
+
+      jwt.setUserJwt(handed[20]);
+      expect(storedUserJwt()).not.toBe(handed[20]);
+
+      jwt.setUserJwt(handed[0]);
+      expect(storedUserJwt()).toBe(handed[0]);
     });
 
     it('takes a JWT again after a reload', async () => {

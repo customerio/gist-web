@@ -234,6 +234,15 @@ describe('user-manager', () => {
       expect(getUserToken()).toBe('user-1');
     });
 
+    it('leaves room for a guest session, which waits under it', () => {
+      holding({ 'gist.web.userJwt': jwtWith({ sub: 'cio_a' }) });
+
+      useGuestSession();
+
+      expect(setKeyToLocalStore).toHaveBeenCalledWith('gist.web.userToken', 'mock-uuid-1234');
+      expect(setKeyToLocalStore).toHaveBeenCalledWith('gist.web.usingGuestUserToken', true);
+    });
+
     it('ends a guest session while it names someone', () => {
       holding({
         'gist.web.userToken': 'guest-uuid',
