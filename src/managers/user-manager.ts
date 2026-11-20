@@ -94,14 +94,11 @@ export function getUserToken(): string | null {
 }
 
 /**
- * What a setUserToken call did to the stored token: signed someone in from no
- * token or the guest token, switched from another identified user, or set the
- * token already held. While a JWT names the user, the stored token only waits
- * for the JWT to go (see gist.ts).
+ * Stores the token and returns whether that changed the stored user: a sign-in
+ * from no token or the guest token, or a switch from another token. While a JWT
+ * names the user, the stored token only waits for the JWT to go (see gist.ts).
  */
-export type UserTokenChange = 'signedIn' | 'switched' | 'unchanged';
-
-export function setUserToken(userToken: string, expiryDate?: Date): UserTokenChange {
+export function setUserToken(userToken: string, expiryDate?: Date): boolean {
   const previousUserToken = getStoredUserToken();
   const wasUsingGuestUserToken = isGuestSessionStored();
   if (expiryDate === undefined) {
@@ -117,10 +114,7 @@ export function setUserToken(userToken: string, expiryDate?: Date): UserTokenCha
   }
   log(`Set user token "${userToken}" with expiry date set to ${expiryDate}`);
 
-  if (previousUserToken === null || wasUsingGuestUserToken) {
-    return 'signedIn';
-  }
-  return previousUserToken === userToken ? 'unchanged' : 'switched';
+  return wasUsingGuestUserToken || previousUserToken !== userToken;
 }
 
 export function useGuestSession(): void {

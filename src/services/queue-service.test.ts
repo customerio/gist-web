@@ -210,7 +210,7 @@ describe('queue-service', () => {
 
     beforeEach(() => {
       (Gist as unknown as { events?: unknown }).events = { dispatch };
-      applyUserTokenChange('cleared');
+      applyUserTokenChange();
       markQueueFetchSent();
     });
 

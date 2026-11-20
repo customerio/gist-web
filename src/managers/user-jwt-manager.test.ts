@@ -238,7 +238,7 @@ describe('user-jwt-manager', () => {
 
     it('ignores the answer to a user this tab has since left', () => {
       const sentWith = jwt.getRequestIdentity();
-      jwt.applyUserTokenChange('switched');
+      jwt.applyUserTokenChange();
       holdUserToken('user-2');
 
       expect(jwt.handleUserJwtRejection(rejection(EXPIRED), sentWith)).toBe(false);
@@ -327,7 +327,7 @@ describe('user-jwt-manager', () => {
       rejectCurrent({ reason: 'missing' });
 
       // For example clearUserToken(), and the same guest token again.
-      jwt.applyUserTokenChange('cleared');
+      jwt.applyUserTokenChange();
 
       expect(jwt.isQueuePausedByUserJwtRejection()).toBe(false);
     });
@@ -380,34 +380,19 @@ describe('user-jwt-manager', () => {
       mockDispatch.mockClear();
     }
 
-    it('setting the token already held keeps the JWT, the pause and the count', () => {
+    it('drops a JWT that names nobody, lifts the pause and starts the count over', () => {
       const opaque = 'opaque-jwt';
       rejectTwice(opaque);
 
-      jwt.applyUserTokenChange('unchanged');
+      jwt.applyUserTokenChange();
 
-      expect(storedUserJwt()).toBe(opaque);
-      expect(jwt.isQueuePausedByUserJwtRejection()).toBe(true);
+      expect(storedUserJwt()).toBeNull();
+      expect(jwt.isQueuePausedByUserJwtRejection()).toBe(false);
+      expect(jwt.isRequestedQueueFetchHeld(10, 1_500)).toBe(false);
+      jwt.setUserJwt(opaque);
       rejectCurrent();
-      expect(mockDispatch).not.toHaveBeenCalled();
+      expect(mockDispatch).toHaveBeenCalledTimes(1);
     });
-
-    it.each(['signedIn', 'switched', 'cleared'] as const)(
-      '%s drops a JWT that names nobody, lifts the pause and starts the count over',
-      (change) => {
-        const opaque = 'opaque-jwt';
-        rejectTwice(opaque);
-
-        jwt.applyUserTokenChange(change);
-
-        expect(storedUserJwt()).toBeNull();
-        expect(jwt.isQueuePausedByUserJwtRejection()).toBe(false);
-        expect(jwt.isRequestedQueueFetchHeld(10, 1_500)).toBe(false);
-        jwt.setUserJwt(opaque);
-        rejectCurrent();
-        expect(mockDispatch).toHaveBeenCalledTimes(1);
-      }
-    );
   });
 
   // Every tab shares the stored JWT and the user it names; the pause is this tab's.
@@ -523,7 +508,7 @@ describe('user-jwt-manager', () => {
       jwt.setUserJwt(alice);
       expect(storedUserJwt()).toBe(alice);
 
-      jwt.applyUserTokenChange('cleared');
+      jwt.applyUserTokenChange();
       localStorage.removeItem(USER_JWT_KEY);
       jwt.setUserJwt(alice);
       expect(storedUserJwt()).toBe(alice);

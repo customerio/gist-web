@@ -1,7 +1,6 @@
 import Gist from '../gist';
 import { log } from '../utilities/log';
 import { clearUserJwt, getUserJwt, getUserToken, storeUserJwt } from './user-manager';
-import type { UserTokenChange } from './user-manager';
 import type { NetworkResponse } from '../services/network';
 
 /** What `userJwtRejected` carries. `reason` is absent when Gist's 401 has no body. */
@@ -10,7 +9,7 @@ export interface UserJwtRejectedEvent {
 }
 
 /** The user token and JWT a request to Gist was sent with. */
-export interface RequestIdentity {
+interface RequestIdentity {
   userToken: string | null;
   userJwt: string | null;
 }
@@ -132,12 +131,10 @@ export function setUserJwt(jwt: string | null): boolean {
 /**
  * Applies a change of user made with setUserToken or clearUserToken in this tab.
  * setUserToken changes the user only while no stored JWT names one (see gist.ts),
- * so a JWT still stored then names nobody, and it goes. Any change of user also
- * lifts this tab's pause and starts the one-event-per-JWT count over; setting the
- * same token changes nothing.
+ * so a JWT still stored then names nobody, and it goes. A change of user also
+ * lifts this tab's pause and starts the one-event-per-JWT count over.
  */
-export function applyUserTokenChange(change: UserTokenChange | 'cleared'): void {
-  if (change === 'unchanged') return;
+export function applyUserTokenChange(): void {
   if (getUserJwt() !== null) {
     clearUserJwt();
   }

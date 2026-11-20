@@ -199,7 +199,9 @@ export default class Gist {
       return;
     }
     // Before the first await, so this never drops a JWT the app sets right after it.
-    applyUserTokenChange(setUserToken(userToken, expiryDate));
+    if (setUserToken(userToken, expiryDate)) {
+      applyUserTokenChange();
+    }
     stopSSEListener(true);
     await startQueueListener();
   }
@@ -263,7 +265,7 @@ export default class Gist {
       return;
     }
     clearUserToken();
-    applyUserTokenChange('cleared');
+    applyUserTokenChange();
     destroyInbox();
     if (this.config.useAnonymousSession) {
       useGuestSession();

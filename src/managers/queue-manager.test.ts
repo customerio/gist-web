@@ -1212,7 +1212,7 @@ describe('queue-manager', () => {
     }
 
     beforeEach(() => {
-      applyUserTokenChange('cleared');
+      applyUserTokenChange();
       markQueueFetchSent();
       (Gist as unknown as Record<string, unknown>).config = {};
       vi.mocked(settings.hasActiveSSEConnection).mockReturnValue(false);

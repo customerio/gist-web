@@ -420,7 +420,7 @@ describe('Gist', () => {
   describe('setUserJwt', () => {
     beforeEach(() => {
       // The JWT module keeps this tab's state between tests: start each one signed out.
-      applyUserTokenChange('cleared');
+      applyUserTokenChange();
       vi.mocked(getUserToken).mockImplementation(() => null);
     });
 
@@ -486,11 +486,22 @@ describe('Gist', () => {
       expect(startQueueListener).not.toHaveBeenCalled();
     });
 
+    it('keeps a JWT that names nobody when setUserToken sets the token already held', async () => {
+      await Gist.setup(baseConfig());
+      await Gist.setUserJwt('jwt-a');
+      vi.mocked(isUserNamedByJwt).mockReturnValueOnce(false);
+      vi.mocked(setUserToken).mockReturnValueOnce(false);
+
+      await Gist.setUserToken('user-1');
+
+      expect(getUserJwt()).toBe('jwt-a');
+    });
+
     it('drops a JWT that names nobody when another user signs in', async () => {
       await Gist.setup(baseConfig());
       await Gist.setUserJwt('jwt-a');
       vi.mocked(isUserNamedByJwt).mockReturnValueOnce(false);
-      vi.mocked(setUserToken).mockReturnValueOnce('switched');
+      vi.mocked(setUserToken).mockReturnValueOnce(true);
 
       await Gist.setUserToken('user-2');
 
@@ -521,7 +532,7 @@ describe('Gist', () => {
       expect(getUserJwt()).toBe('jwt-next');
 
       vi.mocked(isUserNamedByJwt).mockReturnValueOnce(false);
-      vi.mocked(setUserToken).mockReturnValueOnce('switched');
+      vi.mocked(setUserToken).mockReturnValueOnce(true);
       const switching = Gist.setUserToken('user-2');
       void Gist.setUserJwt('jwt-user-2');
       await switching;

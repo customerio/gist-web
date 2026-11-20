@@ -154,7 +154,7 @@ describe('user-manager', () => {
     expect(hash).not.toBe(null);
   });
 
-  describe('setUserToken reports the change of user', () => {
+  describe('setUserToken reports whether the stored user changed', () => {
     function holding(userToken: string | null, guest = false): void {
       vi.mocked(getKeyFromLocalStore).mockImplementation((key: string) => {
         if (key === 'gist.web.userToken') return userToken;
@@ -163,24 +163,29 @@ describe('user-manager', () => {
       });
     }
 
-    it('signs in when no token is held', () => {
+    it('changes it when no token is held', () => {
       holding(null);
-      expect(setUserToken('user-1')).toBe('signedIn');
+      expect(setUserToken('user-1')).toBe(true);
     });
 
-    it('signs in when the guest token is held', () => {
+    it('changes it when the guest token is held', () => {
       holding('guest-uuid', true);
-      expect(setUserToken('user-1')).toBe('signedIn');
+      expect(setUserToken('user-1')).toBe(true);
+    });
+
+    it('changes it when the guest token is held, even under the same value, since requests stop being anonymous', () => {
+      holding('same-token', true);
+      expect(setUserToken('same-token')).toBe(true);
     });
 
     it('changes nothing when the same identified token is held', () => {
       holding('user-1');
-      expect(setUserToken('user-1')).toBe('unchanged');
+      expect(setUserToken('user-1')).toBe(false);
     });
 
-    it('switches when another identified token is held', () => {
+    it('changes it when another identified token is held', () => {
       holding('user-1');
-      expect(setUserToken('user-2')).toBe('switched');
+      expect(setUserToken('user-2')).toBe(true);
     });
   });
 
@@ -294,14 +299,14 @@ describe('user-manager', () => {
 
     it('leaves setUserToken reporting the change against the stored token', () => {
       holding({ 'gist.web.userToken': 'user-1', 'gist.web.userJwt': jwtWith({ sub: 'cio_a' }) });
-      expect(setUserToken('user-1')).toBe('unchanged');
+      expect(setUserToken('user-1')).toBe(false);
 
       holding({
         'gist.web.userToken': 'guest-uuid',
         'gist.web.usingGuestUserToken': true,
         'gist.web.userJwt': jwtWith({ sub: 'cio_a' }),
       });
-      expect(setUserToken('user-1')).toBe('signedIn');
+      expect(setUserToken('user-1')).toBe(true);
       expect(clearKeyFromLocalStore).toHaveBeenCalledWith('gist.web.usingGuestUserToken');
     });
   });
