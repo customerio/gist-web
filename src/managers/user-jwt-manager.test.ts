@@ -459,15 +459,49 @@ describe('user-jwt-manager', () => {
       const Gist = (await import('../gist')).default as unknown as {
         config?: { isPreviewSession?: boolean };
       };
-      currentUserToken = 'preview-session-1';
-      Gist.config = { isPreviewSession: true };
-      jwt.noteUserTokenAtStartup();
+      try {
+        // setupPreview() sets the preview token before setup marks the page as a preview.
+        currentUserToken = 'preview-session-1';
+        jwt.applyUserTokenChange('signedIn', null);
+        Gist.config = { isPreviewSession: true };
 
-      Gist.config = { isPreviewSession: false };
+        // The session ends with the tab kept open: storage holds the visitor's token again.
+        currentUserToken = 'user-1';
+        jwt.setUserJwt('jwt-1');
+
+        expect(storedUserJwt()).toEqual({ jwt: 'jwt-1', userToken: 'user-1' });
+      } finally {
+        // The mocked Gist outlives vi.resetModules(), so later tests mustn't see a preview.
+        delete Gist.config;
+      }
+    });
+
+    it("leaves another tab's JWT alone when a signed-out page hands over null", () => {
+      currentUserToken = 'guest-1';
+      currentIsGuest = true;
+      jwt.noteUserTokenAtStartup();
       currentUserToken = 'user-1';
-      jwt.setUserJwt('jwt-1');
+      currentIsGuest = false;
+      storeAsAnotherTab('jwt-1', 'user-1');
+
+      jwt.setUserJwt(null);
+      jwt.setUserJwt(null);
 
       expect(storedUserJwt()).toEqual({ jwt: 'jwt-1', userToken: 'user-1' });
+    });
+
+    it("doesn't let a signed-out page that already handed over a JWT adopt another tab's user", () => {
+      currentUserToken = 'guest-1';
+      currentIsGuest = true;
+      jwt.noteUserTokenAtStartup();
+      jwt.setUserJwt('jwt-kept-from-before');
+
+      currentUserToken = 'user-2';
+      currentIsGuest = false;
+      jwt.setUserJwt('jwt-kept-from-before');
+
+      expect(storedUserJwt()).toEqual({ jwt: 'jwt-kept-from-before', userToken: 'guest-1' });
+      expect(jwt.getUserJwt()).toBeNull();
     });
 
     it('keeps the user a setUserJwt before setup recorded, though another tab switched before setup', () => {

@@ -44,10 +44,14 @@ interface StoredUserJwt {
 // app may still act for the previous person, so its setUserJwt calls are ignored
 // until it applies a user itself or reloads.
 let userTokenAppliedHere: string | null | undefined;
-// Whether nobody was signed in when this page applied its user token: no token,
-// the guest token or a preview session. Such a page takes whoever another tab or
-// window signs in, as after a sign-in through a popup.
+// Whether nobody was signed in when this page applied its user token: no token or
+// the guest token. Such a page takes whoever another tab or window signs in, as
+// after a sign-in through a popup, on its first hand-over.
 let signedOutWhenApplied = false;
+// Whether this page has handed over a JWT since it was recorded as signed out. It
+// then adopts nobody, so a JWT its app kept from the previous person can't be
+// paired with someone who signs in elsewhere.
+let handedOverWhileSignedOut = false;
 // After a counted rejection, no queue fetch until a different JWT or a user change.
 let queuePaused = false;
 // The JWT whose rejection paused the queue; a different one in storage lifts the
@@ -90,10 +94,8 @@ export function getUserJwt(): string | null {
 
 function noteUserTokenAppliedHere(): void {
   userTokenAppliedHere = getUserToken();
-  signedOutWhenApplied =
-    userTokenAppliedHere === null ||
-    isUsingGuestUserToken() ||
-    Gist.config?.isPreviewSession === true;
+  signedOutWhenApplied = userTokenAppliedHere === null || isUsingGuestUserToken();
+  handedOverWhileSignedOut = false;
 }
 
 /** Records the user token this page starts with, unless a setUserJwt before setup already did. */
@@ -101,35 +103,45 @@ export function noteUserTokenAtStartup(): void {
   if (userTokenAppliedHere === undefined) noteUserTokenAppliedHere();
 }
 
+/**
+ * Whether this page counts as signed out: it recorded nobody, or it's a preview,
+ * which records its preview token before setup marks the page as one.
+ */
+function isSignedOutPage(): boolean {
+  return signedOutWhenApplied || Gist.config?.isPreviewSession === true;
+}
+
 /** Whether another tab replaced the user this page applied, so this page's app may be stale. */
 function isUserReplacedByAnotherTab(): boolean {
   return (
     userTokenAppliedHere !== undefined &&
-    !signedOutWhenApplied &&
+    !isSignedOutPage() &&
     getUserToken() !== userTokenAppliedHere
   );
 }
 
 /**
- * Whether this page may hand over a JWT for the user token in storage. A page whose
- * user is still signed in may. A page that was signed out takes whoever another tab
- * or window signed in meanwhile. A page whose user another tab replaced may not.
+ * Whether this page may hand over `jwt` for the user token in storage. A page whose
+ * user is still signed in may. A signed-out page takes whoever another tab or
+ * window signed in meanwhile, but only for a JWT (a null from it would clear
+ * theirs) and only on its first hand-over. A page whose user another tab replaced
+ * may not.
  */
-function mayHandOverJwt(): boolean {
+function mayHandOverJwt(jwt: string | null): boolean {
   noteUserTokenAtStartup();
   if (getUserToken() === userTokenAppliedHere) return true;
-  if (!signedOutWhenApplied) return false;
+  if (!isSignedOutPage() || jwt === null || handedOverWhileSignedOut) return false;
   noteUserTokenAppliedHere();
   return true;
 }
 
 export function setUserJwt(jwt: string | null): void {
-  if (!mayHandOverJwt()) {
+  const value = typeof jwt === 'string' ? jwt.trim() : '';
+  const next = value === '' ? null : value;
+  if (!mayHandOverJwt(next)) {
     log('User JWT ignored: another tab changed the user since this page did.');
     return;
   }
-  const value = typeof jwt === 'string' ? jwt.trim() : '';
-  const next = value === '' ? null : value;
   // The JWT already in use changes nothing unless a rejection paused the queue,
   // so a site can hand it over as often as it likes without extra fetches.
   if (next === getUserJwt() && !queuePaused) {
@@ -140,6 +152,7 @@ export function setUserJwt(jwt: string | null): void {
     clearKeyFromLocalStore(userJwtLocalStoreName);
   } else {
     storeUserJwt(next, getUserToken());
+    if (isSignedOutPage()) handedOverWhileSignedOut = true;
   }
   queuePaused = false;
   queueFetchRequested = true;
