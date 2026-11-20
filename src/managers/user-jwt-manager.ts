@@ -37,6 +37,12 @@ interface StoredUserJwt {
 
 // The rest belongs to this tab and lives in memory, so a rejection leaves other
 // tabs alone.
+// The user token this page last applied itself: through its own setUserToken,
+// clearUserToken or setup, or what storage held when it first looked. When storage
+// names someone else, another tab changed the user while this page's app may still
+// act for the previous person, so its setUserJwt calls are ignored until it applies
+// a user itself or reloads.
+let userTokenAppliedHere: string | null | undefined;
 // After a counted rejection, no queue fetch until a different JWT or a user change.
 let queuePaused = false;
 // The JWT whose rejection paused the queue; a different one in storage lifts the
@@ -77,7 +83,23 @@ export function getUserJwt(): string | null {
   return stored.userToken === getUserToken() ? stored.jwt : null;
 }
 
+function getUserTokenAppliedHere(): string | null {
+  if (userTokenAppliedHere === undefined) {
+    userTokenAppliedHere = getUserToken();
+  }
+  return userTokenAppliedHere;
+}
+
+/** Records the user token this page has just applied itself, such as a guest session. */
+export function noteUserTokenAppliedHere(): void {
+  userTokenAppliedHere = getUserToken();
+}
+
 export function setUserJwt(jwt: string | null): void {
+  if (getUserToken() !== getUserTokenAppliedHere()) {
+    log('User JWT ignored: another tab changed the user since this page did.');
+    return;
+  }
   const value = typeof jwt === 'string' ? jwt.trim() : '';
   const next = value === '' ? null : value;
   // The JWT already in use changes nothing unless a rejection paused the queue,
@@ -98,19 +120,25 @@ export function setUserJwt(jwt: string | null): void {
 
 /**
  * Applies a change of user made in this tab to the stored JWT, which every tab
- * shares. Signing in keeps a JWT handed over while nobody was signed in, because
- * an app that calls setUserJwt right after identify() reaches gist-web first; it
- * then belongs to the user who signed in. Switching to another user or signing
- * out drops it. Any change of user lifts this tab's pause and starts the
- * one-event-per-JWT count over; setting the same token changes nothing.
+ * shares. Signing in keeps a JWT handed over while nobody was signed in (no user
+ * token yet, or the guest token), because an app that calls setUserJwt right after
+ * identify() reaches gist-web first; it then belongs to the user who signed in.
+ * Switching to another user or signing out drops it. Any change of user lifts this
+ * tab's pause and starts the one-event-per-JWT count over; setting the same token
+ * changes nothing.
  */
 export function applyUserTokenChange(
   change: UserTokenChange | 'cleared',
   previousUserToken: string | null = null
 ): void {
+  noteUserTokenAppliedHere();
   if (change === 'unchanged') return;
   const stored = readStoredUserJwt();
-  if (change === 'signedIn' && stored !== null && stored.userToken === previousUserToken) {
+  if (
+    change === 'signedIn' &&
+    stored !== null &&
+    (stored.userToken === null || stored.userToken === previousUserToken)
+  ) {
     storeUserJwt(stored.jwt, getUserToken());
   } else if (stored !== null) {
     clearKeyFromLocalStore(userJwtLocalStoreName);

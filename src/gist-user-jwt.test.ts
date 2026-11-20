@@ -180,6 +180,33 @@ describe('the user JWT, end to end', () => {
       expect(jwtSent(queueCalls()[2])).toBeUndefined();
     });
 
+    it("ignores a JWT this tab's app hands over after another tab signed someone else in", async () => {
+      Gist.setUserJwt('jwt-1');
+      await setup();
+      await advance(100);
+
+      // Another tab signs user-2 in; this tab's app still acts for user-1.
+      await holdUserToken('user-2');
+      Gist.setUserJwt('jwt-1');
+      await advance(11_000);
+      expect(jwtSent(queueCalls()[queueCalls().length - 1])).toBeUndefined();
+
+      await storeJwtElsewhere('jwt-2', 'user-2');
+      await advance(11_000);
+      expect(jwtSent(queueCalls()[queueCalls().length - 1])).toBe('jwt-2');
+    });
+
+    it("ignores a page's first JWT when another tab signed someone else in after the page loaded", async () => {
+      await setup();
+      await advance(100);
+
+      await holdUserToken('user-2');
+      Gist.setUserJwt('jwt-1');
+      await advance(11_000);
+
+      expect(jwtSent(queueCalls()[queueCalls().length - 1])).toBeUndefined();
+    });
+
     it('lets a tab paused by a rejection fetch again once another tab stores a new JWT', async () => {
       Gist.setUserJwt('jwt-a');
       queueAnswers.push({ response: () => rejected('expired') });
@@ -368,6 +395,20 @@ describe('the user JWT, end to end', () => {
       expect(jwtSent(queueCalls()[0])).toBe('jwt-a');
     });
 
+    it('signing in keeps a JWT handed over before setup started a guest session', async () => {
+      localStorage.clear();
+      Gist.setUserJwt('jwt-a');
+      await setup({ useAnonymousSession: true });
+      await advance(100);
+
+      await Gist.setUserToken('user-1');
+      await advance(1_000);
+
+      const lastFetch = queueCalls()[queueCalls().length - 1];
+      expect(lastFetch[1].headers['X-Gist-User-Anonymous']).toBe('false');
+      expect(jwtSent(lastFetch)).toBe('jwt-a');
+    });
+
     it('signing in from the guest token keeps a JWT handed over just before it', async () => {
       localStorage.clear();
       await setup({ useAnonymousSession: true });
@@ -419,6 +460,19 @@ describe('the user JWT, end to end', () => {
 
       expect(queueCalls()).toHaveLength(3);
       expect(listener).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps a JWT set right after clearUserToken() without awaiting it, on a site with guest sessions', async () => {
+      await setup({ useAnonymousSession: true });
+      await advance(100);
+
+      const signingOut = Gist.clearUserToken();
+      Gist.setUserJwt('jwt-next');
+      await signingOut;
+      await Gist.setUserToken('user-2');
+      await Gist.updateInboxMessageOpenState('queue-1', true);
+
+      expect(jwtSent(calls('/api/v1/messages/queue-1')[0])).toBe('jwt-next');
     });
 
     it('keeps a JWT set right after clearUserToken() without awaiting it', async () => {

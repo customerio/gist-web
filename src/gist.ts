@@ -13,7 +13,11 @@ import {
   getUserToken,
   useGuestSession,
 } from './managers/user-manager';
-import { setUserJwt, applyUserTokenChange } from './managers/user-jwt-manager';
+import {
+  setUserJwt,
+  applyUserTokenChange,
+  noteUserTokenAppliedHere,
+} from './managers/user-jwt-manager';
 import {
   showMessage,
   embedMessage,
@@ -144,6 +148,8 @@ export default class Gist {
     ) {
       useGuestSession();
     }
+    // The user this page starts with; a setUserJwt for anyone else is ignored.
+    noteUserTokenAppliedHere();
 
     await startQueueListener();
 
@@ -244,6 +250,7 @@ export default class Gist {
     destroyInbox();
     if (this.config.useAnonymousSession) {
       useGuestSession();
+      noteUserTokenAppliedHere();
     }
     stopSSEListener(true);
     await startQueueListener();
