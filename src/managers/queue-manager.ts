@@ -4,8 +4,14 @@ import { getUserToken, isAnonymousUser } from './user-manager';
 import {
   getUserQueue,
   getQueueSSEEndpoint,
+  getPollingIntervalSeconds,
   userQueueNextPullCheckLocalStoreName,
 } from '../services/queue-service';
+import {
+  isQueuePausedByUserJwtRejection,
+  isQueueFetchRequested,
+  isRequestedQueueFetchHeld,
+} from './user-jwt-manager';
 import { showMessage, embedMessage, resetMessage } from './message-manager';
 import { resolveMessageProperties } from './gist-properties-manager';
 import { positions } from './page-component-manager';
@@ -313,10 +319,31 @@ export async function pullMessagesFromQueue(): Promise<void> {
   await checkQueueThroughPolling();
 }
 
+// Every tab shares the polling schedule through local storage. The pause after a
+// rejected JWT, and the fetch setUserJwt asks for, belong to this tab alone.
+function isQueueFetchDue(): boolean {
+  if (isQueuePausedByUserJwtRejection()) {
+    log('Queue fetches paused until a new user JWT or a change of user.');
+    return false;
+  }
+  if (isQueueFetchRequested()) {
+    if (isRequestedQueueFetchHeld(getPollingIntervalSeconds())) {
+      log('Queue fetch for the new user JWT held until a polling interval has passed.');
+      return false;
+    }
+    return true;
+  }
+  if (getKeyFromLocalStore(userQueueNextPullCheckLocalStoreName) !== null) {
+    log(`Next queue pull scheduled for later.`);
+    return false;
+  }
+  return true;
+}
+
 async function checkQueueThroughPolling(): Promise<void> {
   if (getUserToken()) {
     if (Gist.isDocumentVisible) {
-      if (getKeyFromLocalStore(userQueueNextPullCheckLocalStoreName) === null) {
+      if (isQueueFetchDue()) {
         const response = await getUserQueue();
         if (response) {
           if (response.status === 200 || response.status === 204) {
@@ -339,8 +366,6 @@ async function checkQueueThroughPolling(): Promise<void> {
         } else {
           log(`No response object returned while checking message queue.`);
         }
-      } else {
-        log(`Next queue pull scheduled for later.`);
       }
     } else {
       log(`Document not visible, skipping queue check.`);

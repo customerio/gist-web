@@ -7,6 +7,10 @@ import {
   isUsingGuestUserToken,
   getEncodedUserToken,
   getHashedUserToken,
+  readUserJwtSubject,
+  getUserJwt,
+  storeUserJwt,
+  isUserNamedByJwt,
 } from './user-manager';
 import {
   setKeyToLocalStore,
@@ -26,6 +30,19 @@ vi.mock('../services/queue-service', () => ({
 vi.mock('uuid', () => ({
   v4: vi.fn(() => 'mock-uuid-1234'),
 }));
+
+function base64url(text: string): string {
+  const bytes = new TextEncoder().encode(text);
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+// A JWT with this payload, encoded as a backend encodes one. Nothing checks the signature.
+function jwtWith(payload: unknown): string {
+  return `${base64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))}.${base64url(JSON.stringify(payload))}.signature`;
+}
 
 beforeAll(() => {
   if (!globalThis.crypto?.subtle) {
@@ -85,9 +102,10 @@ describe('user-manager', () => {
     expect(getUserToken()).toBe(null);
   });
 
-  it('clearUserToken removes the token', () => {
+  it('clearUserToken removes the token and the JWT', () => {
     clearUserToken();
     expect(clearKeyFromLocalStore).toHaveBeenCalledWith('gist.web.userToken');
+    expect(clearKeyFromLocalStore).toHaveBeenCalledWith('gist.web.userJwt');
   });
 
   it('useGuestSession creates a guest UUID token when no token exists', () => {
@@ -134,5 +152,162 @@ describe('user-manager', () => {
     const hash = await getHashedUserToken();
     expect(hash).toMatch(/^[0-9a-f]+$/);
     expect(hash).not.toBe(null);
+  });
+
+  describe('setUserToken reports whether the stored user changed', () => {
+    function holding(userToken: string | null, guest = false): void {
+      vi.mocked(getKeyFromLocalStore).mockImplementation((key: string) => {
+        if (key === 'gist.web.userToken') return userToken;
+        if (key === 'gist.web.usingGuestUserToken') return guest ? true : null;
+        return null;
+      });
+    }
+
+    it('changes it when no token is held', () => {
+      holding(null);
+      expect(setUserToken('user-1')).toBe(true);
+    });
+
+    it('changes it when the guest token is held', () => {
+      holding('guest-uuid', true);
+      expect(setUserToken('user-1')).toBe(true);
+    });
+
+    it('changes it when the guest token is held, even under the same value, since requests stop being anonymous', () => {
+      holding('same-token', true);
+      expect(setUserToken('same-token')).toBe(true);
+    });
+
+    it('changes nothing when the same identified token is held', () => {
+      holding('user-1');
+      expect(setUserToken('user-1')).toBe(false);
+    });
+
+    it('changes it when another identified token is held', () => {
+      holding('user-1');
+      expect(setUserToken('user-2')).toBe(true);
+    });
+  });
+
+  describe('readUserJwtSubject', () => {
+    it('reads the sub from a base64url payload without padding', () => {
+      const jwt = jwtWith({ sub: 'cio_ab12', name: '???~~~' });
+      const payload = jwt.split('.')[1];
+      expect(payload).toMatch(/-/);
+      expect(payload).toMatch(/_/);
+      expect(payload.length % 4).not.toBe(0);
+
+      expect(readUserJwtSubject(jwt)).toBe('cio_ab12');
+    });
+
+    it('reads a sub outside ASCII as the backend wrote it', () => {
+      expect(readUserJwtSubject(jwtWith({ sub: 'cio_ünïcødé' }))).toBe('cio_ünïcødé');
+    });
+
+    it.each([
+      ['two parts', 'abc.def'],
+      ['four parts', `${jwtWith({ sub: 'cio_1' })}.extra`],
+      ['a payload that is not base64', 'header.%%%.signature'],
+      ['a payload that is not JSON', `header.${base64url('not json')}.signature`],
+      ['no sub', jwtWith({ exp: 1 })],
+      ['a sub that is not a string', jwtWith({ sub: 42 })],
+      ['an empty sub', jwtWith({ sub: '' })],
+      ['a null payload', jwtWith(null)],
+      ['a payload that is a string', jwtWith('cio_1')],
+      ['a sub with a character above U+00FF', jwtWith({ sub: 'cio_\u2713' })],
+    ])('returns null for a JWT with %s', (_case, jwt) => {
+      expect(readUserJwtSubject(jwt)).toBeNull();
+    });
+  });
+
+  describe('the stored JWT', () => {
+    function holding(entries: Record<string, unknown>): void {
+      vi.mocked(getKeyFromLocalStore).mockImplementation((key: string) => entries[key] ?? null);
+    }
+
+    it('makes the person it names the user, over the stored token', () => {
+      holding({ 'gist.web.userToken': 'user-1', 'gist.web.userJwt': jwtWith({ sub: 'cio_a' }) });
+
+      expect(isUserNamedByJwt()).toBe(true);
+      expect(getUserToken()).toBe('cio_a');
+      expect(getEncodedUserToken()).toBe(btoa('cio_a'));
+    });
+
+    it("sends the stored token, without failing, for a sub the user-token header can't carry", () => {
+      holding({
+        'gist.web.userToken': 'user-1',
+        'gist.web.userJwt': jwtWith({ sub: 'cio_\u2713' }),
+      });
+
+      expect(getUserToken()).toBe('user-1');
+      expect(getEncodedUserToken()).toBe(btoa('user-1'));
+    });
+
+    it('leaves the stored token as the user while it names nobody', () => {
+      holding({ 'gist.web.userToken': 'user-1', 'gist.web.userJwt': 'opaque' });
+
+      expect(isUserNamedByJwt()).toBe(false);
+      expect(getUserToken()).toBe('user-1');
+    });
+
+    it('leaves room for a guest session, which waits under it', () => {
+      holding({ 'gist.web.userJwt': jwtWith({ sub: 'cio_a' }) });
+
+      useGuestSession();
+
+      expect(setKeyToLocalStore).toHaveBeenCalledWith('gist.web.userToken', 'mock-uuid-1234');
+      expect(setKeyToLocalStore).toHaveBeenCalledWith('gist.web.usingGuestUserToken', true);
+    });
+
+    it('ends a guest session while it names someone', () => {
+      holding({
+        'gist.web.userToken': 'guest-uuid',
+        'gist.web.usingGuestUserToken': true,
+        'gist.web.userJwt': jwtWith({ sub: 'cio_a' }),
+      });
+      expect(isUsingGuestUserToken()).toBe(false);
+
+      holding({
+        'gist.web.userToken': 'guest-uuid',
+        'gist.web.usingGuestUserToken': true,
+        'gist.web.userJwt': 'opaque',
+      });
+      expect(isUsingGuestUserToken()).toBe(true);
+    });
+
+    it('is read back exactly as stored, and only as a non-empty string', () => {
+      holding({ 'gist.web.userJwt': ' a.b.c ' });
+      expect(getUserJwt()).toBe(' a.b.c ');
+
+      holding({ 'gist.web.userJwt': 42 });
+      expect(getUserJwt()).toBeNull();
+
+      holding({ 'gist.web.userJwt': '' });
+      expect(getUserJwt()).toBeNull();
+    });
+
+    it('is stored under its own key for as long as a user token is', () => {
+      const before = new Date();
+      storeUserJwt('a.b.c');
+
+      const [key, value, expiryDate] = vi.mocked(setKeyToLocalStore).mock.calls[0];
+      expect([key, value]).toEqual(['gist.web.userJwt', 'a.b.c']);
+      const expected = new Date(before);
+      expected.setDate(expected.getDate() + 30);
+      expect(Math.abs((expiryDate as Date).getTime() - expected.getTime())).toBeLessThan(60_000);
+    });
+
+    it('leaves setUserToken reporting the change against the stored token', () => {
+      holding({ 'gist.web.userToken': 'user-1', 'gist.web.userJwt': jwtWith({ sub: 'cio_a' }) });
+      expect(setUserToken('user-1')).toBe(false);
+
+      holding({
+        'gist.web.userToken': 'guest-uuid',
+        'gist.web.usingGuestUserToken': true,
+        'gist.web.userJwt': jwtWith({ sub: 'cio_a' }),
+      });
+      expect(setUserToken('user-1')).toBe(true);
+      expect(clearKeyFromLocalStore).toHaveBeenCalledWith('gist.web.usingGuestUserToken');
+    });
   });
 });

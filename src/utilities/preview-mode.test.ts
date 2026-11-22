@@ -20,6 +20,7 @@ vi.mock('../managers/preview-bar-manager', () => ({
 }));
 
 vi.mock('../managers/user-manager', () => ({
+  clearUserJwt: vi.fn(),
   clearUserToken: vi.fn(),
   getUserToken: vi.fn(() => 'preview-token-123'),
 }));
@@ -27,7 +28,7 @@ vi.mock('../managers/user-manager', () => ({
 import Gist from '../gist';
 import { shouldPersistSession, isSessionBeingPersisted } from './local-storage';
 import { initPreviewBar, setPreviewBarInitialStep } from '../managers/preview-bar-manager';
-import { getUserToken } from '../managers/user-manager';
+import { clearUserJwt, getUserToken } from '../managers/user-manager';
 
 const mockSetUserToken = vi.mocked(Gist.setUserToken);
 const mockShouldPersistSession = vi.mocked(shouldPersistSession);
@@ -65,6 +66,17 @@ describe('setupPreview', () => {
     setupPreview();
 
     expect(mockSetUserToken).toHaveBeenCalledWith('my-preview-token');
+  });
+
+  it("drops a JWT stored in the tab's sessionStorage before the preview token becomes the user", () => {
+    setSearchParams('?cioPreviewId=my-preview-token');
+    mockIsSessionBeingPersisted.mockReturnValue(false);
+
+    setupPreview();
+
+    const cleared = vi.mocked(clearUserJwt).mock.invocationCallOrder[0];
+    expect(cleared).toBeGreaterThan(mockShouldPersistSession.mock.invocationCallOrder[0]);
+    expect(cleared).toBeLessThan(mockSetUserToken.mock.invocationCallOrder[0]);
   });
 
   it('switches to session storage in preview mode', () => {

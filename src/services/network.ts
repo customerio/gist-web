@@ -1,6 +1,6 @@
 import Gist from '../gist';
 import { settings } from './settings';
-import { getEncodedUserToken } from '../managers/user-manager';
+import { getEncodedUserToken, getUserJwt } from '../managers/user-manager';
 
 export interface NetworkResponse {
   status: number;
@@ -53,6 +53,11 @@ export function UserNetworkInstance(): UserNetworkRequest {
     defaultHeaders['X-Gist-Encoded-User-Token'] = userToken;
   }
 
+  const userJwt = getUserJwt();
+  if (userJwt !== null) {
+    defaultHeaders['X-CIO-User-JWT'] = userJwt;
+  }
+
   async function request(path: string, options: RequestOptions = {}): Promise<NetworkResponse> {
     const url = baseURL + path;
     const controller = new AbortController();
@@ -71,12 +76,21 @@ export function UserNetworkInstance(): UserNetworkRequest {
 
       clearTimeout(timeout);
 
-      const isJSON = response.headers.get('content-type')?.includes('application/json');
-      const data = isJSON ? await response.json() : await response.text();
-
       const headersObj = Object.fromEntries(response.headers.entries()) as Record<string, string>;
+      const isError = response.status < 200 || response.status >= 400;
 
-      if (response.status < 200 || response.status >= 400) {
+      const isJSON = response.headers.get('content-type')?.includes('application/json');
+      let data: unknown;
+      try {
+        data = isJSON ? await response.json() : await response.text();
+      } catch (bodyError) {
+        // An error keeps its status and headers when its body doesn't parse, such
+        // as Gist's 401 with a JSON content type and no body. A success can't be
+        // used without its body, so it still fails as a network error.
+        if (!isError) throw bodyError;
+      }
+
+      if (isError) {
         throw createNetworkError({
           status: response.status,
           data,
