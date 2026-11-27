@@ -69,11 +69,12 @@ export async function getUserQueue(): Promise<NetworkResponse | undefined> {
     return;
   }
 
-  // A new JWT for the same user arrived while the fetch was out. Gist marks what
-  // a 200 carries as read for this browser and answers later fetches 304, so a
-  // successful answer is the only copy of it: keep it. A rejection or an error
-  // says nothing about the new JWT: no event, pause or schedule. Either way, a
-  // fetch setUserJwt asked for still goes on the next tick.
+  // The JWT changed while the fetch was out, and the user token is the same
+  // (checked above). Gist marks what a 200 carries as read for this browser and
+  // answers later fetches 304, so a successful answer is the only copy of it:
+  // keep it. A rejection or an error says nothing about the current JWT: no
+  // event, pause or schedule. A fetch setUserJwt asked for stays requested, and
+  // goes when isQueueFetchDue next allows it.
   if (sentWith.userJwt !== getUserJwt()) {
     if (!isSuccessful(response)) {
       log('User JWT changed during the queue fetch, discarding its response.');

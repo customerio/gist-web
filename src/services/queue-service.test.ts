@@ -285,5 +285,42 @@ describe('queue-service', () => {
       // The fetch the new JWT asked for still goes.
       expect(isQueueFetchRequested()).toBe(true);
     });
+
+    it('keeps a 304 to a JWT replaced for the same user while the fetch was in flight', async () => {
+      setUserJwt('jwt-a');
+      const notModified = {
+        status: 304,
+        data: '',
+        headers: { 'x-gist-queue-polling-interval': '30' },
+      };
+      mockPost.mockImplementationOnce(() => {
+        setUserJwt('jwt-b');
+        return Promise.resolve(notModified);
+      });
+
+      expect(await getUserQueue()).toBe(notModified);
+      expect(Number(getKeyFromLocalStore(userQueueNextPullCheckLocalStoreName))).toBe(30);
+    });
+
+    it.each([
+      { label: 'a server error', failure: { response: { status: 503, data: '', headers: {} } } },
+      {
+        label: 'a network error',
+        failure: { response: { status: 0, data: 'Failed to fetch', headers: {} } },
+      },
+    ])('discards $label for a JWT replaced while the fetch was in flight', async ({ failure }) => {
+      setUserJwt('jwt-a');
+      mockPost.mockImplementationOnce(() => {
+        setUserJwt('jwt-b');
+        return Promise.reject(failure);
+      });
+
+      const result = await getUserQueue();
+
+      expect(result).toBeUndefined();
+      expect(getKeyFromLocalStore(userQueueNextPullCheckLocalStoreName)).toBeNull();
+      expect(processInboxConfig).not.toHaveBeenCalled();
+      expect(isQueueFetchRequested()).toBe(true);
+    });
   });
 });
