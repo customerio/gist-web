@@ -48,6 +48,33 @@ function ok(): Response {
   return new Response('{}', { status: 200, headers: JSON_TYPE });
 }
 
+const NEW_MESSAGE = {
+  messageId: 'message-1',
+  queueId: 'queue-new',
+  priority: 1,
+  properties: { gist: { position: 'center' } },
+};
+const NEW_INBOX_MESSAGE = { messageId: 'inbox-1', queueId: 'inbox-queue-new', opened: false };
+
+function queueWithNewMessages(): Response {
+  return new Response(
+    JSON.stringify({ inAppMessages: [NEW_MESSAGE], inboxMessages: [NEW_INBOX_MESSAGE] }),
+    {
+      status: 200,
+      headers: { ...JSON_TYPE, 'x-gist-queue-polling-interval': '10', 'x-cio-use-sse': 'False' },
+    }
+  );
+}
+
+// What Gist answers while its read flag holds this browser: no body and no
+// content type.
+function notModified(): Response {
+  return new Response(null, {
+    status: 304,
+    headers: { 'x-gist-queue-polling-interval': '10', 'x-cio-use-sse': 'False' },
+  });
+}
+
 // Queue fetches answer after 50 ms of fake time by default, so an answer lands
 // after setup() resolves, as it does over a real network. Other calls answer at
 // once, so a test can await them without advancing the clock.
@@ -132,6 +159,18 @@ function signOutElsewhere(): void {
   localStorage.removeItem(USER_JWT_KEY);
   localStorage.removeItem(USER_TOKEN_KEY);
 }
+
+// The queue IDs gist-web has stored for the current user.
+async function storedQueueIds(): Promise<{ inApp: string[]; inbox: string[] }> {
+  const { getMessagesFromLocalStore } = await import('./managers/message-user-queue-manager');
+  const { getInboxMessagesFromLocalStore } = await import('./managers/inbox-message-manager');
+  return {
+    inApp: (await getMessagesFromLocalStore()).map((message) => message.queueId ?? ''),
+    inbox: (await getInboxMessagesFromLocalStore()).map((message) => message.queueId ?? ''),
+  };
+}
+
+const shownQueueIds = () => Gist.currentMessages.map((message) => message.queueId);
 
 async function sha256Hex(text: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
@@ -588,7 +627,7 @@ describe('the user JWT, end to end', () => {
       expect(queueCalls()).toHaveLength(2);
     });
 
-    it('discards a late answer to the previous JWT and fetches with the new one on the next tick', async () => {
+    it('discards a late rejection of the previous JWT and fetches with the new one on the next tick', async () => {
       void Gist.setUserJwt(jwtFor(ALICE));
       queueAnswers.push({ response: () => rejected('expired'), latencyMs: 1_500 });
       await setup();
@@ -605,6 +644,60 @@ describe('the user JWT, end to end', () => {
       await advance(1_000);
       expect(queueCalls()).toHaveLength(2);
       expect(jwtSent(queueCalls()[1])).toBe(renewed);
+    });
+  });
+
+  // Gist marks what a 200 carries as read for this browser and answers the
+  // fetches after it with a 304, so that answer is the only copy of it.
+  describe('a new JWT for the same person while a queue fetch is out', () => {
+    it("keeps the fetch's messages and shows them, then fetches with the new JWT", async () => {
+      void Gist.setUserJwt(jwtFor(ALICE));
+      queueAnswers.push({ response: queueWithNewMessages, latencyMs: 1_500 });
+      queueAnswers.push({ response: notModified });
+      await setup();
+
+      // The site's refresh timer hands over a new token while the fetch is out.
+      await advance(500);
+      const renewed = jwtFor(ALICE);
+      void Gist.setUserJwt(renewed);
+      await advance(1_100);
+
+      expect(await storedQueueIds()).toEqual({ inApp: ['queue-new'], inbox: ['inbox-queue-new'] });
+      expect(shownQueueIds()).toEqual(['queue-new']);
+
+      await advance(1_000);
+      expect(queueCalls()).toHaveLength(2);
+      expect(jwtSent(queueCalls()[1])).toBe(renewed);
+      expect(shownQueueIds()).toEqual(['queue-new']);
+    });
+
+    it('keeps them when another tab stores a new JWT for the same person, and sets the shared schedule', async () => {
+      void Gist.setUserJwt(jwtFor(ALICE));
+      queueAnswers.push({ response: queueWithNewMessages, latencyMs: 1_500 });
+      await setup();
+
+      await advance(500);
+      await storeJwtElsewhere(jwtFor(ALICE));
+      await advance(1_100);
+
+      expect(await storedQueueIds()).toEqual({ inApp: ['queue-new'], inbox: ['inbox-queue-new'] });
+      expect(shownQueueIds()).toEqual(['queue-new']);
+      // This tab asked for no fetch, and the answer scheduled the next one 10 s out.
+      await advance(5_000);
+      expect(queueCalls()).toHaveLength(1);
+    });
+
+    it('throws the answer away when the new JWT names someone else', async () => {
+      void Gist.setUserJwt(jwtFor(ALICE));
+      queueAnswers.push({ response: queueWithNewMessages, latencyMs: 1_500 });
+      await setup();
+
+      await advance(500);
+      void Gist.setUserJwt(jwtFor(BOB));
+      await advance(1_100);
+
+      expect(await storedQueueIds()).toEqual({ inApp: [], inbox: [] });
+      expect(shownQueueIds()).toEqual([]);
     });
   });
 
