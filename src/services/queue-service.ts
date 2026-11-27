@@ -69,24 +69,34 @@ export async function getUserQueue(): Promise<NetworkResponse | undefined> {
     return;
   }
 
-  // The answer to a JWT this tab has since replaced says nothing about the new
-  // one: no event, pause or schedule. The fetch setUserJwt asked for goes on the
-  // next tick.
+  // The JWT changed while the fetch was out, and the user token is the same
+  // (checked above). Gist marks what a 200 carries as read for this browser and
+  // answers later fetches 304, so a successful answer is the only copy of it:
+  // keep it. A rejection or an error says nothing about the current JWT: no
+  // event, pause or schedule. A fetch setUserJwt asked for stays requested, and
+  // goes when isQueueFetchDue next allows it.
   if (sentWith.userJwt !== getUserJwt()) {
-    log('User JWT changed during the queue fetch, discarding its response.');
-    return;
+    if (!isSuccessful(response)) {
+      log('User JWT changed during the queue fetch, discarding its response.');
+      return;
+    }
+    log('User JWT changed during the queue fetch, keeping its response for the same user.');
   }
 
   // A rejection pauses this tab alone, so it leaves the schedule every tab shares.
   if (!handleUserJwtRejection(response, sentWith)) {
     scheduleNextQueuePull(response);
   }
-  if (response && response.status >= 200 && response.status < 400) {
+  if (isSuccessful(response)) {
     markQueueFetchSucceeded();
   }
   setQueueUseSSE(response);
   await processInboxConfig(response);
   return response;
+}
+
+function isSuccessful(response?: NetworkResponse): boolean {
+  return response !== undefined && response.status >= 200 && response.status < 400;
 }
 
 function setQueueUseSSE(response?: NetworkResponse): void {
